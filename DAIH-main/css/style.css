@@ -16238,3 +16238,16 @@ img {
         top : -21px;
     }
 }
+
+/* Hide the calendar icon inside the "Book A Space" button on mobile */
+@media (max-width: 991px) {
+  .menu_side_area .btn-main i.fa-calendar,
+  .menu_side_area .btn-main i.fa.fa-calendar {
+    display: none !important;
+  }
+
+  /* Remove any leftover spacing */
+  .menu_side_area .btn-main span {
+    margin-left: 0 !important;
+  }
+}
