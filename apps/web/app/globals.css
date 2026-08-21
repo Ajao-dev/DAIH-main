@@ -1,0 +1,50 @@
+/* DAIH Custom overrides */
+:root {
+  --primary-color: #0032d0;
+  --primary-color-rgb: 0, 50, 208;
+  --secondary-color: #220563;
+  --secondary-color-rgb: 34, 5, 99;
+}
+
+.btn-main,
+a.btn-main,
+.pricing-s1 .action a,
+.de-event-item .d-text a.btn-main,
+.btn-id,
+.bg-color-secondary {
+  background-color: #220563 !important;
+  color: #fff !important;
+}
+
+.btn-main:hover,
+a.btn-main:hover,
+.pricing-s1 .action a:hover,
+.de-event-item .d-text a.btn-main:hover {
+  background-color: #35089e !important;
+  color: #fff !important;
+}
+
+.pricing-s1 .price .currency {
+  font-size: 24px;
+  vertical-align: top;
+}
+.pricing-s1 .price .m, .pricing-s1 .price .y {
+  font-size: 36px;
+  font-weight: 700;
+}
+.pricing-s1 .price .month {
+  font-size: 14px;
+}
+.pricing-s1 .plan-tagline {
+  font-size: 13px;
+  margin-bottom: 0;
+  opacity: 0.8;
+}
+.de-flex {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.why-media img {
+  border-radius: 8px;
+}

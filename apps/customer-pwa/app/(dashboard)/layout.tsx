@@ -1,0 +1,65 @@
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Loader2 } from 'lucide-react';
+import { useAuth } from '@daih/api-client';
+import { UserRole } from '@daih/types';
+import { SidebarNav, TopAppBar } from '../../components/dashboard';
+
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const router = useRouter();
+  const { user, isLoading, isAuthenticated, logout } = useAuth();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (!isLoading) {
+      if (!isAuthenticated) {
+        router.push('/login');
+      } else if (user && user.role !== UserRole.CUSTOMER) {
+        // Automatically revoke staff sessions from customer dashboard
+        logout().then(() => router.push('/login'));
+      }
+    }
+  }, [isLoading, isAuthenticated, user, router, logout]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#f7f9ff]">
+        <Loader2 className="w-8 h-8 text-[#23055c] animate-spin" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated || !user || user.role !== UserRole.CUSTOMER) {
+    return null;
+  }
+
+  return (
+    <div className="min-h-screen bg-[#f7f9ff] text-[#181c20] font-sans antialiased flex">
+      {/* Sidebar Navigation */}
+      <SidebarNav
+        isMobileOpen={mobileMenuOpen}
+        onMobileClose={() => setMobileMenuOpen(false)}
+      />
+
+      {/* Main Content Wrapper */}
+      <div className="flex-1 md:ml-64 flex flex-col min-h-screen">
+        {/* Top App Bar */}
+        <TopAppBar
+          title="Executive Flux"
+          onMobileMenuToggle={() => setMobileMenuOpen((prev) => !prev)}
+        />
+
+        {/* Dashboard Main Area */}
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
+          {children}
+        </main>
+      </div>
+    </div>
+  );
+}
