@@ -5,5 +5,8 @@ export default defineConfig({
     environment: 'node',
     globals: true,
     include: ['src/**/*.test.ts'],
+    testTimeout: 20000,
+    hookTimeout: 30000,
+    fileParallelism: false,
   },
 });

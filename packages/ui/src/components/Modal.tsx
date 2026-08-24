@@ -36,31 +36,31 @@ export const Modal: React.FC<ModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
       <div
-        className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity"
+        className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity"
         onClick={onClose}
       />
       <div
         className={cn(
-          'relative w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl transition-all z-10',
+          'relative w-full max-w-lg max-h-[90vh] flex flex-col rounded-2xl bg-white shadow-2xl transition-all z-10 overflow-hidden',
           className
         )}
       >
-        <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+        <div className="flex items-center justify-between p-6 pb-4 border-b border-slate-100 shrink-0 bg-white">
           {title ? (
-            <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
+            <h3 className="text-lg font-bold text-slate-900">{title}</h3>
           ) : (
             <div />
           )}
           <button
             onClick={onClose}
-            className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+            className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition cursor-pointer"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
-        <div className="pt-4">{children}</div>
+        <div className="p-6 pt-4 overflow-y-auto flex-1">{children}</div>
       </div>
     </div>
   );

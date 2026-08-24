@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { UserProfile } from '@daih/types';
-import { api, DaihApiClient, ApiError } from './client';
+import { api, DaihApiClient } from './client';
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -37,36 +37,79 @@ export function AuthProvider({
   children: React.ReactNode;
   apiClient?: DaihApiClient;
 }) {
-  const [user, setUser] = useState<UserProfile | null>(null);
+  const [user, setUser] = useState<UserProfile | null>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('daih_user_profile');
+        if (cached) return JSON.parse(cached);
+      } catch {}
+    }
+    return null;
+  });
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const inFlightRefreshRef = React.useRef<Promise<UserProfile | null> | null>(null);
+
+  const updateUserState = useCallback((newUser: UserProfile | null) => {
+    setUser(newUser);
+    if (typeof window !== 'undefined') {
+      try {
+        if (newUser) {
+          localStorage.setItem('daih_user_profile', JSON.stringify(newUser));
+        } else {
+          localStorage.removeItem('daih_user_profile');
+        }
+      } catch {}
+    }
+  }, []);
+
+  useEffect(() => {
+    apiClient.setOnSessionExpired(() => {
+      updateUserState(null);
+      setAccessToken(null);
+      if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+        window.location.href = '/login';
+      }
+    });
+  }, [apiClient, updateUserState]);
 
   const refreshSession = useCallback(async (): Promise<UserProfile | null> => {
-    try {
-      const res = await apiClient.auth.refresh();
-      setUser(res.user);
-      const token = res.accessToken || (res as any).token || null;
-      setAccessToken(token);
-      return res.user;
-    } catch {
-      // If refresh cookie failed, check if we have a valid stored token & fetch profile
-      try {
-        const storedToken = await apiClient.getAccessToken();
-        if (storedToken) {
-          const profile = await apiClient.auth.getProfile();
-          setUser(profile);
-          setAccessToken(storedToken);
-          return profile;
-        }
-      } catch {
-        // Stored token is invalid or expired
-      }
-
-      setUser(null);
-      setAccessToken(null);
-      return null;
+    if (inFlightRefreshRef.current) {
+      return inFlightRefreshRef.current;
     }
-  }, [apiClient]);
+
+    const promise = (async () => {
+      try {
+        const res = await apiClient.auth.refresh();
+        updateUserState(res.user);
+        const token = res.accessToken || (res as any).token || null;
+        setAccessToken(token);
+        return res.user;
+      } catch {
+        // If refresh cookie failed, check if we have a valid stored token & fetch profile
+        try {
+          const storedToken = await apiClient.getAccessToken();
+          if (storedToken) {
+            const profile = await apiClient.auth.getProfile();
+            updateUserState(profile);
+            setAccessToken(storedToken);
+            return profile;
+          }
+        } catch {
+          // Stored token is invalid or expired
+        }
+
+        updateUserState(null);
+        setAccessToken(null);
+        return null;
+      } finally {
+        inFlightRefreshRef.current = null;
+      }
+    })();
+
+    inFlightRefreshRef.current = promise;
+    return promise;
+  }, [apiClient, updateUserState]);
 
   // Initial session restoration on load
   useEffect(() => {
@@ -94,7 +137,7 @@ export function AuthProvider({
     setIsLoading(true);
     try {
       const res = await apiClient.auth.login(credentials);
-      setUser(res.user);
+      updateUserState(res.user);
       const token = res.accessToken || (res as any).token || null;
       setAccessToken(token);
       return res.user;
@@ -125,7 +168,7 @@ export function AuthProvider({
     try {
       await apiClient.auth.logout();
     } finally {
-      setUser(null);
+      updateUserState(null);
       setAccessToken(null);
       setIsLoading(false);
     }

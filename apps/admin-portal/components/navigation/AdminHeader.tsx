@@ -20,6 +20,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
 
   const getPageInfo = (path: string): { title: string; category: string } => {
     if (path === '/') return { title: 'Operations Dashboard', category: 'Overview' };
+    if (path.startsWith('/bookings')) return { title: 'Booking Engine & Reservations', category: 'Operations' };
     if (path.startsWith('/operations')) return { title: 'Hub Operations & Resources', category: 'Operations' };
     if (path.startsWith('/customers')) return { title: 'Member Directory & Customers', category: 'Operations' };
     if (path.startsWith('/finance')) return { title: 'Finance & Payment Reconciliation', category: 'Finance' };

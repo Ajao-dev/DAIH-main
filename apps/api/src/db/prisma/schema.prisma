@@ -19,10 +19,13 @@ enum UserRole {
 
 enum ResourceCategory {
   HOT_DESK
+  FLEX_DESK
   DEDICATED_DESK
   OFFICE_SUITE
   CONFERENCE_HALL
   TRAINING_ROOM
+  ROOFTOP_LOUNGE
+  STUDIO
 }
 
 enum BookingState {
@@ -179,11 +182,15 @@ model FacilityResource {
   location      String
   amenities     String[]
   imageUrl      String?
+  sortOrder     Int              @default(0)
+  isPopular     Boolean          @default(false)
   isActive      Boolean          @default(true)
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
 
   pricing       ResourcePricing[]
+  schedules     ResourceSchedule[]
+  blackouts     ResourceBlackout[]
   bookings      Booking[]
 
   @@map("facility_resources")
@@ -200,10 +207,50 @@ model ResourcePricing {
   currency        String           @default("NGN")
   isPopular       Boolean          @default(false)
   isActive        Boolean          @default(true)
+  isNightPlan     Boolean          @default(false)
+  operatingHours  String?
+  effectiveFrom   DateTime         @default(now())
+  effectiveTo     DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 
   resource        FacilityResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
 
   @@map("resource_pricing")
+}
+
+model ResourceSchedule {
+  id          String           @id @default(uuid())
+  resourceId  String
+  dayOfWeek   Int              // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+  openTime    String           @default("08:00")
+  closeTime   String           @default("20:00")
+  is24Hours   Boolean          @default(false)
+  isClosed    Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  resource    FacilityResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  @@unique([resourceId, dayOfWeek])
+  @@map("resource_schedules")
+}
+
+model ResourceBlackout {
+  id              String           @id @default(uuid())
+  resourceId      String
+  startDate       DateTime
+  endDate         DateTime
+  reason          String
+  isActive        Boolean          @default(true)
+  createdByUserId String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  resource        FacilityResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  @@index([resourceId, startDate, endDate])
+  @@map("resource_blackouts")
 }
 
 model Booking {

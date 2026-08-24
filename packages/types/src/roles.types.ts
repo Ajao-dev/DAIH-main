@@ -46,6 +46,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     Permission.BOOKINGS_OVERRIDE,
     Permission.RESOURCES_MANAGE,
     Permission.REPORTS_VIEW,
+    Permission.USERS_MANAGE,
   ],
   [UserRole.FINANCE_OFFICER]: [
     Permission.BOOKINGS_READ_ALL,

@@ -36,7 +36,7 @@ export const config = {
     domain: process.env.COOKIE_DOMAIN || undefined,
     secure: process.env.NODE_ENV === 'production',
     sameSite: (process.env.COOKIE_SAME_SITE as 'lax' | 'strict' | 'none') || 'lax',
-    path: '/api/v1/identity',
+    path: '/',
   },
   superAdmin: {
     email: process.env.SUPER_ADMIN_EMAIL || 'admin@daih.ng',

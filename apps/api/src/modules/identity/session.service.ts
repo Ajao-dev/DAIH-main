@@ -80,12 +80,47 @@ export class SessionService {
       throw new Error('INVALID_REFRESH_TOKEN');
     }
 
-    // Token reuse detection: If session was already revoked, someone is reusing an old token!
+    // If session is already marked revoked, verify if it was revoked within the grace window (15s)
     if (session.isRevoked) {
+      const now = Date.now();
+      const lastUsed = session.lastUsedAt ? new Date(session.lastUsedAt).getTime() : 0;
+      const gracePeriodMs = 15000; // 15 seconds grace window for concurrent requests
+
+      if (now - lastUsed <= gracePeriodMs) {
+        // Issue new access token for the active user without creating duplicate chain
+        const userSummary: UserSummaryDTO = {
+          id: session.user.id,
+          email: session.user.email,
+          firstName: session.user.firstName,
+          lastName: session.user.lastName,
+          phoneNumber: session.user.phoneNumber,
+          clientId: session.user.clientId,
+          role: session.user.role as UserRole,
+          isVerified: session.user.isVerified,
+          createdAt: session.user.createdAt,
+        };
+
+        const accessToken = this.generateAccessToken({
+          id: userSummary.id,
+          email: userSummary.email,
+          role: userSummary.role,
+          clientId: userSummary.clientId,
+          sessionId: session.id,
+        });
+
+        return {
+          accessToken,
+          rawRefreshToken,
+          user: userSummary,
+        };
+      }
+
+      // Beyond grace period -> Revoke entire token family to prevent replay attacks
       await prisma.authSession.updateMany({
         where: { tokenFamily: session.tokenFamily },
         data: { isRevoked: true },
       });
+
       throw new Error('REFRESH_TOKEN_REUSE_DETECTED');
     }
 
@@ -98,20 +133,21 @@ export class SessionService {
       throw new Error('SESSION_EXPIRED');
     }
 
-    // Revoke the old session
-    await prisma.authSession.update({
-      where: { id: session.id },
-      data: { isRevoked: true, lastUsedAt: new Date() },
-    });
-
-    // Issue a new refresh token within the same token family
+    // Generate rotated refresh token
     const nextRawRefreshToken = passwordService.generateSecureToken(32);
     const nextRefreshTokenHash = passwordService.hashToken(nextRawRefreshToken);
 
     const nextExpiresAt = new Date();
     nextExpiresAt.setDate(nextExpiresAt.getDate() + config.jwt.refreshExpiresInDays);
 
-    const nextSession = await prisma.authSession.create({
+    // Revoke previous session
+    await prisma.authSession.update({
+      where: { id: session.id },
+      data: { isRevoked: true },
+    });
+
+    // Create next session in the same token family
+    const newSession = await prisma.authSession.create({
       data: {
         userId: session.userId,
         refreshTokenHash: nextRefreshTokenHash,
@@ -121,18 +157,19 @@ export class SessionService {
         expiresAt: nextExpiresAt,
         lastUsedAt: new Date(),
       },
+      include: { user: true },
     });
 
     const userSummary: UserSummaryDTO = {
-      id: session.user.id,
-      email: session.user.email,
-      firstName: session.user.firstName,
-      lastName: session.user.lastName,
-      phoneNumber: session.user.phoneNumber,
-      clientId: session.user.clientId,
-      role: session.user.role as UserRole,
-      isVerified: session.user.isVerified,
-      createdAt: session.user.createdAt,
+      id: (newSession as any).user?.id || session.user.id,
+      email: (newSession as any).user?.email || session.user.email,
+      firstName: (newSession as any).user?.firstName || session.user.firstName,
+      lastName: (newSession as any).user?.lastName || session.user.lastName,
+      phoneNumber: (newSession as any).user?.phoneNumber || session.user.phoneNumber,
+      clientId: (newSession as any).user?.clientId || session.user.clientId,
+      role: ((newSession as any).user?.role || session.user.role) as UserRole,
+      isVerified: (newSession as any).user?.isVerified ?? session.user.isVerified,
+      createdAt: (newSession as any).user?.createdAt || session.user.createdAt,
     };
 
     const accessToken = this.generateAccessToken({
@@ -140,7 +177,7 @@ export class SessionService {
       email: userSummary.email,
       role: userSummary.role,
       clientId: userSummary.clientId,
-      sessionId: nextSession.id,
+      sessionId: newSession.id,
     });
 
     return {

@@ -152,7 +152,7 @@ header.smaller.scroll-light{
 }
 
 /* ----------------------------
-   “Spaces Available” grid improvements
+   Ã¢â‚¬Å“Spaces AvailableÃ¢â‚¬Â grid improvements
 ----------------------------- */
 #section-result .spacer-40{ height: 24px; } /* tighten */
 
@@ -209,7 +209,7 @@ header.smaller.scroll-light{
   opacity: .95;
 }
 .ul-style-3 li:after{
-  content: "•";
+  content: "Ã¢â‚¬Â¢";
   margin: 0 8px;
   opacity: .55;
 }

@@ -351,7 +351,7 @@ describe('Milestone 1.1: Identity, RBAC & Session Module', () => {
       const passwordHash = await passwordService.hashPassword('Password123!');
       const store = (prisma as any).__store;
       const user = {
-        id: 'usr_verified_1',
+        id: `usr_refresh_test_${Date.now()}`,
         email: 'refresh_test@example.com',
         firstName: 'Refresh',
         lastName: 'Test',

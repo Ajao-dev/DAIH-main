@@ -14,7 +14,7 @@ function getSensitiveEnvValues(): string[] {
   ]);
 
   for (const [key, val] of Object.entries(process.env)) {
-    if (typeof val === 'string' && val.trim().length >= 4) {
+    if (SENSITIVE_KEY_REGEX.test(key) && typeof val === 'string' && val.trim().length >= 4) {
       const trimmed = val.trim();
       if (!ignored.has(trimmed.toLowerCase())) {
         values.add(trimmed);
@@ -26,7 +26,7 @@ function getSensitiveEnvValues(): string[] {
   return Array.from(values).sort((a, b) => b.length - a.length);
 }
 
-const SENSITIVE_KEY_REGEX = /password|secret|token|authorization|cookie|apikey|api_key|databaseurl|redisurl|privatekey|jwt/i;
+const SENSITIVE_KEY_REGEX = /password|secret|token|authorization|cookie|apikey|api_key|databaseurl|redisurl|privatekey|jwt|key|dsn|uri|connection/i;
 
 // Match URI schemes (postgresql, postgres, mysql, redis, http, https with credentials or hosts)
 const URI_REGEX = /(?:postgresql|postgres|mysql|mongodb|redis|rediss|amqp|amqps):\/\/[^\s"']+/gi;

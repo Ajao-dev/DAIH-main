@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { Permission } from '@daih/types';
 import { identityController } from './identity.controller.js';
 import { authenticate } from '../../middleware/auth.middleware.js';
-import { requirePermission } from '../../middleware/rbac.middleware.js';
+import { requirePermission, requireStaff } from '../../middleware/rbac.middleware.js';
 import { validateBody, validateQuery } from '../../middleware/validate.middleware.js';
 import {
   loginRateLimiter,
@@ -19,6 +19,8 @@ import {
   requestPasswordResetSchema,
   confirmPasswordResetSchema,
   createStaffUserSchema,
+  customerFilterSchema,
+  createCustomerAdminSchema,
 } from './identity.schema.js';
 
 export const identityRouter = Router();
@@ -82,7 +84,7 @@ identityRouter.get(
   identityController.getProfile
 );
 
-// Super Admin / Management Protected Endpoints
+// Staff Users Management Endpoints (Super Admin / Management Protected)
 identityRouter.get(
   '/admin/users',
   authenticate,
@@ -98,3 +100,19 @@ identityRouter.post(
   identityController.createStaffUser
 );
 
+// Customer / Member Directory Management Endpoints (Accessible to all authenticated staff)
+identityRouter.get(
+  '/admin/customers',
+  authenticate,
+  requireStaff(),
+  validateQuery(customerFilterSchema),
+  identityController.getCustomers
+);
+
+identityRouter.post(
+  '/admin/customers',
+  authenticate,
+  requireStaff(),
+  validateBody(createCustomerAdminSchema),
+  identityController.createCustomer
+);

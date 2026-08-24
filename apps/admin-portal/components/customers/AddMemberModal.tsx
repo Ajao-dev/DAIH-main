@@ -3,11 +3,13 @@
 import React, { useState } from 'react';
 import { X, UserPlus, Mail, Phone, Lock, Loader2 } from 'lucide-react';
 import { useToast } from '@daih/ui';
+import { api } from '@daih/api-client';
+import { CustomerRecord } from '@daih/types';
 
 export interface AddMemberModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onMemberAdded?: (newMember: any) => void;
+  onMemberAdded?: (newMember: CustomerRecord) => void;
 }
 
 export const AddMemberModal: React.FC<AddMemberModalProps> = ({
@@ -40,19 +42,14 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
 
     setIsLoading(true);
 
-    // Simulate creation
-    setTimeout(() => {
-      setIsLoading(false);
-      const newMember = {
-        id: `DAIH-2026-${Math.floor(1000 + Math.random() * 9000)}`,
-        name: `${firstName.trim()} ${lastName.trim()}`,
+    try {
+      const newMember = await api.customers.createCustomer({
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
         email: email.trim().toLowerCase(),
-        phone: phoneNumber.trim() || '+234 800 000 0000',
+        phoneNumber: phoneNumber.trim() || undefined,
         tier,
-        status: 'Active' as const,
-        lastVisit: 'Just now',
-        joinedDate: 'Today',
-      };
+      });
 
       if (onMemberAdded) {
         onMemberAdded(newMember);
@@ -61,8 +58,19 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
       toast.success(`Member ${newMember.name} added with Client ID ${newMember.id}`, {
         title: 'Member Added',
       });
+
+      setFirstName('');
+      setLastName('');
+      setEmail('');
+      setPhoneNumber('');
       onClose();
-    }, 500);
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to create customer record', {
+        title: 'Creation Failed',
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -76,7 +84,7 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
             </div>
             <div>
               <h2 className="text-base font-bold text-slate-900">Add New Member</h2>
-              <p className="text-xs text-slate-500">Create a community member record</p>
+              <p className="text-xs text-slate-500">Create a community member record in database</p>
             </div>
           </div>
           <button
@@ -168,7 +176,7 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
               {isLoading ? (
                 <>
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  Adding...
+                  Adding to Database...
                 </>
               ) : (
                 'Add Member'

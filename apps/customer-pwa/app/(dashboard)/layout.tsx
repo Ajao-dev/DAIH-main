@@ -15,6 +15,7 @@ export default function DashboardLayout({
   const router = useRouter();
   const { user, isLoading, isAuthenticated, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   useEffect(() => {
     if (!isLoading) {
@@ -39,19 +40,26 @@ export default function DashboardLayout({
     return null;
   }
 
+  const toggleCollapse = () => setIsCollapsed((prev) => !prev);
+
   return (
     <div className="min-h-screen bg-[#f7f9ff] text-[#181c20] font-sans antialiased flex">
       {/* Sidebar Navigation */}
       <SidebarNav
         isMobileOpen={mobileMenuOpen}
         onMobileClose={() => setMobileMenuOpen(false)}
+        isCollapsed={isCollapsed}
+        onToggleCollapse={toggleCollapse}
       />
 
       {/* Main Content Wrapper */}
-      <div className="flex-1 md:ml-64 flex flex-col min-h-screen">
-        {/* Top App Bar */}
+      <div
+        className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${
+          isCollapsed ? 'md:ml-20' : 'md:ml-64'
+        }`}
+      >
+        {/* Top App Bar with DAIH logo */}
         <TopAppBar
-          title="Executive Flux"
           onMobileMenuToggle={() => setMobileMenuOpen((prev) => !prev)}
         />
 

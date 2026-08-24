@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
+  CalendarCheck,
   Layers,
   Users,
   Receipt,
@@ -43,6 +44,12 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           badge: 'Live',
         },
         {
+          name: 'Bookings',
+          href: '/bookings',
+          icon: CalendarCheck,
+          description: 'Reservations, holds & VIP overrides',
+        },
+        {
           name: 'Operations',
           href: '/operations',
           icon: Layers,
@@ -57,7 +64,6 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           href: '/customers',
           icon: Users,
           description: 'Member directory & Client IDs',
-          badge: '1.2k',
           subItems: [
             { name: 'Member Directory', href: '/customers#directory' },
             { name: 'Membership Tiers', href: '/customers#tiers' },
@@ -186,7 +192,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                             {item.badge && (
                               <span
                                 className={cn(
-                                  'text-[9px] font-extrabold px-1.5 py-0.5 rounded-md shrink-0',
+                                   'text-[9px] font-extrabold px-1.5 py-0.5 rounded-md shrink-0',
                                   isActive
                                     ? 'bg-white/25 text-white'
                                     : 'bg-purple-100 text-[#23055c]'

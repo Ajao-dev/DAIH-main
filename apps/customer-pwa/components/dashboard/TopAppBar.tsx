@@ -8,6 +8,7 @@ import {
   Bell,
   HelpCircle,
   Menu,
+  Sparkles,
 } from 'lucide-react';
 
 interface TopAppBarProps {
@@ -16,7 +17,7 @@ interface TopAppBarProps {
 }
 
 export const TopAppBar: React.FC<TopAppBarProps> = ({
-  title = 'Executive Flux',
+  title,
   onMobileMenuToggle,
 }) => {
   const { user } = useAuth();
@@ -33,9 +34,19 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
           <Menu className="w-5 h-5" />
         </button>
 
-        <h1 className="text-lg sm:text-xl font-bold tracking-tight text-[#23055c]">
-          {title}
-        </h1>
+        {/* DAIH Logo Branding */}
+        <Link href="/dashboard" className="flex items-center gap-3 group">
+          <img
+            src="/images/logo.png"
+            alt="DAIH Hub Logo"
+            className="h-8 w-auto object-contain transition-transform group-hover:scale-105"
+          />
+          {title && title !== 'Executive Flux' && (
+            <span className="text-base sm:text-lg font-bold tracking-tight text-[#23055c] border-l border-slate-200 pl-3">
+              {title}
+            </span>
+          )}
+        </Link>
       </div>
 
       <div className="flex items-center gap-3 sm:gap-6">
@@ -48,6 +59,15 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
             className="w-full pl-9 pr-4 py-1.5 bg-slate-50 border border-slate-200 rounded-full text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#23055c] focus:border-transparent transition-all"
           />
         </div>
+
+        {/* Book Space Action Slot */}
+        <Link
+          href="/book"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#23055c] hover:bg-[#35089e] text-white text-xs font-bold transition-colors shadow-xs"
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">Book Space</span>
+        </Link>
 
         {/* Action Controls */}
         <div className="flex items-center gap-2 sm:gap-3">

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@daih/api-client';
@@ -10,7 +10,7 @@ import { Mail, KeyRound, Lock, Eye, EyeOff, Loader2, ArrowRight, AlertCircle } f
 
 export const AdminLoginForm: React.FC = () => {
   const router = useRouter();
-  const { login, logout } = useAuth();
+  const { login, logout, user, isAuthenticated, isLoading: authLoading } = useAuth();
   const toast = useToast();
 
   const [email, setEmail] = useState('');
@@ -19,6 +19,13 @@ export const AdminLoginForm: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // If already authenticated with staff/admin role, automatically redirect to dashboard
+  useEffect(() => {
+    if (!authLoading && isAuthenticated && user && user.role !== UserRole.CUSTOMER) {
+      router.replace('/');
+    }
+  }, [authLoading, isAuthenticated, user, router]);
 
   const validate = (): boolean => {
     if (!email.trim()) {
@@ -55,14 +62,14 @@ export const AdminLoginForm: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const user = await login({
+      const loggedUser = await login({
         email: email.trim().toLowerCase(),
         password,
         portal: 'admin',
       });
 
       // Enforce staff/admin role access
-      if (user.role === UserRole.CUSTOMER) {
+      if (loggedUser.role === UserRole.CUSTOMER) {
         await logout();
         const msg =
           'Access Denied: Customer accounts cannot access the Staff & Admin Console. Please use the Customer PWA.';
@@ -71,10 +78,19 @@ export const AdminLoginForm: React.FC = () => {
         return;
       }
 
-      toast.success(`Welcome back, ${user.firstName}! Redirecting to console...`, {
+      toast.success(`Welcome back, ${loggedUser.firstName}! Redirecting to dashboard...`, {
         title: 'Access Granted',
       });
-      router.push('/operations');
+
+      // Direct redirection to dashboard
+      router.replace('/');
+      if (typeof window !== 'undefined') {
+        setTimeout(() => {
+          if (window.location.pathname === '/login') {
+            window.location.href = '/';
+          }
+        }, 150);
+      }
     } catch (err: any) {
       const msg = err?.message || 'Invalid administrator credentials. Please try again.';
       setErrorMessage(msg);

@@ -78,7 +78,7 @@ export default function StaffManagementPage() {
             name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email,
             email: u.email,
             phone: u.phoneNumber,
-            role: u.role,
+            role: (u.role as UserRole),
             status: u.isVerified ? 'ACTIVE' : 'PENDING',
             lastActive: u.isVerified ? 'Active on Console' : 'Pending Activation',
           }));
@@ -158,7 +158,7 @@ export default function StaffManagementPage() {
       name: `${createdUser.firstName} ${createdUser.lastName}`,
       email: createdUser.email,
       phone: createdUser.phoneNumber,
-      role: createdUser.role,
+      role: (createdUser.role as UserRole),
       status: newStaffData.onboardingMethod === 'DIRECT_CREDENTIAL' ? 'ACTIVE' : 'PENDING',
       lastActive: newStaffData.onboardingMethod === 'DIRECT_CREDENTIAL' ? 'Just provisioned' : 'Never',
     };

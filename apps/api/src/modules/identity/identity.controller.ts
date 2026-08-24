@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { config } from '../../config/env.js';
 import { identityService } from './identity.service.js';
 import { staffUserService } from './staff-user.service.js';
+import { customerService } from './customer.service.js';
 import { AuthRequest } from '../../middleware/auth.middleware.js';
 
 export class IdentityController {
@@ -209,6 +210,30 @@ export class IdentityController {
       res.json({
         success: true,
         data: users,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getCustomers = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const result = await customerService.getCustomers(req.query as any);
+      res.json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  createCustomer = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const customer = await customerService.createCustomer(req.body);
+      res.status(201).json({
+        success: true,
+        data: customer,
       });
     } catch (error) {
       next(error);

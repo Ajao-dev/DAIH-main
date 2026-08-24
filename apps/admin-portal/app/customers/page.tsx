@@ -1,133 +1,78 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
-import { UserPlus } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { UserPlus, RefreshCw, Loader2, Users } from 'lucide-react';
+import { useToast } from '@daih/ui';
+import { api } from '@daih/api-client';
+import { CustomerRecord, CustomerMetrics } from '@daih/types';
 import {
   MemberMetricsGrid,
   MemberDirectoryToolbar,
   MemberDirectoryTable,
-  MemberRecord,
   MemberDetailModal,
   AddMemberModal,
 } from '../../components/customers';
 
-const INITIAL_MEMBERS: MemberRecord[] = [
-  {
-    id: 'DAIH-2026-000042',
-    name: 'Eleanor Vance',
-    email: 'e.vance@company.com',
-    phone: '+234 802 123 4567',
-    avatarUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=256&q=80',
-    tier: 'Enterprise',
-    status: 'Active',
-    lastVisit: 'Today, 09:15 AM',
-    joinedDate: '12 Jan 2026',
-  },
-  {
-    id: 'DAIH-2026-000019',
-    name: 'Julian Silva',
-    email: 'julian.silva@freelance.co',
-    phone: '+234 810 555 9988',
-    tier: 'Creator',
-    status: 'Active',
-    lastVisit: 'Yesterday, 14:30 PM',
-    joinedDate: '04 Feb 2026',
-  },
-  {
-    id: 'DAIH-2026-000008',
-    name: 'Marcus Thorne',
-    email: 'm.thorne@designstudio.net',
-    phone: '+234 803 777 2211',
-    avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=256&q=80',
-    tier: 'Professional',
-    status: 'Pending',
-    lastVisit: '3 days ago',
-    joinedDate: '18 Mar 2026',
-  },
-  {
-    id: 'DAIH-2026-000055',
-    name: 'Amina Bello',
-    email: 'amina.bello@lagostech.io',
-    phone: '+234 814 333 4455',
-    tier: 'Dedicated Desk',
-    status: 'Active',
-    lastVisit: 'Today, 11:20 AM',
-    joinedDate: '01 Apr 2026',
-  },
-  {
-    id: 'DAIH-2026-000063',
-    name: 'Chidi Okafor',
-    email: 'chidi.okafor@ventures.ng',
-    phone: '+234 809 112 3344',
-    avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=256&q=80',
-    tier: 'Private Suite',
-    status: 'Active',
-    lastVisit: 'Today, 08:45 AM',
-    joinedDate: '15 May 2026',
-  },
-  {
-    id: 'DAIH-2026-000071',
-    name: 'Fatima Sanusi',
-    email: 'fatima@sanusipartners.com',
-    phone: '+234 808 667 8899',
-    tier: 'Enterprise',
-    status: 'Inactive',
-    lastVisit: '2 weeks ago',
-    joinedDate: '20 May 2026',
-  },
-];
-
 export default function CustomersPage() {
-  const [membersList, setMembersList] = useState<MemberRecord[]>(INITIAL_MEMBERS);
+  const toast = useToast();
+  const [customers, setCustomers] = useState<CustomerRecord[]>([]);
+  const [metrics, setMetrics] = useState<CustomerMetrics>({
+    totalMembers: 0,
+    activeNow: 0,
+    newThisMonth: 0,
+    mrrGrowth: '₦0',
+  });
+  const [loading, setLoading] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
+
+  // Filters & Pagination
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [tierFilter, setTierFilter] = useState('ALL');
   const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 5;
+  const pageSize = 10;
 
-  const [selectedMember, setSelectedMember] = useState<MemberRecord | null>(null);
+  // Modals
+  const [selectedMember, setSelectedMember] = useState<CustomerRecord | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
-  // Filtered members
-  const filteredMembers = useMemo(() => {
-    return membersList.filter((member) => {
-      // Search query
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const matchesName = member.name.toLowerCase().includes(q);
-        const matchesEmail = member.email.toLowerCase().includes(q);
-        const matchesId = member.id.toLowerCase().includes(q);
-        if (!matchesName && !matchesEmail && !matchesId) return false;
+  const fetchCustomers = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await api.customers.getCustomers({
+        search: searchQuery.trim() || undefined,
+        status: statusFilter === 'ALL' ? undefined : statusFilter,
+        tier: tierFilter === 'ALL' ? undefined : tierFilter,
+        page: currentPage,
+        limit: pageSize,
+      });
+
+      setCustomers(res.customers || []);
+      setTotalCount(res.total ?? 0);
+      if (res.metrics) {
+        setMetrics(res.metrics);
       }
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to fetch customer members from database', {
+        title: 'Error Loading Customers',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [searchQuery, statusFilter, tierFilter, currentPage, pageSize, toast]);
 
-      // Status filter
-      if (statusFilter !== 'ALL') {
-        if (member.status.toUpperCase() !== statusFilter) return false;
-      }
+  useEffect(() => {
+    fetchCustomers();
+  }, [fetchCustomers]);
 
-      // Tier filter
-      if (tierFilter !== 'ALL') {
-        if (member.tier.toLowerCase() !== tierFilter.toLowerCase()) return false;
-      }
-
-      return true;
-    });
-  }, [membersList, searchQuery, statusFilter, tierFilter]);
-
-  // Paginated members
-  const paginatedMembers = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return filteredMembers.slice(start, start + pageSize);
-  }, [filteredMembers, currentPage, pageSize]);
-
-  const handleViewMember = (member: MemberRecord) => {
+  const handleViewMember = (member: any) => {
     setSelectedMember(member);
     setIsDetailModalOpen(true);
   };
 
-  const handleMemberAdded = (newMember: MemberRecord) => {
-    setMembersList((prev) => [newMember, ...prev]);
+  const handleMemberAdded = (newMember: CustomerRecord) => {
+    fetchCustomers();
   };
 
   return (
@@ -139,26 +84,35 @@ export default function CustomersPage() {
             Member Directory
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Manage and view community members, Client IDs, and active subscriptions.
+            Live database records of community members, Client IDs, and active subscriptions.
           </p>
         </div>
 
-        <button
-          onClick={() => setIsAddModalOpen(true)}
-          className="bg-[#23055c] hover:bg-[#392271] text-white font-bold text-xs px-5 py-3 rounded-xl flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all cursor-pointer shrink-0"
-        >
-          <UserPlus className="w-4 h-4" />
-          Add New Member
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={fetchCustomers}
+            className="p-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl transition-all shadow-2xs cursor-pointer"
+            title="Refresh Live Data"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin text-[#23055c]' : ''}`} />
+          </button>
+          <button
+            onClick={() => setIsAddModalOpen(true)}
+            className="bg-[#23055c] hover:bg-[#392271] text-white font-bold text-xs px-5 py-3 rounded-xl flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all cursor-pointer shrink-0"
+          >
+            <UserPlus className="w-4 h-4" />
+            Add New Member
+          </button>
+        </div>
       </div>
 
       {/* 4 Metric Summary Cards */}
       <div id="tiers" className="scroll-mt-20">
         <MemberMetricsGrid
-          totalMembers={1248}
-          activeNow={156}
-          newThisMonth={42}
-          mrrGrowth="$24.5k"
+          totalMembers={metrics.totalMembers}
+          activeNow={metrics.activeNow}
+          newThisMonth={metrics.newThisMonth}
+          mrrGrowth={metrics.mrrGrowth}
         />
       </div>
 
@@ -185,21 +139,38 @@ export default function CustomersPage() {
           />
 
           {/* Table */}
-          <MemberDirectoryTable
-            members={paginatedMembers}
-            totalCount={filteredMembers.length}
-            currentPage={currentPage}
-            pageSize={pageSize}
-            onPageChange={setCurrentPage}
-            onViewMember={handleViewMember}
-          />
+          {loading ? (
+            <div className="py-24 text-center space-y-3">
+              <Loader2 className="h-8 w-8 animate-spin text-[#23055c] mx-auto" />
+              <p className="text-xs text-slate-500 font-semibold">Loading live members from database...</p>
+            </div>
+          ) : customers.length === 0 ? (
+            <div className="py-20 text-center space-y-3">
+              <Users className="h-10 w-10 text-slate-300 mx-auto" />
+              <p className="text-sm font-bold text-slate-700">No members found</p>
+              <p className="text-xs text-slate-400">
+                {searchQuery || statusFilter !== 'ALL' || tierFilter !== 'ALL'
+                  ? 'No members match the selected filters. Try resetting search or filter.'
+                  : 'No registered customers in the database yet. Click "Add New Member" to create one.'}
+              </p>
+            </div>
+          ) : (
+            <MemberDirectoryTable
+              members={customers as any}
+              totalCount={totalCount}
+              currentPage={currentPage}
+              pageSize={pageSize}
+              onPageChange={setCurrentPage}
+              onViewMember={handleViewMember}
+            />
+          )}
         </div>
       </div>
 
       {/* Detail Modal */}
       <MemberDetailModal
         isOpen={isDetailModalOpen}
-        member={selectedMember}
+        member={selectedMember as any}
         onClose={() => setIsDetailModalOpen(false)}
       />
 

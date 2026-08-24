@@ -45,7 +45,6 @@
    * plugin | magnificPopup
    * --------------------------------------------------*/
   function load_magnificPopup() {
-    if (!jQuery.fn || !jQuery.fn.magnificPopup) return;
     jQuery(".simple-ajax-popup-align-top").magnificPopup({
       type: "ajax",
       alignTop: true,

@@ -2,11 +2,33 @@ import {
   BookingHoldDTO,
   BookingSummary,
   CreateBookingDTO,
+  AvailabilityQueryDTO,
+  AvailabilityResultDTO,
+  CalendarAvailabilityQueryDTO,
+  CalendarAvailabilityResultDTO,
+  AdminOverrideBookingDTO,
+  BookingFilterDTO,
+  CancelBookingDTO,
   FacilityResource,
+  ResourcePricingPlan,
+  ResourceSchedule,
+  ResourceBlackout,
+  CreateResourceDTO,
+  UpdateResourceDTO,
+  CreatePricingPlanDTO,
+  UpdatePricingPlanDTO,
+  CreateBlackoutDTO,
+  UpsertScheduleDTO,
   PaystackInitializeResponse,
   UserProfile,
   UserRole,
+  CustomerRecord,
+  CustomerListResponse,
+  CustomerFilterDTO,
+  CreateCustomerDTO,
+  CustomerMetrics,
 } from '@daih/types';
+import { apiCacheManager } from './cache';
 
 export class ApiError extends Error {
   constructor(
@@ -47,6 +69,10 @@ export class DaihApiClient {
     this.getTokenFn = config.getToken;
     this.setTokenFn = config.setToken;
     this.onSessionExpiredFn = config.onSessionExpired;
+  }
+
+  setOnSessionExpired(fn: () => void): void {
+    this.onSessionExpiredFn = fn;
   }
 
   setAccessToken(token: string | null): void {
@@ -133,15 +159,31 @@ export class DaihApiClient {
       response.status === 401 &&
       retryOnAuthFailure &&
       !cleanEndpoint.includes('/identity/login') &&
+      !cleanEndpoint.includes('/identity/register') &&
       !cleanEndpoint.includes('/identity/refresh')
     ) {
-      if (!this.isRefreshing) {
+      if (this.isRefreshing) {
+        // Wait for active in-flight refresh to finish
+        const retryToken = await new Promise<string | null>((resolve) => {
+          this.addRefreshSubscriber((newToken) => resolve(newToken));
+        });
+
+        if (retryToken) {
+          headers.set('Authorization', `Bearer ${retryToken}`);
+          return this.request<T>(endpoint, { ...options, headers }, false);
+        }
+      } else {
         this.isRefreshing = true;
         try {
           const refreshRes = await this.auth.refresh();
-          this.isRefreshing = false;
           const newToken = refreshRes.accessToken || refreshRes.token || null;
+          this.isRefreshing = false;
           this.onTokenRefreshed(newToken);
+
+          if (newToken) {
+            headers.set('Authorization', `Bearer ${newToken}`);
+            return this.request<T>(endpoint, { ...options, headers }, false);
+          }
         } catch (refreshErr) {
           this.isRefreshing = false;
           this.setAccessToken(null);
@@ -149,18 +191,7 @@ export class DaihApiClient {
           if (this.onSessionExpiredFn) {
             this.onSessionExpiredFn();
           }
-          throw refreshErr;
         }
-      }
-
-      // Wait for the active refresh to finish
-      const retryToken = await new Promise<string | null>((resolve) => {
-        this.addRefreshSubscriber((newToken) => resolve(newToken));
-      });
-
-      if (retryToken) {
-        headers.set('Authorization', `Bearer ${retryToken}`);
-        return this.request<T>(endpoint, { ...options, headers }, false);
       }
     }
 
@@ -182,80 +213,8 @@ export class DaihApiClient {
     return data.data !== undefined ? data.data : data;
   }
 
-  // Catalogue Module
-  catalogue = {
-    getResources: () => this.request<FacilityResource[]>('/catalogue/resources'),
-    getResourceBySlug: (slug: string) =>
-      this.request<FacilityResource>(`/catalogue/resources/${slug}`),
-  };
-
-  // Bookings Module
-  bookings = {
-    createHold: (dto: CreateBookingDTO) =>
-      this.request<BookingHoldDTO>('/bookings/hold', {
-        method: 'POST',
-        body: JSON.stringify(dto),
-      }),
-    confirmBooking: (bookingId: string) =>
-      this.request<BookingSummary>(`/bookings/${bookingId}/confirm`, {
-        method: 'POST',
-      }),
-    getMyBookings: () => this.request<BookingSummary[]>('/bookings/my'),
-    getBookingById: (id: string) =>
-      this.request<BookingSummary>(`/bookings/${id}`),
-    initializePayment: (bookingId: string) =>
-      this.request<PaystackInitializeResponse>(
-        `/payments/initialize/${bookingId}`,
-        { method: 'POST' }
-      ),
-  };
-
-  // Access / QR Module
-  access = {
-    getQRToken: (bookingId: string) =>
-      this.request<{ token: string; expiresAt: string }>(
-        `/access/qr/${bookingId}`
-      ),
-    verifyQR: (token: string) =>
-      this.request<{ valid: boolean; booking: BookingSummary }>(
-        '/access/verify-qr',
-        {
-          method: 'POST',
-          body: JSON.stringify({ token }),
-        }
-      ),
-    checkIn: (bookingId: string) =>
-      this.request<{ success: boolean; timestamp: string }>(
-        `/access/checkin/${bookingId}`,
-        { method: 'POST' }
-      ),
-    checkOut: (bookingId: string) =>
-      this.request<{ success: boolean; timestamp: string }>(
-        `/access/checkout/${bookingId}`,
-        { method: 'POST' }
-      ),
-  };
-
-  // Authentication & Identity Module
-  auth = {
-    register: async (payload: {
-      email: string;
-      password: string;
-      firstName: string;
-      lastName: string;
-      phoneNumber?: string;
-      policyVersion?: string;
-      consented: boolean;
-    }) => {
-      return this.request<{
-        user: UserProfile;
-        verificationSent: boolean;
-      }>('/identity/register', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
-    },
-
+  // Identity / Auth API
+  public auth = {
     login: async (credentials: {
       email: string;
       password: string;
@@ -270,94 +229,343 @@ export class DaihApiClient {
         method: 'POST',
         body: JSON.stringify(credentials),
       });
-      const token = res.accessToken || res.token || null;
-      if (token) {
-        this.setAccessToken(token);
+      const jwt = res.accessToken || res.token || null;
+      if (jwt) {
+        this.setAccessToken(jwt);
       }
-      return {
-        accessToken: token || '',
-        token: token || '',
-        user: res.user,
-      };
+      return { ...res, accessToken: jwt || '' };
     },
+
+    register: (payload: {
+      email: string;
+      password: string;
+      firstName: string;
+      lastName: string;
+      phoneNumber?: string;
+      policyVersion?: string;
+      consented: boolean;
+    }) =>
+      this.request<{ user: UserProfile; verificationSent: boolean }>(
+        '/identity/register',
+        {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        }
+      ),
 
     refresh: async () => {
       const res = await this.request<{
-        accessToken?: string;
-        token?: string;
+        accessToken: string;
         user: UserProfile;
-      }>(
-        '/identity/refresh',
-        {
-          method: 'POST',
-        },
-        false
-      );
-      const token = res.accessToken || res.token || null;
+        token?: string;
+      }>('/identity/refresh', {
+        method: 'POST',
+      });
+      const token = res.accessToken || res.token;
       if (token) {
         this.setAccessToken(token);
       }
-      return {
-        accessToken: token || '',
-        token: token || '',
-        user: res.user,
-      };
+      return res;
     },
 
     logout: async () => {
       try {
-        await this.request<{ success: boolean }>(
-          '/identity/logout',
-          {
-            method: 'POST',
-          },
-          false
-        );
+        await this.request('/identity/logout', { method: 'POST' });
       } finally {
         this.setAccessToken(null);
       }
     },
 
-    verifyEmail: (token: string) => {
-      return this.request<UserProfile>(
-        `/identity/verify-email?token=${encodeURIComponent(token)}`
-      );
+    getProfile: () => this.request<UserProfile>('/identity/me'),
+
+    verifyEmail: (token: string) =>
+      this.request<{ success: boolean; message: string }>('/identity/verify-email', {
+        method: 'POST',
+        body: JSON.stringify({ token }),
+      }),
+
+    resendVerification: (email: string) =>
+      this.request<{ success: boolean; message: string }>('/identity/resend-verification', {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+      }),
+
+    requestPasswordReset: (email: string) =>
+      this.request<{ success: boolean; message: string }>('/identity/forgot-password', {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+      }),
+
+    resetPassword: (payload: { token: string; newPassword: string }) =>
+      this.request<{ success: boolean; message: string }>('/identity/reset-password', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+
+    confirmPasswordReset: (payload: { token: string; newPassword: string }) =>
+      this.auth.resetPassword(payload),
+
+    getStaffUsers: () => this.adminUsers.getStaffUsers(),
+
+    createStaffUser: (payload: any) => this.adminUsers.createStaffUser(payload),
+  };
+
+  // Catalogue & Resources API
+  public catalogue = {
+    getResources: (options?: { forceRefresh?: boolean }) =>
+      apiCacheManager.fetchWithCache<FacilityResource[]>(
+        'catalogue_resources',
+        () => this.request<FacilityResource[]>('/catalogue/resources'),
+        60000,
+        options
+      ),
+
+    getResourceBySlug: (slug: string, options?: { forceRefresh?: boolean }) =>
+      apiCacheManager.fetchWithCache<FacilityResource>(
+        `catalogue_resource_${slug}`,
+        () => this.request<FacilityResource>(`/catalogue/resources/${slug}`),
+        60000,
+        options
+      ),
+
+    getResourceById: (id: string, options?: { forceRefresh?: boolean }) =>
+      this.catalogue.getResourceBySlug(id, options),
+
+    getAdminResources: () =>
+      this.request<FacilityResource[]>('/catalogue/admin/resources'),
+
+    createResource: async (dto: CreateResourceDTO) => {
+      const res = await this.request<FacilityResource>('/catalogue/admin/resources', {
+        method: 'POST',
+        body: JSON.stringify(dto),
+      });
+      apiCacheManager.invalidate('catalogue');
+      return res;
     },
 
-    resendVerification: (email: string) => {
-      return this.request<{ success: boolean; message: string }>(
-        '/identity/resend-verification',
+    updateResource: async (id: string, dto: UpdateResourceDTO) => {
+      const res = await this.request<FacilityResource>(`/catalogue/admin/resources/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(dto),
+      });
+      apiCacheManager.invalidate('catalogue');
+      return res;
+    },
+
+    deleteResource: async (id: string) => {
+      const res = await this.request<{ success: boolean }>(`/catalogue/admin/resources/${id}`, {
+        method: 'DELETE',
+      });
+      apiCacheManager.invalidate('catalogue');
+      return res;
+    },
+
+    addPricingPlan: async (resourceId: string, dto: CreatePricingPlanDTO) => {
+      const res = await this.request<ResourcePricingPlan>(
+        `/catalogue/admin/resources/${resourceId}/pricing`,
         {
           method: 'POST',
-          body: JSON.stringify({ email }),
+          body: JSON.stringify(dto),
         }
       );
+      apiCacheManager.invalidate('catalogue');
+      return res;
     },
 
-    requestPasswordReset: (email: string) => {
-      return this.request<{ success: boolean; message: string }>(
-        '/identity/password-reset/request',
+    createPricingPlan: (resourceId: string, dto: CreatePricingPlanDTO) =>
+      this.catalogue.addPricingPlan(resourceId, dto),
+
+    updatePricingPlan: async (pricingId: string, dto: UpdatePricingPlanDTO) => {
+      const res = await this.request<ResourcePricingPlan>(
+        `/catalogue/admin/pricing/${pricingId}`,
+        {
+          method: 'PUT',
+          body: JSON.stringify(dto),
+        }
+      );
+      apiCacheManager.invalidate('catalogue');
+      return res;
+    },
+
+    deletePricingPlan: async (pricingId: string) => {
+      const res = await this.request<{ success: boolean }>(
+        `/catalogue/admin/pricing/${pricingId}`,
+        { method: 'DELETE' }
+      );
+      apiCacheManager.invalidate('catalogue');
+      return res;
+    },
+
+    upsertSchedules: async (resourceId: string, schedules: UpsertScheduleDTO[]) => {
+      const res = await this.request<ResourceSchedule[]>(
+        `/catalogue/admin/resources/${resourceId}/schedules`,
         {
           method: 'POST',
-          body: JSON.stringify({ email }),
+          body: JSON.stringify({ schedules }),
         }
       );
+      apiCacheManager.invalidate('catalogue');
+      return res;
     },
 
-    confirmPasswordReset: (payload: { token: string; newPassword: string }) => {
-      return this.request<{ success: boolean; message: string }>(
-        '/identity/password-reset/confirm',
+    updateSchedules: (resourceId: string, schedules: UpsertScheduleDTO[]) =>
+      this.catalogue.upsertSchedules(resourceId, schedules),
+
+    addBlackout: async (resourceId: string, dto: CreateBlackoutDTO) => {
+      const res = await this.request<ResourceBlackout>(
+        `/catalogue/admin/resources/${resourceId}/blackouts`,
         {
           method: 'POST',
-          body: JSON.stringify(payload),
+          body: JSON.stringify(dto),
         }
+      );
+      apiCacheManager.invalidate('catalogue');
+      return res;
+    },
+
+    createBlackout: (resourceId: string, dto: CreateBlackoutDTO) =>
+      this.catalogue.addBlackout(resourceId, dto),
+
+    deleteBlackout: async (blackoutId: string) => {
+      const res = await this.request<{ success: boolean }>(
+        `/catalogue/admin/blackouts/${blackoutId}`,
+        { method: 'DELETE' }
+      );
+      apiCacheManager.invalidate('catalogue');
+      return res;
+    },
+  };
+
+  // Bookings API
+  public bookings = {
+    checkAvailability: (query: AvailabilityQueryDTO, options?: { forceRefresh?: boolean }) => {
+      const params = new URLSearchParams({
+        resourceId: query.resourceId,
+        startTime: query.startTime,
+        endTime: query.endTime,
+      });
+      const cacheKey = `avail_${query.resourceId}_${query.startTime}_${query.endTime}`;
+      return apiCacheManager.fetchWithCache<AvailabilityResultDTO>(
+        cacheKey,
+        () => this.request<AvailabilityResultDTO>(`/bookings/availability?${params.toString()}`),
+        15000,
+        options
       );
     },
 
-    getProfile: () => {
-      return this.request<UserProfile>('/identity/me');
+    getCalendarAvailability: (query: CalendarAvailabilityQueryDTO, options?: { forceRefresh?: boolean }) => {
+      const params = new URLSearchParams({
+        resourceId: query.resourceId,
+        ...(query.month ? { month: query.month } : {}),
+      });
+      const cacheKey = `cal_avail_${query.resourceId}_${query.month || ''}`;
+      return apiCacheManager.fetchWithCache<CalendarAvailabilityResultDTO>(
+        cacheKey,
+        () => this.request<CalendarAvailabilityResultDTO>(`/bookings/calendar-availability?${params.toString()}`),
+        30000,
+        options
+      );
     },
 
+    createHold: async (dto: CreateBookingDTO) => {
+      const res = await this.request<BookingHoldDTO>('/bookings/hold', {
+        method: 'POST',
+        body: JSON.stringify(dto),
+      });
+      apiCacheManager.invalidate('my_bookings');
+      apiCacheManager.invalidate('cal_avail');
+      return res;
+    },
+
+    extendHold: (bookingId: string) =>
+      this.request<{ success: boolean; holdExpiresAt: string }>(
+        `/bookings/${bookingId}/extend-hold`,
+        { method: 'POST' }
+      ),
+
+    getMyBookings: (options?: { forceRefresh?: boolean }) =>
+      apiCacheManager.fetchWithCache<BookingSummary[]>(
+        'my_bookings',
+        () => this.request<BookingSummary[]>('/bookings/my'),
+        30000,
+        options
+      ),
+
+    getBookingById: (id: string) =>
+      this.request<BookingSummary>(`/bookings/${id}`),
+
+    cancelBooking: async (id: string, reason?: string) => {
+      const res = await this.request<{ success: boolean; message: string; booking: BookingSummary }>(
+        `/bookings/${id}/cancel`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ reason }),
+        }
+      );
+      apiCacheManager.invalidate('my_bookings');
+      apiCacheManager.invalidate('cal_avail');
+      return res;
+    },
+
+    confirmBooking: async (bookingId: string) => {
+      const res = await this.request<BookingSummary>(`/bookings/${bookingId}/confirm`, {
+        method: 'POST',
+      });
+      apiCacheManager.invalidate('my_bookings');
+      apiCacheManager.invalidate('cal_avail');
+      return res;
+    },
+
+    adminReleaseHold: async (bookingId: string, reason?: string) => {
+      const res = await this.request<{ success: boolean; message: string }>(
+        `/bookings/admin/${bookingId}/release`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ reason }),
+        }
+      );
+      apiCacheManager.invalidate('my_bookings');
+      apiCacheManager.invalidate('cal_avail');
+      return res;
+    },
+
+    getAdminBookings: async (filter?: BookingFilterDTO) => {
+      const params = new URLSearchParams();
+      if (filter?.status || filter?.state) params.set('state', (filter.status || filter.state) as string);
+      if (filter?.search) params.set('search', filter.search);
+      if (filter?.dateFrom || filter?.startDate) params.set('startDate', (filter.dateFrom || filter.startDate) as string);
+      if (filter?.dateTo || filter?.endDate) params.set('endDate', (filter.dateTo || filter.endDate) as string);
+      if (filter?.page) params.set('page', String(filter.page));
+      if (filter?.limit) params.set('limit', String(filter.limit));
+      const queryStr = params.toString() ? `?${params.toString()}` : '';
+      const res = await this.request<any>(`/bookings/admin${queryStr}`);
+      if (Array.isArray(res)) {
+        return { bookings: res, total: res.length };
+      }
+      return { bookings: res.bookings || res.items || [], total: res.total ?? (res.bookings?.length || 0) };
+    },
+
+    adminOverrideBooking: async (bookingId: string, dto: AdminOverrideBookingDTO) => {
+      const res = await this.request<BookingSummary>(`/bookings/admin/${bookingId}/override`, {
+        method: 'POST',
+        body: JSON.stringify(dto),
+      });
+      apiCacheManager.invalidate('my_bookings');
+      apiCacheManager.invalidate('cal_avail');
+      return res;
+    },
+
+    adminOverride: (dto: AdminOverrideBookingDTO) =>
+      this.bookings.adminOverrideBooking(dto.resourceId, dto),
+
+    initializePayment: (bookingId: string) =>
+      this.request<PaystackInitializeResponse>(`/bookings/${bookingId}/payment/initialize`, {
+        method: 'POST',
+      }),
+  };
+
+  // Staff / User Management API
+  public adminUsers = {
     getStaffUsers: () => {
       return this.request<UserProfile[]>('/identity/admin/users');
     },
@@ -377,6 +585,36 @@ export class DaihApiClient {
       return (res?.user || res) as UserProfile;
     },
   };
+
+  // Customer Directory API
+  public customers = {
+    getCustomers: async (filter?: CustomerFilterDTO): Promise<CustomerListResponse> => {
+      const params = new URLSearchParams();
+      if (filter?.search) params.set('search', filter.search);
+      if (filter?.status) params.set('status', filter.status);
+      if (filter?.tier) params.set('tier', filter.tier);
+      if (filter?.page) params.set('page', String(filter.page));
+      if (filter?.limit) params.set('limit', String(filter.limit));
+      const queryStr = params.toString() ? `?${params.toString()}` : '';
+      const res = await this.request<any>(`/identity/admin/customers${queryStr}`);
+      return (res?.data || res) as CustomerListResponse;
+    },
+
+    createCustomer: async (dto: CreateCustomerDTO): Promise<CustomerRecord> => {
+      const res = await this.request<any>('/identity/admin/customers', {
+        method: 'POST',
+        body: JSON.stringify(dto),
+      });
+      return (res?.data || res) as CustomerRecord;
+    },
+  };
+
+  /**
+   * Manually clear client-side API cache
+   */
+  clearCache(pattern?: string): void {
+    apiCacheManager.invalidate(pattern);
+  }
 }
 
 export const api = new DaihApiClient();

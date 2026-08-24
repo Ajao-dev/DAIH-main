@@ -13,14 +13,27 @@ export const errorHandler = (
   res: Response,
   _next: NextFunction
 ): void => {
+  // Handle Zod validation errors
+  if (err.name === 'ZodError' || (err as any).issues) {
+    const issues = (err as any).issues || [];
+    const message = issues.map((i: any) => `${i.path?.join('.') || 'field'}: ${i.message}`).join(', ') || 'Validation failed';
+    res.status(400).json({
+      success: false,
+      code: 'VALIDATION_ERROR',
+      message,
+      details: sanitizeObject(issues),
+    });
+    return;
+  }
+
   const statusCode = typeof err.statusCode === 'number' ? err.statusCode : 500;
   const rawCode = err.code || (statusCode >= 500 ? 'INTERNAL_SERVER_ERROR' : 'BAD_REQUEST');
   const code = sanitizeMessage(rawCode);
   const rawMessage = err.message || 'An unexpected error occurred';
 
-  // Identify database / connection / infrastructure failure signatures
+  // Identify database / connection / infrastructure failure signatures for 500s
   const isDbOrInternalError =
-    statusCode >= 500 ||
+    statusCode >= 500 &&
     /prisma|database|connection|econnrefused|etimedout|pooler|neon|postgres|pg_/i.test(
       `${err.name || ''} ${rawMessage} ${err.stack || ''}`
     );
@@ -33,7 +46,6 @@ export const errorHandler = (
   }
 
   // 2. Format client-facing response
-  // 5xx errors & DB errors MUST return generic, safe messages to the client
   let clientMessage: string;
   let clientDetails: any = undefined;
 
@@ -46,9 +58,9 @@ export const errorHandler = (
     }
   }
 
-  res.status(statusCode >= 500 || isDbOrInternalError ? (statusCode >= 500 ? statusCode : 500) : statusCode).json({
+  res.status(statusCode).json({
     success: false,
-    code: isDbOrInternalError ? 'INTERNAL_SERVER_ERROR' : code,
+    code,
     message: clientMessage,
     ...(clientDetails ? { details: clientDetails } : {}),
   });
