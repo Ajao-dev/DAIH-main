@@ -1,5 +1,5 @@
-import { Request, Response, NextFunction } from 'express';
-import { bookingService, BookingService } from './booking.service.js';
+import { Request, Response, NextFunction } from "express";
+import { bookingService, BookingService } from "./booking.service.js";
 import {
   CheckAvailabilitySchema,
   CalendarAvailabilitySchema,
@@ -7,12 +7,12 @@ import {
   CancelBookingSchema,
   AdminOverrideBookingSchema,
   BookingFilterSchema,
-} from './booking.schema.js';
-import { AuthRequest } from '../../middleware/auth.middleware.js';
+} from "./booking.schema.js";
+import { AuthRequest } from "../../middleware/auth.middleware.js";
 
 function getIpAddress(req: Request): string | undefined {
-  const forwarded = req.headers['x-forwarded-for'];
-  if (typeof forwarded === 'string') return forwarded.split(',')[0].trim();
+  const forwarded = req.headers["x-forwarded-for"];
+  if (typeof forwarded === "string") return forwarded.split(",")[0].trim();
   if (Array.isArray(forwarded)) return forwarded[0];
   return req.ip || undefined;
 }
@@ -24,7 +24,11 @@ export class BookingController {
    * Check real-time resource availability
    * GET /api/v1/bookings/availability?resourceId=...&startTime=...&endTime=...
    */
-  checkAvailability = async (req: Request, res: Response, next: NextFunction) => {
+  checkAvailability = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) => {
     try {
       const validated = CheckAvailabilitySchema.parse(req.query);
       const data = await this.service.checkAvailability(validated);
@@ -38,7 +42,11 @@ export class BookingController {
    * Get sparse monthly calendar availability map
    * GET /api/v1/bookings/calendar-availability?resourceId=...&month=YYYY-MM
    */
-  getCalendarAvailability = async (req: Request, res: Response, next: NextFunction) => {
+  getCalendarAvailability = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) => {
     try {
       const validated = CalendarAvailabilitySchema.parse(req.query);
       const data = await this.service.getCalendarAvailability(validated);
@@ -82,7 +90,11 @@ export class BookingController {
    * Get authenticated user's bookings
    * GET /api/v1/bookings/my
    */
-  getMyBookings = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  getMyBookings = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ) => {
     try {
       const userId = req.user!.id;
       const data = await this.service.getMyBookings(userId);
@@ -96,14 +108,18 @@ export class BookingController {
    * Get single booking by ID or reference
    * GET /api/v1/bookings/:id
    */
-  getBookingById = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  getBookingById = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ) => {
     try {
       const bookingId = String(req.params.id);
       const data = await this.service.getBookingById(bookingId);
 
       if (!data) {
         res.status(404).json({
-          code: 'BOOKING_NOT_FOUND',
+          code: "BOOKING_NOT_FOUND",
           message: `Booking '${bookingId}' was not found`,
         });
         return;
@@ -111,11 +127,18 @@ export class BookingController {
 
       // Allow owner or staff
       const isOwner = data.userId === req.user?.id;
-      const isStaff = req.user?.role && ['OPERATIONS_ADMIN', 'SUPER_ADMIN', 'RECEPTION_OFFICER', 'FINANCE_OFFICER'].includes(req.user.role);
+      const isStaff =
+        req.user?.role &&
+        [
+          "OPERATIONS_ADMIN",
+          "SUPER_ADMIN",
+          "RECEPTION_OFFICER",
+          "FINANCE_OFFICER",
+        ].includes(req.user.role);
       if (!isOwner && !isStaff) {
         res.status(403).json({
-          code: 'FORBIDDEN',
-          message: 'You are not authorized to view this booking',
+          code: "FORBIDDEN",
+          message: "You are not authorized to view this booking",
         });
         return;
       }
@@ -130,15 +153,28 @@ export class BookingController {
    * Cancel an active booking
    * POST /api/v1/bookings/:id/cancel
    */
-  cancelBooking = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  cancelBooking = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ) => {
     try {
       const bookingId = String(req.params.id);
       const validated = CancelBookingSchema.parse(req.body);
       const userId = req.user!.id;
       const role = req.user?.role;
 
-      const data = await this.service.cancelBooking(bookingId, userId, validated.reason, role);
-      res.json({ success: true, message: 'Booking cancelled successfully', booking: data });
+      const data = await this.service.cancelBooking(
+        bookingId,
+        userId,
+        validated.reason,
+        role,
+      );
+      res.json({
+        success: true,
+        message: "Booking cancelled successfully",
+        booking: data,
+      });
     } catch (err) {
       next(err);
     }
@@ -148,7 +184,11 @@ export class BookingController {
    * Confirm booking
    * POST /api/v1/bookings/:id/confirm
    */
-  confirmBooking = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  confirmBooking = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ) => {
     try {
       const bookingId = String(req.params.id);
       const data = await this.service.confirmBooking(bookingId);
@@ -162,7 +202,11 @@ export class BookingController {
    * Admin: View all bookings with filters & pagination
    * GET /api/v1/bookings/admin/all
    */
-  getAdminBookings = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  getAdminBookings = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ) => {
     try {
       const validated = BookingFilterSchema.parse(req.query);
       const data = await this.service.getAdminBookings(validated);
@@ -176,13 +220,21 @@ export class BookingController {
    * Admin: Manual override / VIP force reservation
    * POST /api/v1/bookings/admin/override
    */
-  adminOverride = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  adminOverride = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ) => {
     try {
       const validated = AdminOverrideBookingSchema.parse(req.body);
       const adminUserId = req.user!.id;
       const ipAddress = getIpAddress(req);
 
-      const data = await this.service.adminOverride(adminUserId, validated, ipAddress);
+      const data = await this.service.adminOverride(
+        adminUserId,
+        validated,
+        ipAddress,
+      );
       res.status(201).json({ success: true, data });
     } catch (err) {
       next(err);
@@ -193,12 +245,24 @@ export class BookingController {
    * Admin: Force-release an active hold
    * POST /api/v1/bookings/admin/:id/release
    */
-  adminReleaseHold = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  adminReleaseHold = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ) => {
     try {
       const bookingId = String(req.params.id);
       const adminUserId = req.user!.id;
-      await this.service.cancelBooking(bookingId, adminUserId, 'Admin manual hold release', req.user?.role);
-      res.json({ success: true, message: `Hold for booking '${bookingId}' has been released.` });
+      await this.service.cancelBooking(
+        bookingId,
+        adminUserId,
+        "Admin manual hold release",
+        req.user?.role,
+      );
+      res.json({
+        success: true,
+        message: `Hold for booking '${bookingId}' has been released.`,
+      });
     } catch (err) {
       next(err);
     }

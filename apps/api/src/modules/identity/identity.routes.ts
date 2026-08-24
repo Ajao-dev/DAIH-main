@@ -1,16 +1,22 @@
-import { Router } from 'express';
-import { Permission } from '@daih/types';
-import { identityController } from './identity.controller.js';
-import { authenticate } from '../../middleware/auth.middleware.js';
-import { requirePermission, requireStaff } from '../../middleware/rbac.middleware.js';
-import { validateBody, validateQuery } from '../../middleware/validate.middleware.js';
+import { Router } from "express";
+import { Permission } from "@daih/types";
+import { identityController } from "./identity.controller.js";
+import { authenticate } from "../../middleware/auth.middleware.js";
+import {
+  requirePermission,
+  requireStaff,
+} from "../../middleware/rbac.middleware.js";
+import {
+  validateBody,
+  validateQuery,
+} from "../../middleware/validate.middleware.js";
 import {
   loginRateLimiter,
   registrationRateLimiter,
   verificationResendRateLimiter,
   passwordResetRateLimiter,
   refreshRateLimiter,
-} from '../../middleware/rate-limit.middleware.js';
+} from "../../middleware/rate-limit.middleware.js";
 import {
   registerSchema,
   loginSchema,
@@ -21,98 +27,87 @@ import {
   createStaffUserSchema,
   customerFilterSchema,
   createCustomerAdminSchema,
-} from './identity.schema.js';
+} from "./identity.schema.js";
 
 export const identityRouter = Router();
 
 // Public Authentication & Verification Endpoints
 identityRouter.post(
-  '/register',
+  "/register",
   registrationRateLimiter,
   validateBody(registerSchema),
-  identityController.register
+  identityController.register,
 );
 
 identityRouter.post(
-  '/login',
+  "/login",
   loginRateLimiter,
   validateBody(loginSchema),
-  identityController.login
+  identityController.login,
 );
 
-identityRouter.post(
-  '/refresh',
-  refreshRateLimiter,
-  identityController.refresh
-);
+identityRouter.post("/refresh", refreshRateLimiter, identityController.refresh);
 
-identityRouter.post(
-  '/logout',
-  identityController.logout
-);
+identityRouter.post("/logout", identityController.logout);
 
 identityRouter.get(
-  '/verify-email',
+  "/verify-email",
   validateQuery(verifyEmailSchema),
-  identityController.verifyEmail
+  identityController.verifyEmail,
 );
 
 identityRouter.post(
-  '/resend-verification',
+  "/resend-verification",
   verificationResendRateLimiter,
   validateBody(resendVerificationSchema),
-  identityController.resendVerification
+  identityController.resendVerification,
 );
 
 identityRouter.post(
-  '/password-reset/request',
+  "/password-reset/request",
   passwordResetRateLimiter,
   validateBody(requestPasswordResetSchema),
-  identityController.requestPasswordReset
+  identityController.requestPasswordReset,
 );
 
 identityRouter.post(
-  '/password-reset/confirm',
+  "/password-reset/confirm",
   validateBody(confirmPasswordResetSchema),
-  identityController.confirmPasswordReset
+  identityController.confirmPasswordReset,
 );
 
 // Protected Endpoints
-identityRouter.get(
-  '/me',
-  authenticate,
-  identityController.getProfile
-);
+identityRouter.get("/me", authenticate, identityController.getProfile);
 
 // Staff Users Management Endpoints (Super Admin / Management Protected)
 identityRouter.get(
-  '/admin/users',
+  "/admin/users",
   authenticate,
   requirePermission(Permission.USERS_MANAGE),
-  identityController.getStaffUsers
+  identityController.getStaffUsers,
 );
 
 identityRouter.post(
-  '/admin/users',
+  "/admin/users",
   authenticate,
   requirePermission(Permission.USERS_MANAGE),
   validateBody(createStaffUserSchema),
-  identityController.createStaffUser
+  identityController.createStaffUser,
 );
 
 // Customer / Member Directory Management Endpoints (Accessible to all authenticated staff)
 identityRouter.get(
-  '/admin/customers',
+  "/admin/customers",
   authenticate,
   requireStaff(),
   validateQuery(customerFilterSchema),
-  identityController.getCustomers
+  identityController.getCustomers,
 );
 
 identityRouter.post(
-  '/admin/customers',
+  "/admin/customers",
   authenticate,
   requireStaff(),
   validateBody(createCustomerAdminSchema),
-  identityController.createCustomer
+  identityController.createCustomer,
 );

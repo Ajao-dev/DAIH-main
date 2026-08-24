@@ -1,11 +1,11 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import request from 'supertest';
-import { app } from '../../app.js';
-import { prisma } from '../../db/client.js';
-import { UserRole } from '@daih/types';
-import jwt from 'jsonwebtoken';
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import request from "supertest";
+import { app } from "../../app.js";
+import { prisma } from "../../db/client.js";
+import { UserRole } from "@daih/types";
+import jwt from "jsonwebtoken";
 
-describe('Milestone 1.2: Catalogue & Resource Model Module', () => {
+describe("Milestone 1.2: Catalogue & Resource Model Module", () => {
   let adminToken: string;
   let customerToken: string;
   let adminUserId: string;
@@ -15,31 +15,33 @@ describe('Milestone 1.2: Catalogue & Resource Model Module', () => {
     for (let attempt = 0; attempt < 5; attempt++) {
       try {
         const adminUser = await prisma.user.upsert({
-          where: { email: 'admin.catalogue@daih.ng' },
+          where: { email: "admin.catalogue@daih.ng" },
           update: { role: UserRole.OPERATIONS_ADMIN, isVerified: true },
           create: {
-            email: 'admin.catalogue@daih.ng',
-            firstName: 'Admin',
-            lastName: 'Catalogue',
+            email: "admin.catalogue@daih.ng",
+            firstName: "Admin",
+            lastName: "Catalogue",
             clientId: `DAIH-2026-CATALOGUE-${Date.now()}`,
             role: UserRole.OPERATIONS_ADMIN,
             isVerified: true,
-            passwordHash: '$argon2id$v=19$m=65536,t=3,p=4$dummyhashforcatalogueadmin',
+            passwordHash:
+              "$argon2id$v=19$m=65536,t=3,p=4$dummyhashforcatalogueadmin",
           },
         });
         adminUserId = adminUser.id;
 
         const customerUser = await prisma.user.upsert({
-          where: { email: 'customer.catalogue@daih.ng' },
+          where: { email: "customer.catalogue@daih.ng" },
           update: { role: UserRole.CUSTOMER, isVerified: true },
           create: {
-            email: 'customer.catalogue@daih.ng',
-            firstName: 'Customer',
-            lastName: 'Catalogue',
+            email: "customer.catalogue@daih.ng",
+            firstName: "Customer",
+            lastName: "Catalogue",
             clientId: `DAIH-2026-CATALOGUE-CUST-${Date.now()}`,
             role: UserRole.CUSTOMER,
             isVerified: true,
-            passwordHash: '$argon2id$v=19$m=65536,t=3,p=4$dummyhashforcataloguecust',
+            passwordHash:
+              "$argon2id$v=19$m=65536,t=3,p=4$dummyhashforcataloguecust",
           },
         });
 
@@ -50,8 +52,8 @@ describe('Milestone 1.2: Catalogue & Resource Model Module', () => {
             role: adminUser.role,
             clientId: adminUser.clientId,
           },
-          process.env.JWT_SECRET || 'dev-secret-key-12345678901234567890',
-          { expiresIn: '1h' }
+          process.env.JWT_SECRET || "dev-secret-key-12345678901234567890",
+          { expiresIn: "1h" },
         );
 
         customerToken = jwt.sign(
@@ -61,8 +63,8 @@ describe('Milestone 1.2: Catalogue & Resource Model Module', () => {
             role: customerUser.role,
             clientId: customerUser.clientId,
           },
-          process.env.JWT_SECRET || 'dev-secret-key-12345678901234567890',
-          { expiresIn: '1h' }
+          process.env.JWT_SECRET || "dev-secret-key-12345678901234567890",
+          { expiresIn: "1h" },
         );
 
         break;
@@ -73,54 +75,57 @@ describe('Milestone 1.2: Catalogue & Resource Model Module', () => {
     }
   }, 30000);
 
-
-
-  describe('2. Operations Admin RBAC Protection', () => {
-    it('rejects unauthenticated requests to admin catalogue routes with 401', async () => {
-      const res = await request(app).get('/api/v1/catalogue/admin/resources');
+  describe("2. Operations Admin RBAC Protection", () => {
+    it("rejects unauthenticated requests to admin catalogue routes with 401", async () => {
+      const res = await request(app).get("/api/v1/catalogue/admin/resources");
       expect(res.status).toBe(401);
-      expect(res.body.code).toBe('UNAUTHORIZED');
+      expect(res.body.code).toBe("UNAUTHORIZED");
     });
 
-    it('rejects customer accounts from accessing admin catalogue routes with 403', async () => {
+    it("rejects customer accounts from accessing admin catalogue routes with 403", async () => {
       const res = await request(app)
-        .get('/api/v1/catalogue/admin/resources')
-        .set('Authorization', `Bearer ${customerToken}`);
+        .get("/api/v1/catalogue/admin/resources")
+        .set("Authorization", `Bearer ${customerToken}`);
       expect(res.status).toBe(403);
-      expect(res.body.code).toBe('FORBIDDEN');
+      expect(res.body.code).toBe("FORBIDDEN");
     });
 
-    it('allows Operations Admin to view all resources including inactive with 200', async () => {
+    it("allows Operations Admin to view all resources including inactive with 200", async () => {
       const res = await request(app)
-        .get('/api/v1/catalogue/admin/resources')
-        .set('Authorization', `Bearer ${adminToken}`);
+        .get("/api/v1/catalogue/admin/resources")
+        .set("Authorization", `Bearer ${adminToken}`);
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(Array.isArray(res.body.data)).toBe(true);
     });
   });
 
-  describe('3. Resource & Pricing CRUD', () => {
+  describe("3. Resource & Pricing CRUD", () => {
     let createdResourceId: string;
     let createdPlanId: string;
 
-    it('creates a new workspace resource as Operations Admin', async () => {
+    it("creates a new workspace resource as Operations Admin", async () => {
       const newResource = {
-        name: 'Podcast Studio Suite',
+        name: "Podcast Studio Suite",
         slug: `podcast-suite-${Date.now()}`,
-        category: 'STUDIO',
-        description: 'Sound-isolated acoustic recording room equipped for 4-host podcasts.',
+        category: "STUDIO",
+        description:
+          "Sound-isolated acoustic recording room equipped for 4-host podcasts.",
         capacity: 4,
-        location: 'Ground Floor, Media Wing',
-        amenities: ['4x Shure SM7B Mics', 'Acoustic Wall Panels', 'Multi-Cam Setup'],
+        location: "Ground Floor, Media Wing",
+        amenities: [
+          "4x Shure SM7B Mics",
+          "Acoustic Wall Panels",
+          "Multi-Cam Setup",
+        ],
         sortOrder: 10,
         isPopular: false,
         isActive: true,
       };
 
       const res = await request(app)
-        .post('/api/v1/catalogue/admin/resources')
-        .set('Authorization', `Bearer ${adminToken}`)
+        .post("/api/v1/catalogue/admin/resources")
+        .set("Authorization", `Bearer ${adminToken}`)
         .send(newResource);
 
       expect(res.status).toBe(201);
@@ -129,19 +134,19 @@ describe('Milestone 1.2: Catalogue & Resource Model Module', () => {
       createdResourceId = res.body.data.id;
     });
 
-    it('adds a pricing tier to the newly created resource', async () => {
+    it("adds a pricing tier to the newly created resource", async () => {
       const newPlan = {
-        planName: '2-Hour Podcast Session',
+        planName: "2-Hour Podcast Session",
         durationHours: 2,
         price: 50000,
-        currency: 'NGN',
+        currency: "NGN",
         isPopular: true,
         isActive: true,
       };
 
       const res = await request(app)
         .post(`/api/v1/catalogue/admin/resources/${createdResourceId}/pricing`)
-        .set('Authorization', `Bearer ${adminToken}`)
+        .set("Authorization", `Bearer ${adminToken}`)
         .send(newPlan);
 
       expect(res.status).toBe(201);
@@ -151,27 +156,29 @@ describe('Milestone 1.2: Catalogue & Resource Model Module', () => {
       createdPlanId = res.body.data.id;
     });
 
-    it('updates a pricing tier price and confirms live reflection', async () => {
+    it("updates a pricing tier price and confirms live reflection", async () => {
       const res = await request(app)
         .put(`/api/v1/catalogue/admin/pricing/${createdPlanId}`)
-        .set('Authorization', `Bearer ${adminToken}`)
+        .set("Authorization", `Bearer ${adminToken}`)
         .send({ price: 55000 });
 
       expect(res.status).toBe(200);
       expect(res.body.data.price).toBe(55000);
     });
 
-    it('adds and deletes a blackout date on the resource', async () => {
+    it("adds and deletes a blackout date on the resource", async () => {
       const tomorrow = new Date(Date.now() + 86400000).toISOString();
       const nextDay = new Date(Date.now() + 172800000).toISOString();
 
       const blackoutRes = await request(app)
-        .post(`/api/v1/catalogue/admin/resources/${createdResourceId}/blackouts`)
-        .set('Authorization', `Bearer ${adminToken}`)
+        .post(
+          `/api/v1/catalogue/admin/resources/${createdResourceId}/blackouts`,
+        )
+        .set("Authorization", `Bearer ${adminToken}`)
         .send({
           startDate: tomorrow,
           endDate: nextDay,
-          reason: 'Acoustic Foam Upgrades',
+          reason: "Acoustic Foam Upgrades",
           isActive: true,
         });
 
@@ -180,7 +187,7 @@ describe('Milestone 1.2: Catalogue & Resource Model Module', () => {
 
       const deleteRes = await request(app)
         .delete(`/api/v1/catalogue/admin/blackouts/${blackoutId}`)
-        .set('Authorization', `Bearer ${adminToken}`);
+        .set("Authorization", `Bearer ${adminToken}`);
 
       expect(deleteRes.status).toBe(200);
       expect(deleteRes.body.success).toBe(true);
@@ -189,11 +196,19 @@ describe('Milestone 1.2: Catalogue & Resource Model Module', () => {
     afterAll(async () => {
       try {
         if (createdResourceId) {
-          await prisma.resourcePricing.deleteMany({ where: { resourceId: createdResourceId } });
-          await prisma.resourceBlackout.deleteMany({ where: { resourceId: createdResourceId } });
-          await prisma.facilityResource.deleteMany({ where: { id: createdResourceId } });
+          await prisma.resourcePricing.deleteMany({
+            where: { resourceId: createdResourceId },
+          });
+          await prisma.resourceBlackout.deleteMany({
+            where: { resourceId: createdResourceId },
+          });
+          await prisma.facilityResource.deleteMany({
+            where: { id: createdResourceId },
+          });
         }
-        await prisma.facilityResource.deleteMany({ where: { name: 'Podcast Studio Suite' } });
+        await prisma.facilityResource.deleteMany({
+          where: { name: "Podcast Studio Suite" },
+        });
       } catch (err) {
         // ignore cleanup error
       }

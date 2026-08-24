@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import React from 'react';
-import Link from 'next/link';
+import React from "react";
+import Link from "next/link";
 import {
   UserPlus,
   QrCode,
@@ -9,13 +9,15 @@ import {
   Building,
   FileSpreadsheet,
   Users,
-} from 'lucide-react';
+} from "lucide-react";
 
 interface QuickActionsProps {
   onOpenWalkInModal?: () => void;
 }
 
-export const QuickActions: React.FC<QuickActionsProps> = ({ onOpenWalkInModal }) => {
+export const QuickActions: React.FC<QuickActionsProps> = ({
+  onOpenWalkInModal,
+}) => {
   return (
     <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm mb-8">
       <h2 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
@@ -32,7 +34,9 @@ export const QuickActions: React.FC<QuickActionsProps> = ({ onOpenWalkInModal })
           </div>
           <div>
             <p className="text-xs font-bold text-slate-900">Issue Walk-In</p>
-            <p className="text-[10px] text-slate-500 mt-0.5">Day pass receipt</p>
+            <p className="text-[10px] text-slate-500 mt-0.5">
+              Day pass receipt
+            </p>
           </div>
         </button>
 
@@ -70,7 +74,9 @@ export const QuickActions: React.FC<QuickActionsProps> = ({ onOpenWalkInModal })
             <Users className="w-4 h-4" />
           </div>
           <div>
-            <p className="text-xs font-bold text-slate-900">Members Directory</p>
+            <p className="text-xs font-bold text-slate-900">
+              Members Directory
+            </p>
             <p className="text-[10px] text-slate-500 mt-0.5">Profiles & IDs</p>
           </div>
         </Link>

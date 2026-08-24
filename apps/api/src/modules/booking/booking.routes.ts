@@ -1,9 +1,16 @@
-import { Router } from 'express';
-import { bookingController } from './booking.controller.js';
-import { authenticate } from '../../middleware/auth.middleware.js';
-import { requirePermission, requireAnyPermission } from '../../middleware/rbac.middleware.js';
-import { validateBody, validateQuery, validateParams } from '../../middleware/validate.middleware.js';
-import { Permission } from '@daih/types';
+import { Router } from "express";
+import { bookingController } from "./booking.controller.js";
+import { authenticate } from "../../middleware/auth.middleware.js";
+import {
+  requirePermission,
+  requireAnyPermission,
+} from "../../middleware/rbac.middleware.js";
+import {
+  validateBody,
+  validateQuery,
+  validateParams,
+} from "../../middleware/validate.middleware.js";
+import { Permission } from "@daih/types";
 import {
   BookingIdParamSchema,
   CheckAvailabilitySchema,
@@ -12,7 +19,7 @@ import {
   CancelBookingSchema,
   AdminOverrideBookingSchema,
   BookingFilterSchema,
-} from './booking.schema.js';
+} from "./booking.schema.js";
 
 export const bookingRouter = Router();
 
@@ -23,49 +30,112 @@ export const bookingRouter = Router();
 
 const readBookingsGuard = [
   authenticate,
-  requireAnyPermission([Permission.BOOKINGS_READ_ALL, Permission.BOOKINGS_MANAGE]),
+  requireAnyPermission([
+    Permission.BOOKINGS_READ_ALL,
+    Permission.BOOKINGS_MANAGE,
+  ]),
 ];
-const manageGuard = [authenticate, requirePermission(Permission.BOOKINGS_MANAGE)];
-const overrideGuard = [authenticate, requirePermission(Permission.BOOKINGS_OVERRIDE)];
+const manageGuard = [
+  authenticate,
+  requirePermission(Permission.BOOKINGS_MANAGE),
+];
+const overrideGuard = [
+  authenticate,
+  requirePermission(Permission.BOOKINGS_OVERRIDE),
+];
 
 // List all bookings for Admin Console (accessible by all staff with BOOKINGS_READ_ALL)
-bookingRouter.get('/admin', ...readBookingsGuard, validateQuery(BookingFilterSchema), bookingController.getAdminBookings);
-bookingRouter.get('/admin/all', ...readBookingsGuard, validateQuery(BookingFilterSchema), bookingController.getAdminBookings);
+bookingRouter.get(
+  "/admin",
+  ...readBookingsGuard,
+  validateQuery(BookingFilterSchema),
+  bookingController.getAdminBookings,
+);
+bookingRouter.get(
+  "/admin/all",
+  ...readBookingsGuard,
+  validateQuery(BookingFilterSchema),
+  bookingController.getAdminBookings,
+);
 
 // Manual VIP / Walk-in booking override
-bookingRouter.post('/admin/override', ...overrideGuard, validateBody(AdminOverrideBookingSchema), bookingController.adminOverride);
+bookingRouter.post(
+  "/admin/override",
+  ...overrideGuard,
+  validateBody(AdminOverrideBookingSchema),
+  bookingController.adminOverride,
+);
 
 // Force release an active hold
-bookingRouter.post('/admin/:id/release', ...manageGuard, validateParams(BookingIdParamSchema), bookingController.adminReleaseHold);
+bookingRouter.post(
+  "/admin/:id/release",
+  ...manageGuard,
+  validateParams(BookingIdParamSchema),
+  bookingController.adminReleaseHold,
+);
 
 // ==========================================
 // Public & Customer Static Endpoints
 // ==========================================
 
 // Real-time availability search (open/public or authenticated)
-bookingRouter.get('/availability', validateQuery(CheckAvailabilitySchema), bookingController.checkAvailability);
+bookingRouter.get(
+  "/availability",
+  validateQuery(CheckAvailabilitySchema),
+  bookingController.checkAvailability,
+);
 
 // Sparse monthly calendar & hourly slot availability
-bookingRouter.get('/calendar-availability', validateQuery(CalendarAvailabilitySchema), bookingController.getCalendarAvailability);
+bookingRouter.get(
+  "/calendar-availability",
+  validateQuery(CalendarAvailabilitySchema),
+  bookingController.getCalendarAvailability,
+);
 
 // Create a 10-minute hold on a resource
-bookingRouter.post('/hold', authenticate, validateBody(CreateHoldSchema), bookingController.createHold);
+bookingRouter.post(
+  "/hold",
+  authenticate,
+  validateBody(CreateHoldSchema),
+  bookingController.createHold,
+);
 
 // View customer's own bookings
-bookingRouter.get('/my', authenticate, bookingController.getMyBookings);
+bookingRouter.get("/my", authenticate, bookingController.getMyBookings);
 
 // ==========================================
 // Parameterized /:id Endpoints
 // ==========================================
 
 // Extend hold expiry (e.g. while on checkout / payment modal)
-bookingRouter.post('/:id/extend-hold', authenticate, validateParams(BookingIdParamSchema), bookingController.extendHold);
+bookingRouter.post(
+  "/:id/extend-hold",
+  authenticate,
+  validateParams(BookingIdParamSchema),
+  bookingController.extendHold,
+);
 
 // Cancel an active booking / hold
-bookingRouter.post('/:id/cancel', authenticate, validateParams(BookingIdParamSchema), validateBody(CancelBookingSchema), bookingController.cancelBooking);
+bookingRouter.post(
+  "/:id/cancel",
+  authenticate,
+  validateParams(BookingIdParamSchema),
+  validateBody(CancelBookingSchema),
+  bookingController.cancelBooking,
+);
 
 // Confirm booking (upon payment verification)
-bookingRouter.post('/:id/confirm', authenticate, validateParams(BookingIdParamSchema), bookingController.confirmBooking);
+bookingRouter.post(
+  "/:id/confirm",
+  authenticate,
+  validateParams(BookingIdParamSchema),
+  bookingController.confirmBooking,
+);
 
 // Get single booking by ID or reference
-bookingRouter.get('/:id', authenticate, validateParams(BookingIdParamSchema), bookingController.getBookingById);
+bookingRouter.get(
+  "/:id",
+  authenticate,
+  validateParams(BookingIdParamSchema),
+  bookingController.getBookingById,
+);

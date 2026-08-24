@@ -1,26 +1,26 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
+import React, { useState } from "react";
 
 export const RevenueTrendChart: React.FC = () => {
-  const [period, setPeriod] = useState<'Daily' | 'Weekly'>('Daily');
+  const [period, setPeriod] = useState<"Daily" | "Weekly">("Daily");
 
   const dailyPoints = [
-    { label: 'Oct 1', value: '₦850k', x: 0, y: 80 },
-    { label: 'Oct 8', value: '₦1.4m', x: 30, y: 50 },
-    { label: 'Oct 15', value: '₦1.8m', x: 60, y: 30 },
-    { label: 'Oct 22', value: '₦1.6m', x: 80, y: 45 },
-    { label: 'Oct 29', value: '₦2.1m', x: 100, y: 20 },
+    { label: "Oct 1", value: "₦850k", x: 0, y: 80 },
+    { label: "Oct 8", value: "₦1.4m", x: 30, y: 50 },
+    { label: "Oct 15", value: "₦1.8m", x: 60, y: 30 },
+    { label: "Oct 22", value: "₦1.6m", x: 80, y: 45 },
+    { label: "Oct 29", value: "₦2.1m", x: 100, y: 20 },
   ];
 
   const weeklyPoints = [
-    { label: 'Wk 1', value: '₦6.2m', x: 0, y: 70 },
-    { label: 'Wk 2', value: '₦9.8m', x: 33, y: 40 },
-    { label: 'Wk 3', value: '₦11.4m', x: 66, y: 25 },
-    { label: 'Wk 4', value: '₦14.5m', x: 100, y: 15 },
+    { label: "Wk 1", value: "₦6.2m", x: 0, y: 70 },
+    { label: "Wk 2", value: "₦9.8m", x: 33, y: 40 },
+    { label: "Wk 3", value: "₦11.4m", x: 66, y: 25 },
+    { label: "Wk 4", value: "₦14.5m", x: 100, y: 15 },
   ];
 
-  const points = period === 'Daily' ? dailyPoints : weeklyPoints;
+  const points = period === "Daily" ? dailyPoints : weeklyPoints;
 
   return (
     <div className="bg-white/80 backdrop-blur-md border border-[#EBE7F5] rounded-xl p-6 flex flex-col h-[400px] shadow-xs">
@@ -29,21 +29,21 @@ export const RevenueTrendChart: React.FC = () => {
         <h3 className="text-base font-bold text-slate-900">Revenue Trend</h3>
         <div className="flex gap-1.5 bg-[#F8F9FA] p-1 rounded-lg border border-[#EBE7F5]">
           <button
-            onClick={() => setPeriod('Daily')}
+            onClick={() => setPeriod("Daily")}
             className={`px-3 py-1 rounded text-xs font-semibold transition-all cursor-pointer ${
-              period === 'Daily'
-                ? 'bg-[#392271] text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
+              period === "Daily"
+                ? "bg-[#392271] text-white shadow-xs"
+                : "text-slate-600 hover:text-slate-900"
             }`}
           >
             Daily
           </button>
           <button
-            onClick={() => setPeriod('Weekly')}
+            onClick={() => setPeriod("Weekly")}
             className={`px-3 py-1 rounded text-xs font-semibold transition-all cursor-pointer ${
-              period === 'Weekly'
-                ? 'bg-[#392271] text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
+              period === "Weekly"
+                ? "bg-[#392271] text-white shadow-xs"
+                : "text-slate-600 hover:text-slate-900"
             }`}
           >
             Weekly
@@ -77,7 +77,13 @@ export const RevenueTrendChart: React.FC = () => {
           viewBox="0 0 100 100"
         >
           <defs>
-            <linearGradient id="revenueChartGrad" x1="0%" x2="0%" y1="0%" y2="100%">
+            <linearGradient
+              id="revenueChartGrad"
+              x1="0%"
+              x2="0%"
+              y1="0%"
+              y2="100%"
+            >
               <stop offset="0%" stopColor="#392271" stopOpacity="0.25" />
               <stop offset="100%" stopColor="#392271" stopOpacity="0.0" />
             </linearGradient>
@@ -99,10 +105,42 @@ export const RevenueTrendChart: React.FC = () => {
           />
 
           {/* Data Points */}
-          <circle cx="30" cy="50" fill="#ffffff" r="4" stroke="#392271" strokeWidth="2.5" vectorEffect="non-scaling-stroke" />
-          <circle cx="60" cy="30" fill="#ffffff" r="4" stroke="#392271" strokeWidth="2.5" vectorEffect="non-scaling-stroke" />
-          <circle cx="90" cy="40" fill="#ffffff" r="4" stroke="#392271" strokeWidth="2.5" vectorEffect="non-scaling-stroke" />
-          <circle cx="100" cy="20" fill="#ffffff" r="4" stroke="#392271" strokeWidth="2.5" vectorEffect="non-scaling-stroke" />
+          <circle
+            cx="30"
+            cy="50"
+            fill="#ffffff"
+            r="4"
+            stroke="#392271"
+            strokeWidth="2.5"
+            vectorEffect="non-scaling-stroke"
+          />
+          <circle
+            cx="60"
+            cy="30"
+            fill="#ffffff"
+            r="4"
+            stroke="#392271"
+            strokeWidth="2.5"
+            vectorEffect="non-scaling-stroke"
+          />
+          <circle
+            cx="90"
+            cy="40"
+            fill="#ffffff"
+            r="4"
+            stroke="#392271"
+            strokeWidth="2.5"
+            vectorEffect="non-scaling-stroke"
+          />
+          <circle
+            cx="100"
+            cy="20"
+            fill="#ffffff"
+            r="4"
+            stroke="#392271"
+            strokeWidth="2.5"
+            vectorEffect="non-scaling-stroke"
+          />
         </svg>
 
         {/* X Axis Labels */}

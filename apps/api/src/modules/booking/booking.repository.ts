@@ -1,6 +1,6 @@
-import { prisma } from '../../db/client.js';
-import { BookingState, Prisma } from '@prisma/client';
-import { ACTIVE_BOOKING_STATES } from './booking.state-machine.js';
+import { prisma } from "../../db/client.js";
+import { BookingState, Prisma } from "@prisma/client";
+import { ACTIVE_BOOKING_STATES } from "./booking.state-machine.js";
 
 export class BookingRepository {
   /**
@@ -14,14 +14,14 @@ export class BookingRepository {
       include: {
         pricing: {
           where: { isActive: true },
-          orderBy: { price: 'asc' },
+          orderBy: { price: "asc" },
         },
         schedules: {
-          orderBy: { dayOfWeek: 'asc' },
+          orderBy: { dayOfWeek: "asc" },
         },
         blackouts: {
           where: { isActive: true },
-          orderBy: { startDate: 'asc' },
+          orderBy: { startDate: "asc" },
         },
       },
     });
@@ -36,7 +36,7 @@ export class BookingRepository {
     resourceId: string,
     startTime: Date,
     endTime: Date,
-    excludeBookingId?: string
+    excludeBookingId?: string,
   ): Promise<number> {
     const now = new Date();
 
@@ -49,14 +49,19 @@ export class BookingRepository {
         endTime: { gt: startTime },
         OR: [
           // Confirmed/Active bookings don't expire
-          { state: { in: [BookingState.CONFIRMED, BookingState.ACTIVE, BookingState.CHECKED_IN] } },
+          {
+            state: {
+              in: [
+                BookingState.CONFIRMED,
+                BookingState.ACTIVE,
+                BookingState.CHECKED_IN,
+              ],
+            },
+          },
           // Holds or Pending Payment are only active if not yet expired
           {
             state: { in: [BookingState.HELD, BookingState.PENDING_PAYMENT] },
-            OR: [
-              { holdExpiresAt: null },
-              { holdExpiresAt: { gt: now } },
-            ],
+            OR: [{ holdExpiresAt: null }, { holdExpiresAt: { gt: now } }],
           },
         ],
       },
@@ -77,7 +82,7 @@ export class BookingRepository {
       totalAmount: number | Prisma.Decimal;
       currency?: string;
       holdExpiresAt: Date;
-    }
+    },
   ) {
     return tx.booking.create({
       data: {
@@ -89,7 +94,7 @@ export class BookingRepository {
         state: BookingState.HELD,
         holdExpiresAt: data.holdExpiresAt,
         totalAmount: data.totalAmount,
-        currency: data.currency || 'NGN',
+        currency: data.currency || "NGN",
       },
       include: {
         resource: true,
@@ -163,7 +168,7 @@ export class BookingRepository {
   async findMyBookings(userId: string) {
     return prisma.booking.findMany({
       where: { userId },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
       include: {
         resource: true,
         user: {
@@ -205,11 +210,27 @@ export class BookingRepository {
       ...(filters.search
         ? {
             OR: [
-              { reference: { contains: filters.search, mode: 'insensitive' } },
-              { user: { email: { contains: filters.search, mode: 'insensitive' } } },
-              { user: { firstName: { contains: filters.search, mode: 'insensitive' } } },
-              { user: { lastName: { contains: filters.search, mode: 'insensitive' } } },
-              { resource: { name: { contains: filters.search, mode: 'insensitive' } } },
+              { reference: { contains: filters.search, mode: "insensitive" } },
+              {
+                user: {
+                  email: { contains: filters.search, mode: "insensitive" },
+                },
+              },
+              {
+                user: {
+                  firstName: { contains: filters.search, mode: "insensitive" },
+                },
+              },
+              {
+                user: {
+                  lastName: { contains: filters.search, mode: "insensitive" },
+                },
+              },
+              {
+                resource: {
+                  name: { contains: filters.search, mode: "insensitive" },
+                },
+              },
             ],
           }
         : {}),
@@ -221,7 +242,7 @@ export class BookingRepository {
         where,
         skip,
         take: limit,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         include: {
           resource: true,
           user: {
@@ -253,7 +274,7 @@ export class BookingRepository {
       checkedInAt?: Date;
       checkedOutAt?: Date;
       holdExpiresAt?: Date | null;
-    } = {}
+    } = {},
   ) {
     return tx.booking.update({
       where: { id },
@@ -274,7 +295,7 @@ export class BookingRepository {
   async extendHold(
     tx: Prisma.TransactionClient | typeof prisma,
     id: string,
-    newExpiresAt: Date
+    newExpiresAt: Date,
   ) {
     return tx.booking.update({
       where: { id },
@@ -306,4 +327,3 @@ export class BookingRepository {
 }
 
 export const bookingRepository = new BookingRepository();
-

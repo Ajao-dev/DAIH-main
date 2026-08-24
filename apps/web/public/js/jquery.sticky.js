@@ -224,7 +224,7 @@
       setupChangeListeners: function (stickyElement) {
         if (window.MutationObserver) {
           var mutationObserver = new window.MutationObserver(function (
-            mutations
+            mutations,
           ) {
             if (
               mutations[0].addedNodes.length ||
@@ -244,14 +244,14 @@
               function () {
                 methods.setWrapperHeight(stickyElement);
               },
-              false
+              false,
             );
             stickyElement.addEventListener(
               "DOMNodeRemoved",
               function () {
                 methods.setWrapperHeight(stickyElement);
               },
-              false
+              false,
             );
           } else if (window.attachEvent) {
             stickyElement.attachEvent("onDOMNodeInserted", function () {

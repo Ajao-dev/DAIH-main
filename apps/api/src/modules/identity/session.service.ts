@@ -1,10 +1,14 @@
-import jwt from 'jsonwebtoken';
-import { randomUUID } from 'crypto';
-import { UserRole } from '@daih/types';
-import { config } from '../../config/env.js';
-import { prisma } from '../../db/client.js';
-import { passwordService } from './password.service.js';
-import { JwtTokenPayload, SessionContext, UserSummaryDTO } from './identity.types.js';
+import jwt from "jsonwebtoken";
+import { randomUUID } from "crypto";
+import { UserRole } from "@daih/types";
+import { config } from "../../config/env.js";
+import { prisma } from "../../db/client.js";
+import { passwordService } from "./password.service.js";
+import {
+  JwtTokenPayload,
+  SessionContext,
+  UserSummaryDTO,
+} from "./identity.types.js";
 
 export class SessionService {
   /**
@@ -28,7 +32,7 @@ export class SessionService {
    */
   async createSession(
     user: UserSummaryDTO,
-    context: SessionContext = {}
+    context: SessionContext = {},
   ): Promise<{ accessToken: string; rawRefreshToken: string }> {
     const rawRefreshToken = passwordService.generateSecureToken(32);
     const refreshTokenHash = passwordService.hashToken(rawRefreshToken);
@@ -67,8 +71,12 @@ export class SessionService {
    */
   async rotateRefreshToken(
     rawRefreshToken: string,
-    context: SessionContext = {}
-  ): Promise<{ accessToken: string; rawRefreshToken: string; user: UserSummaryDTO }> {
+    context: SessionContext = {},
+  ): Promise<{
+    accessToken: string;
+    rawRefreshToken: string;
+    user: UserSummaryDTO;
+  }> {
     const tokenHash = passwordService.hashToken(rawRefreshToken);
 
     const session = await prisma.authSession.findUnique({
@@ -77,13 +85,15 @@ export class SessionService {
     });
 
     if (!session) {
-      throw new Error('INVALID_REFRESH_TOKEN');
+      throw new Error("INVALID_REFRESH_TOKEN");
     }
 
     // If session is already marked revoked, verify if it was revoked within the grace window (15s)
     if (session.isRevoked) {
       const now = Date.now();
-      const lastUsed = session.lastUsedAt ? new Date(session.lastUsedAt).getTime() : 0;
+      const lastUsed = session.lastUsedAt
+        ? new Date(session.lastUsedAt).getTime()
+        : 0;
       const gracePeriodMs = 15000; // 15 seconds grace window for concurrent requests
 
       if (now - lastUsed <= gracePeriodMs) {
@@ -121,7 +131,7 @@ export class SessionService {
         data: { isRevoked: true },
       });
 
-      throw new Error('REFRESH_TOKEN_REUSE_DETECTED');
+      throw new Error("REFRESH_TOKEN_REUSE_DETECTED");
     }
 
     // Expiry check
@@ -130,7 +140,7 @@ export class SessionService {
         where: { id: session.id },
         data: { isRevoked: true },
       });
-      throw new Error('SESSION_EXPIRED');
+      throw new Error("SESSION_EXPIRED");
     }
 
     // Generate rotated refresh token
@@ -138,7 +148,9 @@ export class SessionService {
     const nextRefreshTokenHash = passwordService.hashToken(nextRawRefreshToken);
 
     const nextExpiresAt = new Date();
-    nextExpiresAt.setDate(nextExpiresAt.getDate() + config.jwt.refreshExpiresInDays);
+    nextExpiresAt.setDate(
+      nextExpiresAt.getDate() + config.jwt.refreshExpiresInDays,
+    );
 
     // Revoke previous session
     await prisma.authSession.update({
@@ -165,10 +177,12 @@ export class SessionService {
       email: (newSession as any).user?.email || session.user.email,
       firstName: (newSession as any).user?.firstName || session.user.firstName,
       lastName: (newSession as any).user?.lastName || session.user.lastName,
-      phoneNumber: (newSession as any).user?.phoneNumber || session.user.phoneNumber,
+      phoneNumber:
+        (newSession as any).user?.phoneNumber || session.user.phoneNumber,
       clientId: (newSession as any).user?.clientId || session.user.clientId,
       role: ((newSession as any).user?.role || session.user.role) as UserRole,
-      isVerified: (newSession as any).user?.isVerified ?? session.user.isVerified,
+      isVerified:
+        (newSession as any).user?.isVerified ?? session.user.isVerified,
       createdAt: (newSession as any).user?.createdAt || session.user.createdAt,
     };
 

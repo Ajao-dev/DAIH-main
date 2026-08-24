@@ -1,5 +1,5 @@
-import { Request, Response, NextFunction } from 'express';
-import { ZodSchema, ZodError } from 'zod';
+import { Request, Response, NextFunction } from "express";
+import { ZodSchema, ZodError } from "zod";
 
 export const validateBody = (schema: ZodSchema) => {
   return (req: Request, res: Response, next: NextFunction): void => {
@@ -9,10 +9,10 @@ export const validateBody = (schema: ZodSchema) => {
     } catch (error) {
       if (error instanceof ZodError) {
         res.status(400).json({
-          code: 'VALIDATION_ERROR',
-          message: 'Invalid request payload',
+          code: "VALIDATION_ERROR",
+          message: "Invalid request payload",
           details: error.errors.map((e) => ({
-            field: e.path.join('.'),
+            field: e.path.join("."),
             message: e.message,
           })),
         });
@@ -31,10 +31,10 @@ export const validateQuery = (schema: ZodSchema) => {
     } catch (error) {
       if (error instanceof ZodError) {
         res.status(400).json({
-          code: 'VALIDATION_ERROR',
-          message: 'Invalid query parameters',
+          code: "VALIDATION_ERROR",
+          message: "Invalid query parameters",
           details: error.errors.map((e) => ({
-            field: e.path.join('.'),
+            field: e.path.join("."),
             message: e.message,
           })),
         });
@@ -53,10 +53,10 @@ export const validateParams = (schema: ZodSchema) => {
     } catch (error) {
       if (error instanceof ZodError) {
         res.status(400).json({
-          code: 'VALIDATION_ERROR',
-          message: 'Invalid route parameters',
+          code: "VALIDATION_ERROR",
+          message: "Invalid route parameters",
           details: error.errors.map((e) => ({
-            field: e.path.join('.'),
+            field: e.path.join("."),
             message: e.message,
           })),
         });
@@ -73,9 +73,9 @@ export const validateParams = (schema: ZodSchema) => {
 export const sanitizeString = (str: string): string => {
   return str
     .trim()
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#x27;');
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#x27;");
 };

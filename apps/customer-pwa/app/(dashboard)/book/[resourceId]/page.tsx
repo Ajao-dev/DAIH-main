@@ -1,32 +1,61 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
-import { useAuth, api } from '@daih/api-client';
-import { FacilityResource, ResourcePricingPlan, AvailabilityResultDTO, ResourceBlackout, CalendarAvailabilityResultDTO } from '@daih/types';
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
+import { useAuth, api } from "@daih/api-client";
 import {
-  MapPin, CheckCircle2, Lock, Calendar as CalendarIcon,
-  Users, Sparkles, ArrowLeft, Loader2, Clock, Check, ShieldCheck, Plus, Minus,
-  AlertTriangle, AlertCircle, RefreshCw, Timer
-} from 'lucide-react';
+  FacilityResource,
+  ResourcePricingPlan,
+  AvailabilityResultDTO,
+  ResourceBlackout,
+  CalendarAvailabilityResultDTO,
+} from "@daih/types";
+import {
+  MapPin,
+  CheckCircle2,
+  Lock,
+  Calendar as CalendarIcon,
+  Users,
+  Sparkles,
+  ArrowLeft,
+  Loader2,
+  Clock,
+  Check,
+  ShieldCheck,
+  Plus,
+  Minus,
+  AlertTriangle,
+  AlertCircle,
+  RefreshCw,
+  Timer,
+} from "lucide-react";
 
 function getWorkspaceImage(slug: string, imageUrl?: string | null): string {
-  if (imageUrl && (imageUrl.startsWith('http') || imageUrl.startsWith('/images/'))) return imageUrl;
+  if (
+    imageUrl &&
+    (imageUrl.startsWith("http") || imageUrl.startsWith("/images/"))
+  )
+    return imageUrl;
   const s = slug.toLowerCase();
-  if (s.includes('studio') || s.includes('audio') || s.includes('stream')) return '/images/search/4.jpg';
-  if (s.includes('rooftop')) return '/images/search/6.jpg';
-  if (s.includes('training') || s.includes('meeting')) return '/images/search/5.jpg';
-  if (s.includes('office') || s.includes('private')) return '/images/search/3.jpg';
-  if (s.includes('dedicated')) return '/images/search/1.jpg';
-  return '/images/search/2.jpg';
+  if (s.includes("studio") || s.includes("audio") || s.includes("stream"))
+    return "/images/search/4.jpg";
+  if (s.includes("rooftop")) return "/images/search/6.jpg";
+  if (s.includes("training") || s.includes("meeting"))
+    return "/images/search/5.jpg";
+  if (s.includes("office") || s.includes("private"))
+    return "/images/search/3.jpg";
+  if (s.includes("dedicated")) return "/images/search/1.jpg";
+  return "/images/search/2.jpg";
 }
 
 // ---- duration helpers ----
-function getPlanDurationType(plan: ResourcePricingPlan): 'hours' | 'days' | 'months' {
-  if (plan.durationHours && plan.durationHours > 0) return 'hours';
-  if (plan.durationMonths && plan.durationMonths > 0) return 'months';
-  return 'days';
+function getPlanDurationType(
+  plan: ResourcePricingPlan,
+): "hours" | "days" | "months" {
+  if (plan.durationHours && plan.durationHours > 0) return "hours";
+  if (plan.durationMonths && plan.durationMonths > 0) return "months";
+  return "days";
 }
 function getPlanBaseUnit(plan: ResourcePricingPlan): number {
   if (plan.durationHours) return plan.durationHours;
@@ -34,98 +63,344 @@ function getPlanBaseUnit(plan: ResourcePricingPlan): number {
   return plan.durationDays || 1;
 }
 function getUnitLabel(plan: ResourcePricingPlan): string {
-  if (plan.durationHours) return plan.durationHours === 1 ? '/hour' : `/${plan.durationHours}hr`;
-  if (plan.durationMonths) return plan.durationMonths === 1 ? '/month' : `/${plan.durationMonths}mo`;
-  if (plan.durationDays && plan.durationDays === 7) return '/week';
-  if (plan.durationDays && plan.durationDays > 1) return `/${plan.durationDays}d`;
-  return '/day';
+  if (plan.durationHours)
+    return plan.durationHours === 1 ? "/hour" : `/${plan.durationHours}hr`;
+  if (plan.durationMonths)
+    return plan.durationMonths === 1 ? "/month" : `/${plan.durationMonths}mo`;
+  if (plan.durationDays && plan.durationDays === 7) return "/week";
+  if (plan.durationDays && plan.durationDays > 1)
+    return `/${plan.durationDays}d`;
+  return "/day";
 }
 
 function toYMD(d: Date): string {
   const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 }
 
 function formatDate(dateStr: string): string {
-  if (!dateStr) return '';
-  const cleanStr = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
-  return new Date(cleanStr + 'T00:00:00').toLocaleDateString('en-NG', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+  if (!dateStr) return "";
+  const cleanStr = dateStr.includes("T") ? dateStr.split("T")[0] : dateStr;
+  return new Date(cleanStr + "T00:00:00").toLocaleDateString("en-NG", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 }
 function addDays(dateStr: string, days: number): string {
-  const d = new Date(dateStr + 'T00:00:00');
+  const d = new Date(dateStr + "T00:00:00");
   d.setDate(d.getDate() + days);
   return toYMD(d);
 }
 function addMonths(dateStr: string, months: number): string {
-  const d = new Date(dateStr + 'T00:00:00');
+  const d = new Date(dateStr + "T00:00:00");
   d.setMonth(d.getMonth() + months);
   return toYMD(d);
 }
 function formatTime(hour: number): string {
   const h = ((hour % 24) + 24) % 24;
-  const ampm = h >= 12 ? 'PM' : 'AM';
+  const ampm = h >= 12 ? "PM" : "AM";
   const display = h === 0 ? 12 : h > 12 ? h - 12 : h;
   return `${display}:00 ${ampm}`;
 }
 
 const FALLBACK_RESOURCES: Record<string, Partial<FacilityResource>> = {
-  'flex-desk': {
-    name: 'Flex Desk', slug: 'flex-desk', location: 'Ground Floor, Innovation Lounge', capacity: 50,
-    description: 'Flexible workstation access in our dynamic open coworking lounge.',
-    amenities: ['Dedicated Workstation Access','High-Speed Internet/Wi-Fi','Comfortable Ergonomic Seating','Power & Charging Facilities','24/7 Power supply','Quiet & Productive Work Environment','Flexible Access','Water (Hot/Cold)'],
+  "flex-desk": {
+    name: "Flex Desk",
+    slug: "flex-desk",
+    location: "Ground Floor, Innovation Lounge",
+    capacity: 50,
+    description:
+      "Flexible workstation access in our dynamic open coworking lounge.",
+    amenities: [
+      "Dedicated Workstation Access",
+      "High-Speed Internet/Wi-Fi",
+      "Comfortable Ergonomic Seating",
+      "Power & Charging Facilities",
+      "24/7 Power supply",
+      "Quiet & Productive Work Environment",
+      "Flexible Access",
+      "Water (Hot/Cold)",
+    ],
     pricing: [
-      { id: 'flex-daily', resourceId: 'flex-desk', planName: 'Day Pass', durationDays: 1, price: 4000, currency: 'NGN', isPopular: true, isActive: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-      { id: 'flex-weekly', resourceId: 'flex-desk', planName: 'Weekly Pack', durationDays: 7, price: 20000, currency: 'NGN', isPopular: false, isActive: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-      { id: 'flex-monthly', resourceId: 'flex-desk', planName: 'Monthly Flex Pass', durationMonths: 1, price: 60000, currency: 'NGN', isPopular: false, isActive: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+      {
+        id: "flex-daily",
+        resourceId: "flex-desk",
+        planName: "Day Pass",
+        durationDays: 1,
+        price: 4000,
+        currency: "NGN",
+        isPopular: true,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      {
+        id: "flex-weekly",
+        resourceId: "flex-desk",
+        planName: "Weekly Pack",
+        durationDays: 7,
+        price: 20000,
+        currency: "NGN",
+        isPopular: false,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      {
+        id: "flex-monthly",
+        resourceId: "flex-desk",
+        planName: "Monthly Flex Pass",
+        durationMonths: 1,
+        price: 60000,
+        currency: "NGN",
+        isPopular: false,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
     ],
   },
-  'dedicated-desk': {
-    name: 'Dedicated Desk', slug: 'dedicated-desk', location: '1st Floor, Focus Wing', capacity: 24,
-    description: 'Assigned personal workstation with personal desk drawer and daily access.',
-    amenities: ['Assigned Personal workstation','High-Speed Internet/Wi-Fi','Ergonomic Office Chair','Power & Charging Facilities','24/7 Power Supply','Quiet & Productive Work Environment','Personal Desk Drawer','Daily Access','Water (Hot/Cold)'],
+  "dedicated-desk": {
+    name: "Dedicated Desk",
+    slug: "dedicated-desk",
+    location: "1st Floor, Focus Wing",
+    capacity: 24,
+    description:
+      "Assigned personal workstation with personal desk drawer and daily access.",
+    amenities: [
+      "Assigned Personal workstation",
+      "High-Speed Internet/Wi-Fi",
+      "Ergonomic Office Chair",
+      "Power & Charging Facilities",
+      "24/7 Power Supply",
+      "Quiet & Productive Work Environment",
+      "Personal Desk Drawer",
+      "Daily Access",
+      "Water (Hot/Cold)",
+    ],
     pricing: [
-      { id: 'dedicated-monthly', resourceId: 'dedicated-desk', planName: 'Monthly Dedicated', durationMonths: 1, price: 68000, currency: 'NGN', isPopular: true, isActive: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-      { id: 'dedicated-quarterly', resourceId: 'dedicated-desk', planName: 'Quarterly Dedicated', durationMonths: 3, price: 190000, currency: 'NGN', isPopular: false, isActive: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+      {
+        id: "dedicated-monthly",
+        resourceId: "dedicated-desk",
+        planName: "Monthly Dedicated",
+        durationMonths: 1,
+        price: 68000,
+        currency: "NGN",
+        isPopular: true,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      {
+        id: "dedicated-quarterly",
+        resourceId: "dedicated-desk",
+        planName: "Quarterly Dedicated",
+        durationMonths: 3,
+        price: 190000,
+        currency: "NGN",
+        isPopular: false,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
     ],
   },
-  'private-office': {
-    name: 'Private Office / Mini Conference', slug: 'private-office', location: '2nd Floor, Executive Wing', capacity: 8,
-    description: 'Air-conditioned private workspace with presentation screen/TV for teams.',
-    amenities: ['High-Speed Internet/Wi-Fi','Presentation Screen/TV','Power & Charging Facilities','24/7 Power Supply','Air-Conditioned Environment','Comfortable Seating Arrangement','Suitable for Teams'],
+  "private-office": {
+    name: "Private Office / Mini Conference",
+    slug: "private-office",
+    location: "2nd Floor, Executive Wing",
+    capacity: 8,
+    description:
+      "Air-conditioned private workspace with presentation screen/TV for teams.",
+    amenities: [
+      "High-Speed Internet/Wi-Fi",
+      "Presentation Screen/TV",
+      "Power & Charging Facilities",
+      "24/7 Power Supply",
+      "Air-Conditioned Environment",
+      "Comfortable Seating Arrangement",
+      "Suitable for Teams",
+    ],
     pricing: [
-      { id: 'office-daily', resourceId: 'private-office', planName: 'Daily Team Suite', durationDays: 1, price: 8000, currency: 'NGN', isPopular: true, isActive: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-      { id: 'office-weekly', resourceId: 'private-office', planName: 'Weekly Team Pass', durationDays: 7, price: 45000, currency: 'NGN', isPopular: false, isActive: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-      { id: 'office-monthly', resourceId: 'private-office', planName: 'Monthly Dedicated Office', durationMonths: 1, price: 180000, currency: 'NGN', isPopular: false, isActive: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+      {
+        id: "office-daily",
+        resourceId: "private-office",
+        planName: "Daily Team Suite",
+        durationDays: 1,
+        price: 8000,
+        currency: "NGN",
+        isPopular: true,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      {
+        id: "office-weekly",
+        resourceId: "private-office",
+        planName: "Weekly Team Pass",
+        durationDays: 7,
+        price: 45000,
+        currency: "NGN",
+        isPopular: false,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      {
+        id: "office-monthly",
+        resourceId: "private-office",
+        planName: "Monthly Dedicated Office",
+        durationMonths: 1,
+        price: 180000,
+        currency: "NGN",
+        isPopular: false,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
     ],
   },
-  'training-room': {
-    name: 'Training / Meeting Room', slug: 'training-room', location: '1st Floor, Learning Wing', capacity: 40,
-    description: 'Professional meeting and training space with flexible room setup and AC.',
-    amenities: ['Professional Meeting & Training Space','Comfortable Seating Arrangement','High-Speed Internet/Wi-Fi','Presentation Screen/TV','Power & Charging Facilities','24/7 Power Supply','Air-Conditioned Environment','Flexible Room Setup'],
+  "training-room": {
+    name: "Training / Meeting Room",
+    slug: "training-room",
+    location: "1st Floor, Learning Wing",
+    capacity: 40,
+    description:
+      "Professional meeting and training space with flexible room setup and AC.",
+    amenities: [
+      "Professional Meeting & Training Space",
+      "Comfortable Seating Arrangement",
+      "High-Speed Internet/Wi-Fi",
+      "Presentation Screen/TV",
+      "Power & Charging Facilities",
+      "24/7 Power Supply",
+      "Air-Conditioned Environment",
+      "Flexible Room Setup",
+    ],
     pricing: [
-      { id: 'training-hourly', resourceId: 'training-room', planName: 'Hourly Session', durationHours: 1, price: 25000, currency: 'NGN', isPopular: true, isActive: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-      { id: 'training-half-day', resourceId: 'training-room', planName: 'Half-Day Block (4 Hours)', durationHours: 4, price: 90000, currency: 'NGN', isPopular: false, isActive: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-      { id: 'training-full-day', resourceId: 'training-room', planName: 'Full-Day Session (8 Hours)', durationHours: 8, price: 170000, currency: 'NGN', isPopular: false, isActive: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+      {
+        id: "training-hourly",
+        resourceId: "training-room",
+        planName: "Hourly Session",
+        durationHours: 1,
+        price: 25000,
+        currency: "NGN",
+        isPopular: true,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      {
+        id: "training-half-day",
+        resourceId: "training-room",
+        planName: "Half-Day Block (4 Hours)",
+        durationHours: 4,
+        price: 90000,
+        currency: "NGN",
+        isPopular: false,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      {
+        id: "training-full-day",
+        resourceId: "training-room",
+        planName: "Full-Day Session (8 Hours)",
+        durationHours: 8,
+        price: 170000,
+        currency: "NGN",
+        isPopular: false,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
     ],
   },
-  'rooftop-lounge': {
-    name: 'Rooftop Lounge', slug: 'rooftop-lounge', location: 'Rooftop Terrace', capacity: 100,
-    description: 'Scenic outdoor premium rooftop ambience perfect for events and content creation.',
-    amenities: ['Premium Rooftop Ambience','Private & Social Event Space','Scenic Outdoor Setting','Perfect for Photoshoots & Content Creation','Birthday & Event Hosting','Corporate & Networking events'],
+  "rooftop-lounge": {
+    name: "Rooftop Lounge",
+    slug: "rooftop-lounge",
+    location: "Rooftop Terrace",
+    capacity: 100,
+    description:
+      "Scenic outdoor premium rooftop ambience perfect for events and content creation.",
+    amenities: [
+      "Premium Rooftop Ambience",
+      "Private & Social Event Space",
+      "Scenic Outdoor Setting",
+      "Perfect for Photoshoots & Content Creation",
+      "Birthday & Event Hosting",
+      "Corporate & Networking events",
+    ],
     pricing: [
-      { id: 'rooftop-hourly', resourceId: 'rooftop-lounge', planName: 'Hourly Event Booking', durationHours: 1, price: 35000, currency: 'NGN', isPopular: true, isActive: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-      { id: 'rooftop-evening', resourceId: 'rooftop-lounge', planName: 'Evening Social Block (4 Hours)', durationHours: 4, price: 130000, currency: 'NGN', isPopular: false, isActive: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+      {
+        id: "rooftop-hourly",
+        resourceId: "rooftop-lounge",
+        planName: "Hourly Event Booking",
+        durationHours: 1,
+        price: 35000,
+        currency: "NGN",
+        isPopular: true,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      {
+        id: "rooftop-evening",
+        resourceId: "rooftop-lounge",
+        planName: "Evening Social Block (4 Hours)",
+        durationHours: 4,
+        price: 130000,
+        currency: "NGN",
+        isPopular: false,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
     ],
   },
-  'studio': {
-    name: 'Studio', slug: 'studio', location: 'Ground Floor, Media Production Suite', capacity: 10,
-    description: 'Fully equipped professional creative production studio with high-end audio/visual gear.',
-    amenities: ['Professional Content Creation Space','Podcast Recording Setup','Professional Lighting Setup','Content Production Support','Flexible Studio Layout'],
+  studio: {
+    name: "Studio",
+    slug: "studio",
+    location: "Ground Floor, Media Production Suite",
+    capacity: 10,
+    description:
+      "Fully equipped professional creative production studio with high-end audio/visual gear.",
+    amenities: [
+      "Professional Content Creation Space",
+      "Podcast Recording Setup",
+      "Professional Lighting Setup",
+      "Content Production Support",
+      "Flexible Studio Layout",
+    ],
     pricing: [
-      { id: 'studio-hourly', resourceId: 'studio', planName: 'Hourly Studio Session', durationHours: 1, price: 200000, currency: 'NGN', isPopular: true, isActive: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-      { id: 'studio-half-day', resourceId: 'studio', planName: 'Half-Day Shoot (4 Hours)', durationHours: 4, price: 700000, currency: 'NGN', isPopular: false, isActive: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+      {
+        id: "studio-hourly",
+        resourceId: "studio",
+        planName: "Hourly Studio Session",
+        durationHours: 1,
+        price: 200000,
+        currency: "NGN",
+        isPopular: true,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      {
+        id: "studio-half-day",
+        resourceId: "studio",
+        planName: "Half-Day Shoot (4 Hours)",
+        durationHours: 4,
+        price: 700000,
+        currency: "NGN",
+        isPopular: false,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
     ],
   },
 };
@@ -145,12 +420,24 @@ interface DurationSelectorProps {
   calendarData?: CalendarAvailabilityResultDTO | null;
 }
 
-function DurationSelector({ plan, quantity, onQuantityChange, startDate, onStartDateChange, startHour, onStartHourChange, endDate, endHour, blackouts, calendarData }: DurationSelectorProps) {
+function DurationSelector({
+  plan,
+  quantity,
+  onQuantityChange,
+  startDate,
+  onStartDateChange,
+  startHour,
+  onStartHourChange,
+  endDate,
+  endHour,
+  blackouts,
+  calendarData,
+}: DurationSelectorProps) {
   const durType = getPlanDurationType(plan);
   const baseUnit = getPlanBaseUnit(plan);
   const today = toYMD(new Date());
   const minQty = 1;
-  const maxQty = durType === 'hours' ? 24 : durType === 'months' ? 12 : 90;
+  const maxQty = durType === "hours" ? 24 : durType === "months" ? 12 : 90;
   const totalUnits = baseUnit * quantity;
   const stepUp = () => onQuantityChange(Math.min(quantity + 1, maxQty));
   const stepDown = () => onQuantityChange(Math.max(quantity - 1, minQty));
@@ -167,8 +454,8 @@ function DurationSelector({ plan, quantity, onQuantityChange, startDate, onStart
 
   const selectedDayInfo = calendarData?.busyDates?.[startDate];
   const bookedHourSlots = selectedDayInfo?.bookedHourSlots || [];
-  const isSelectedDateBlackout = selectedDayInfo?.status === 'BLACKOUT';
-  const isSelectedDateClosed = selectedDayInfo?.status === 'CLOSED';
+  const isSelectedDateBlackout = selectedDayInfo?.status === "BLACKOUT";
+  const isSelectedDateClosed = selectedDayInfo?.status === "CLOSED";
 
   const baseDate = useMemo(() => {
     const parsed = new Date(startDate);
@@ -195,7 +482,11 @@ function DurationSelector({ plan, quantity, onQuantityChange, startDate, onStart
     <div className="space-y-4 border border-[#EBE7F5] rounded-xl p-4 bg-[#faf9ff]">
       <div className="flex items-center justify-between">
         <h4 className="text-xs font-bold text-[#23055c] uppercase tracking-wide">
-          {durType === 'hours' ? 'Duration & Time' : durType === 'months' ? 'Duration & Start Month' : 'Date Range'}
+          {durType === "hours"
+            ? "Duration & Time"
+            : durType === "months"
+              ? "Duration & Start Month"
+              : "Date Range"}
         </h4>
         <button
           type="button"
@@ -203,14 +494,16 @@ function DurationSelector({ plan, quantity, onQuantityChange, startDate, onStart
           className="text-[11px] font-bold text-[#23055c] hover:underline flex items-center gap-1 bg-white px-2.5 py-1 border border-[#EBE7F5] rounded-lg shadow-2xs"
         >
           <CalendarIcon className="h-3 w-3" />
-          <span>{showFullMonth ? 'Hide Full Month' : 'Full Month View'}</span>
+          <span>{showFullMonth ? "Hide Full Month" : "Full Month View"}</span>
         </button>
       </div>
 
       {isSelectedDateBlackout && (
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5 flex items-center gap-2 text-amber-800 text-xs font-semibold">
           <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
-          <span>{selectedDayInfo?.reason || 'Scheduled maintenance on this date'}</span>
+          <span>
+            {selectedDayInfo?.reason || "Scheduled maintenance on this date"}
+          </span>
         </div>
       )}
 
@@ -225,12 +518,23 @@ function DurationSelector({ plan, quantity, onQuantityChange, startDate, onStart
       {showFullMonth && (
         <div className="bg-white border border-slate-200 rounded-xl p-3 space-y-2 animate-in fade-in slide-in-from-top-2 duration-200">
           <div className="flex items-center justify-between text-xs font-bold text-[#23055c]">
-            <span>{baseDate.toLocaleString('en-US', { month: 'long', year: 'numeric' })} Availability</span>
-            <span className="text-[10px] text-slate-400 font-normal">Click any open day to select</span>
+            <span>
+              {baseDate.toLocaleString("en-US", {
+                month: "long",
+                year: "numeric",
+              })}{" "}
+              Availability
+            </span>
+            <span className="text-[10px] text-slate-400 font-normal">
+              Click any open day to select
+            </span>
           </div>
           <div className="grid grid-cols-7 gap-1 text-center">
-            {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, idx) => (
-              <div key={idx} className="text-[9px] font-extrabold text-slate-400 uppercase py-0.5">
+            {["S", "M", "T", "W", "T", "F", "S"].map((day, idx) => (
+              <div
+                key={idx}
+                className="text-[9px] font-extrabold text-slate-400 uppercase py-0.5"
+              >
                 {day}
               </div>
             ))}
@@ -238,12 +542,12 @@ function DurationSelector({ plan, quantity, onQuantityChange, startDate, onStart
               <div key={`offset-${idx}`} className="h-7" />
             ))}
             {daysInMonthList.map((ymd) => {
-              const dayNum = parseInt(ymd.split('-')[2], 10);
+              const dayNum = parseInt(ymd.split("-")[2], 10);
               const info = calendarData?.busyDates?.[ymd];
               const isSelected = startDate === ymd;
-              const isFull = info?.status === 'FULL';
-              const isBlackout = info?.status === 'BLACKOUT';
-              const isClosed = info?.status === 'CLOSED';
+              const isFull = info?.status === "FULL";
+              const isBlackout = info?.status === "BLACKOUT";
+              const isClosed = info?.status === "CLOSED";
               const isUnavailable = isFull || isBlackout || isClosed;
 
               return (
@@ -257,12 +561,12 @@ function DurationSelector({ plan, quantity, onQuantityChange, startDate, onStart
                   }}
                   className={`h-7 rounded-lg text-[10px] font-bold flex flex-col items-center justify-center transition-all border ${
                     isUnavailable
-                      ? 'bg-slate-100 text-slate-300 border-slate-100 cursor-not-allowed line-through'
+                      ? "bg-slate-100 text-slate-300 border-slate-100 cursor-not-allowed line-through"
                       : isSelected
-                      ? 'bg-[#23055c] text-white border-[#23055c] ring-2 ring-[#23055c]/20 font-extrabold'
-                      : 'bg-emerald-50/60 text-emerald-950 border-emerald-200/80 hover:bg-emerald-100'
+                        ? "bg-[#23055c] text-white border-[#23055c] ring-2 ring-[#23055c]/20 font-extrabold"
+                        : "bg-emerald-50/60 text-emerald-950 border-emerald-200/80 hover:bg-emerald-100"
                   }`}
-                  title={`${ymd}: ${info?.status || 'AVAILABLE'}`}
+                  title={`${ymd}: ${info?.status || "AVAILABLE"}`}
                 >
                   <span>{dayNum}</span>
                 </button>
@@ -275,24 +579,36 @@ function DurationSelector({ plan, quantity, onQuantityChange, startDate, onStart
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">
-            {durType === 'hours' ? 'Date' : 'Start Date'}
+            {durType === "hours" ? "Date" : "Start Date"}
           </label>
           <div className="flex items-center border border-slate-200 rounded-lg px-2.5 py-2 bg-white focus-within:border-[#23055c] focus-within:ring-1 focus-within:ring-[#23055c]/30 transition-all">
             <CalendarIcon className="h-3.5 w-3.5 text-slate-400 mr-1.5 shrink-0" />
-            <input type="date" min={today} className="bg-transparent border-none outline-none w-full text-xs font-medium text-slate-800" value={startDate} onChange={(e) => onStartDateChange(e.target.value)} />
+            <input
+              type="date"
+              min={today}
+              className="bg-transparent border-none outline-none w-full text-xs font-medium text-slate-800"
+              value={startDate}
+              onChange={(e) => onStartDateChange(e.target.value)}
+            />
           </div>
         </div>
-        {durType === 'hours' ? (
+        {durType === "hours" ? (
           <div>
-            <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Start Time</label>
+            <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">
+              Start Time
+            </label>
             <div className="flex items-center border border-slate-200 rounded-lg px-2.5 py-2 bg-white focus-within:border-[#23055c] focus-within:ring-1 focus-within:ring-[#23055c]/30 transition-all">
               <Clock className="h-3.5 w-3.5 text-slate-400 mr-1.5 shrink-0" />
-              <select className="bg-transparent border-none outline-none w-full text-xs font-medium text-slate-800" value={startHour} onChange={(e) => onStartHourChange(Number(e.target.value))}>
+              <select
+                className="bg-transparent border-none outline-none w-full text-xs font-medium text-slate-800"
+                value={startHour}
+                onChange={(e) => onStartHourChange(Number(e.target.value))}
+              >
                 {Array.from({ length: 18 }, (_, i) => i + 6).map((h) => {
                   const isBooked = bookedHourSlots.includes(h);
                   return (
                     <option key={h} value={h} disabled={isBooked}>
-                      {formatTime(h)} {isBooked ? '(Booked)' : ''}
+                      {formatTime(h)} {isBooked ? "(Booked)" : ""}
                     </option>
                   );
                 })}
@@ -301,18 +617,24 @@ function DurationSelector({ plan, quantity, onQuantityChange, startDate, onStart
           </div>
         ) : (
           <div>
-            <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">End Date</label>
+            <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">
+              End Date
+            </label>
             <div className="flex items-center border border-slate-200 rounded-lg px-2.5 py-2 bg-white cursor-not-allowed">
               <CalendarIcon className="h-3.5 w-3.5 text-slate-300 mr-1.5 shrink-0" />
-              <span className="text-xs font-medium text-slate-500">{formatDate(endDate)}</span>
+              <span className="text-xs font-medium text-slate-500">
+                {formatDate(endDate)}
+              </span>
             </div>
           </div>
         )}
       </div>
 
-      {durType === 'hours' && (
+      {durType === "hours" && (
         <div className="space-y-1.5 pt-1">
-          <label className="text-[10px] font-bold text-slate-500 uppercase block">Available Start Time</label>
+          <label className="text-[10px] font-bold text-slate-500 uppercase block">
+            Available Start Time
+          </label>
           <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5">
             {Array.from({ length: 14 }, (_, i) => i + 7).map((h) => {
               const isBooked = bookedHourSlots.includes(h);
@@ -325,14 +647,18 @@ function DurationSelector({ plan, quantity, onQuantityChange, startDate, onStart
                   onClick={() => onStartHourChange(h)}
                   className={`px-2 py-1.5 rounded-lg text-[11px] font-bold transition-all text-center flex flex-col items-center justify-center border ${
                     isBooked
-                      ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed line-through'
+                      ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed line-through"
                       : isSelected
-                      ? 'bg-[#23055c] text-white border-[#23055c] shadow-sm'
-                      : 'bg-white text-slate-700 border-slate-200 hover:border-[#23055c]'
+                        ? "bg-[#23055c] text-white border-[#23055c] shadow-sm"
+                        : "bg-white text-slate-700 border-slate-200 hover:border-[#23055c]"
                   }`}
                 >
                   <span>{formatTime(h)}</span>
-                  {isBooked && <span className="text-[8px] font-normal no-underline text-rose-500">Booked</span>}
+                  {isBooked && (
+                    <span className="text-[8px] font-normal no-underline text-rose-500">
+                      Booked
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -340,7 +666,7 @@ function DurationSelector({ plan, quantity, onQuantityChange, startDate, onStart
         </div>
       )}
 
-      {durType !== 'hours' && (
+      {durType !== "hours" && (
         <div className="space-y-1.5 pt-1">
           <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
             {Array.from({ length: 7 }, (_, i) => {
@@ -349,12 +675,16 @@ function DurationSelector({ plan, quantity, onQuantityChange, startDate, onStart
               const ymd = toYMD(d);
               const dayInfo = calendarData?.busyDates?.[ymd];
               const isSelected = startDate === ymd;
-              const isFull = dayInfo?.status === 'FULL';
-              const isBlackout = dayInfo?.status === 'BLACKOUT';
-              const isClosed = dayInfo?.status === 'CLOSED';
+              const isFull = dayInfo?.status === "FULL";
+              const isBlackout = dayInfo?.status === "BLACKOUT";
+              const isClosed = dayInfo?.status === "CLOSED";
               const isUnavailable = isFull || isBlackout || isClosed;
 
-              const label = d.toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric' });
+              const label = d.toLocaleDateString("en-US", {
+                weekday: "short",
+                month: "numeric",
+                day: "numeric",
+              });
 
               return (
                 <button
@@ -364,15 +694,25 @@ function DurationSelector({ plan, quantity, onQuantityChange, startDate, onStart
                   onClick={() => onStartDateChange(ymd)}
                   className={`px-2.5 py-2 rounded-xl text-center shrink-0 border transition-all ${
                     isUnavailable
-                      ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed line-through opacity-60'
+                      ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed line-through opacity-60"
                       : isSelected
-                      ? 'bg-[#23055c] text-white border-[#23055c] shadow-sm ring-2 ring-[#23055c]/20'
-                      : 'bg-white text-slate-700 border-slate-200 hover:border-[#23055c]'
+                        ? "bg-[#23055c] text-white border-[#23055c] shadow-sm ring-2 ring-[#23055c]/20"
+                        : "bg-white text-slate-700 border-slate-200 hover:border-[#23055c]"
                   }`}
                 >
-                  <div className="text-[11px] font-bold whitespace-nowrap">{label}</div>
-                  <div className={`text-[9px] font-semibold mt-0.5 ${isSelected ? 'text-purple-200' : isUnavailable ? 'text-rose-500' : 'text-emerald-600'}`}>
-                    {isBlackout ? 'Maint.' : isClosed ? 'Closed' : isFull ? 'Full' : 'Open'}
+                  <div className="text-[11px] font-bold whitespace-nowrap">
+                    {label}
+                  </div>
+                  <div
+                    className={`text-[9px] font-semibold mt-0.5 ${isSelected ? "text-purple-200" : isUnavailable ? "text-rose-500" : "text-emerald-600"}`}
+                  >
+                    {isBlackout
+                      ? "Maint."
+                      : isClosed
+                        ? "Closed"
+                        : isFull
+                          ? "Full"
+                          : "Open"}
                   </div>
                 </button>
               );
@@ -383,56 +723,95 @@ function DurationSelector({ plan, quantity, onQuantityChange, startDate, onStart
 
       <div>
         <label className="text-[10px] font-bold text-slate-500 uppercase mb-2 block">
-          {durType === 'hours'
-            ? `Number of ${baseUnit > 1 ? `${baseUnit}-Hour Blocks` : 'Hours'}`
-            : durType === 'months'
-            ? `Number of ${baseUnit > 1 ? `${baseUnit}-Month Blocks` : 'Months'}`
-            : `Number of ${baseUnit > 1 ? `${baseUnit}-Day Blocks` : 'Days'}`}
+          {durType === "hours"
+            ? `Number of ${baseUnit > 1 ? `${baseUnit}-Hour Blocks` : "Hours"}`
+            : durType === "months"
+              ? `Number of ${baseUnit > 1 ? `${baseUnit}-Month Blocks` : "Months"}`
+              : `Number of ${baseUnit > 1 ? `${baseUnit}-Day Blocks` : "Days"}`}
         </label>
         <div className="flex items-center gap-3">
-          <button type="button" onClick={stepDown} disabled={quantity <= minQty}
-            className="w-9 h-9 rounded-full border-2 border-[#23055c]/20 flex items-center justify-center hover:border-[#23055c] hover:bg-[#23055c] hover:text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed">
+          <button
+            type="button"
+            onClick={stepDown}
+            disabled={quantity <= minQty}
+            className="w-9 h-9 rounded-full border-2 border-[#23055c]/20 flex items-center justify-center hover:border-[#23055c] hover:bg-[#23055c] hover:text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+          >
             <Minus className="h-3.5 w-3.5" />
           </button>
           <div className="flex-1 text-center">
-            <span className="text-2xl font-extrabold text-[#23055c]">{quantity}</span>
+            <span className="text-2xl font-extrabold text-[#23055c]">
+              {quantity}
+            </span>
             <span className="text-xs text-slate-500 ml-1.5">
-              {durType === 'hours' ? (totalUnits === 1 ? 'hour' : 'hours') : durType === 'months' ? (totalUnits === 1 ? 'month' : 'months') : (totalUnits === 1 ? 'day' : 'days')}
+              {durType === "hours"
+                ? totalUnits === 1
+                  ? "hour"
+                  : "hours"
+                : durType === "months"
+                  ? totalUnits === 1
+                    ? "month"
+                    : "months"
+                  : totalUnits === 1
+                    ? "day"
+                    : "days"}
             </span>
           </div>
-          <button type="button" onClick={stepUp} disabled={quantity >= maxQty}
-            className="w-9 h-9 rounded-full border-2 border-[#23055c]/20 flex items-center justify-center hover:border-[#23055c] hover:bg-[#23055c] hover:text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed">
+          <button
+            type="button"
+            onClick={stepUp}
+            disabled={quantity >= maxQty}
+            className="w-9 h-9 rounded-full border-2 border-[#23055c]/20 flex items-center justify-center hover:border-[#23055c] hover:bg-[#23055c] hover:text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+          >
             <Plus className="h-3.5 w-3.5" />
           </button>
         </div>
 
         <div className="flex flex-wrap gap-2 mt-3">
-          {durType === 'hours' && baseUnit === 1 && hourPresets.map((q) => (
-            <button key={q} type="button" onClick={() => onQuantityChange(q)}
-              className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all ${quantity === q ? 'bg-[#23055c] text-white border-[#23055c]' : 'bg-white text-slate-600 border-slate-200 hover:border-[#23055c]'}`}>
-              {q}hr
-            </button>
-          ))}
-          {durType === 'days' && baseUnit === 1 && dayPresets.map((q) => (
-            <button key={q} type="button" onClick={() => onQuantityChange(q)}
-              className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all ${quantity === q ? 'bg-[#23055c] text-white border-[#23055c]' : 'bg-white text-slate-600 border-slate-200 hover:border-[#23055c]'}`}>
-              {q === 7 ? '1wk' : q === 14 ? '2wks' : `${q}d`}
-            </button>
-          ))}
-          {durType === 'months' && baseUnit === 1 && monthPresets.map((q) => (
-            <button key={q} type="button" onClick={() => onQuantityChange(q)}
-              className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all ${quantity === q ? 'bg-[#23055c] text-white border-[#23055c]' : 'bg-white text-slate-600 border-slate-200 hover:border-[#23055c]'}`}>
-              {q === 1 ? '1mo' : q === 3 ? 'Qtr' : q === 6 ? '6mo' : `${q}mo`}
-            </button>
-          ))}
+          {durType === "hours" &&
+            baseUnit === 1 &&
+            hourPresets.map((q) => (
+              <button
+                key={q}
+                type="button"
+                onClick={() => onQuantityChange(q)}
+                className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all ${quantity === q ? "bg-[#23055c] text-white border-[#23055c]" : "bg-white text-slate-600 border-slate-200 hover:border-[#23055c]"}`}
+              >
+                {q}hr
+              </button>
+            ))}
+          {durType === "days" &&
+            baseUnit === 1 &&
+            dayPresets.map((q) => (
+              <button
+                key={q}
+                type="button"
+                onClick={() => onQuantityChange(q)}
+                className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all ${quantity === q ? "bg-[#23055c] text-white border-[#23055c]" : "bg-white text-slate-600 border-slate-200 hover:border-[#23055c]"}`}
+              >
+                {q === 7 ? "1wk" : q === 14 ? "2wks" : `${q}d`}
+              </button>
+            ))}
+          {durType === "months" &&
+            baseUnit === 1 &&
+            monthPresets.map((q) => (
+              <button
+                key={q}
+                type="button"
+                onClick={() => onQuantityChange(q)}
+                className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all ${quantity === q ? "bg-[#23055c] text-white border-[#23055c]" : "bg-white text-slate-600 border-slate-200 hover:border-[#23055c]"}`}
+              >
+                {q === 1 ? "1mo" : q === 3 ? "Qtr" : q === 6 ? "6mo" : `${q}mo`}
+              </button>
+            ))}
         </div>
       </div>
 
-      {durType === 'hours' && (
+      {durType === "hours" && (
         <div className="flex items-center gap-2 bg-[#23055c]/5 rounded-lg px-3 py-2">
           <Clock className="h-3.5 w-3.5 text-[#23055c] shrink-0" />
           <span className="text-xs font-semibold text-[#23055c]">
-            {formatTime(startHour)} &mdash; {formatTime(endHour)} ({totalUnits}hr{totalUnits > 1 ? 's' : ''})
+            {formatTime(startHour)} &mdash; {formatTime(endHour)} ({totalUnits}
+            hr{totalUnits > 1 ? "s" : ""})
           </span>
         </div>
       )}
@@ -445,16 +824,20 @@ function DurationSelector({ plan, quantity, onQuantityChange, startDate, onStart
             <span>Scheduled Maintenance & Blackout Dates</span>
           </div>
           <p className="text-[11px] text-amber-800">
-            The following dates are reserved for maintenance or private events and are unavailable:
+            The following dates are reserved for maintenance or private events
+            and are unavailable:
           </p>
           <div className="space-y-1.5 pt-1">
             {activeBlackouts.map((b) => (
-              <div key={b.id} className="flex items-center justify-between bg-white border border-amber-200/80 rounded-lg px-3 py-1.5 text-xs text-amber-950">
+              <div
+                key={b.id}
+                className="flex items-center justify-between bg-white border border-amber-200/80 rounded-lg px-3 py-1.5 text-xs text-amber-950"
+              >
                 <span className="font-semibold">
                   {formatDate(b.startDate)} &mdash; {formatDate(b.endDate)}
                 </span>
                 <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
-                  {b.reason || 'Maintenance'}
+                  {b.reason || "Maintenance"}
                 </span>
               </div>
             ))}
@@ -469,31 +852,42 @@ function DurationSelector({ plan, quantity, onQuantityChange, startDate, onStart
 export default function PlanSelectionAndCheckoutPage() {
   const router = useRouter();
   const params = useParams();
-  const rawId = String(params?.resourceId || 'flex-desk');
-  const slug = rawId === 'hot-desk' ? 'flex-desk' : rawId === 'office-suite' ? 'private-office' : rawId;
+  const rawId = String(params?.resourceId || "flex-desk");
+  const slug =
+    rawId === "hot-desk"
+      ? "flex-desk"
+      : rawId === "office-suite"
+        ? "private-office"
+        : rawId;
   const { user } = useAuth();
 
   const [resource, setResource] = useState<FacilityResource | null>(null);
   const [plans, setPlans] = useState<ResourcePricingPlan[]>([]);
-  const [selectedPlanId, setSelectedPlanId] = useState<string>('');
-  const [startDate, setStartDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [selectedPlanId, setSelectedPlanId] = useState<string>("");
+  const [startDate, setStartDate] = useState<string>(
+    () => new Date().toISOString().split("T")[0],
+  );
   const [startHour, setStartHour] = useState<number>(8);
   const [quantity, setQuantity] = useState<number>(1);
   const [loading, setLoading] = useState(true);
 
   // Real-time Availability State
   const [checkingAvailability, setCheckingAvailability] = useState(false);
-  const [availabilityResult, setAvailabilityResult] = useState<AvailabilityResultDTO | null>(null);
+  const [availabilityResult, setAvailabilityResult] =
+    useState<AvailabilityResultDTO | null>(null);
 
   // Hold & Checkout State
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeHoldId, setActiveHoldId] = useState<string | null>(null);
   const [holdExpiresAt, setHoldExpiresAt] = useState<string | null>(null);
-  const [remainingHoldSeconds, setRemainingHoldSeconds] = useState<number | null>(null);
+  const [remainingHoldSeconds, setRemainingHoldSeconds] = useState<
+    number | null
+  >(null);
   const [confirmed, setConfirmed] = useState(false);
-  const [bookingRef, setBookingRef] = useState('');
+  const [bookingRef, setBookingRef] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [calendarData, setCalendarData] = useState<CalendarAvailabilityResultDTO | null>(null);
+  const [calendarData, setCalendarData] =
+    useState<CalendarAvailabilityResultDTO | null>(null);
 
   useEffect(() => {
     if (!resource) return;
@@ -508,7 +902,7 @@ export default function PlanSelectionAndCheckoutPage() {
         if (isMounted) setCalendarData(data);
       })
       .catch((err) => {
-        console.warn('Could not fetch calendar availability:', err?.message);
+        console.warn("Could not fetch calendar availability:", err?.message);
       });
     return () => {
       isMounted = false;
@@ -521,50 +915,69 @@ export default function PlanSelectionAndCheckoutPage() {
       const data = await api.catalogue.getResourceBySlug(slug);
       if (data) {
         setResource(data);
-        const backendPlans = data.pricing && data.pricing.length > 0 ? data.pricing : (FALLBACK_RESOURCES[slug]?.pricing || []);
+        const backendPlans =
+          data.pricing && data.pricing.length > 0
+            ? data.pricing
+            : FALLBACK_RESOURCES[slug]?.pricing || [];
         setPlans(backendPlans as ResourcePricingPlan[]);
         if (backendPlans.length > 0) {
-          const popular = backendPlans.find((p) => p.isPopular) || backendPlans[0];
+          const popular =
+            backendPlans.find((p) => p.isPopular) || backendPlans[0];
           setSelectedPlanId(popular.id);
         }
       }
     } catch {
-      const fallback = FALLBACK_RESOURCES[slug] || FALLBACK_RESOURCES['flex-desk'];
+      const fallback =
+        FALLBACK_RESOURCES[slug] || FALLBACK_RESOURCES["flex-desk"];
       setResource(fallback as FacilityResource);
       const fallbackPlans = (fallback.pricing || []) as ResourcePricingPlan[];
       setPlans(fallbackPlans);
       if (fallbackPlans.length > 0) {
-        const popular = fallbackPlans.find((p) => p.isPopular) || fallbackPlans[0];
+        const popular =
+          fallbackPlans.find((p) => p.isPopular) || fallbackPlans[0];
         setSelectedPlanId(popular.id);
       }
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   }, [slug]);
 
-  useEffect(() => { loadResource(); }, [loadResource]);
-  useEffect(() => { setQuantity(1); }, [selectedPlanId]);
+  useEffect(() => {
+    loadResource();
+  }, [loadResource]);
+  useEffect(() => {
+    setQuantity(1);
+  }, [selectedPlanId]);
 
-  const selectedPlan = useMemo(() => plans.find((p) => p.id === selectedPlanId) || plans[0] || null, [plans, selectedPlanId]);
-  const durType = selectedPlan ? getPlanDurationType(selectedPlan) : 'days';
+  const selectedPlan = useMemo(
+    () => plans.find((p) => p.id === selectedPlanId) || plans[0] || null,
+    [plans, selectedPlanId],
+  );
+  const durType = selectedPlan ? getPlanDurationType(selectedPlan) : "days";
   const baseUnit = selectedPlan ? getPlanBaseUnit(selectedPlan) : 1;
   const totalUnits = baseUnit * quantity;
 
   const endDate = useMemo(() => {
     if (!selectedPlan) return startDate;
-    if (durType === 'months') return addMonths(startDate, totalUnits);
-    if (durType === 'days') return addDays(startDate, totalUnits - 1);
+    if (durType === "months") return addMonths(startDate, totalUnits);
+    if (durType === "days") return addDays(startDate, totalUnits - 1);
     return startDate;
   }, [selectedPlan, startDate, durType, totalUnits]);
 
   const endHour = useMemo(() => {
-    if (durType === 'hours') return (startHour + totalUnits) % 24;
+    if (durType === "hours") return (startHour + totalUnits) % 24;
     return 18;
   }, [durType, startHour, totalUnits]);
 
   // Compute calculated start and end ISO strings for availability check
   const [startIso, endIso] = useMemo(() => {
-    if (durType === 'hours') {
-      const s = new Date(`${startDate}T${String(startHour).padStart(2, '0')}:00:00`).toISOString();
-      const e = new Date(`${startDate}T${String(endHour).padStart(2, '0')}:00:00`).toISOString();
+    if (durType === "hours") {
+      const s = new Date(
+        `${startDate}T${String(startHour).padStart(2, "0")}:00:00`,
+      ).toISOString();
+      const e = new Date(
+        `${startDate}T${String(endHour).padStart(2, "0")}:00:00`,
+      ).toISOString();
       return [s, e];
     }
     const s = new Date(`${startDate}T08:00:00`).toISOString();
@@ -593,7 +1006,7 @@ export default function PlanSelectionAndCheckoutPage() {
         })
         .catch((err) => {
           if (isCurrent) {
-            console.warn('Availability check notice:', err);
+            console.warn("Availability check notice:", err);
             // Default optimistic availability fallback
             setAvailabilityResult({
               available: true,
@@ -640,12 +1053,22 @@ export default function PlanSelectionAndCheckoutPage() {
   const totalAmount = subtotal;
 
   const durationLabel = useMemo(() => {
-    if (!selectedPlan) return '\u2014';
-    if (durType === 'hours') return `${totalUnits} ${totalUnits === 1 ? 'Hour' : 'Hours'} (${formatTime(startHour)} \u2014 ${formatTime(endHour)})`;
-    if (durType === 'months') return `${totalUnits} ${totalUnits === 1 ? 'Month' : 'Months'} (${formatDate(startDate)} \u2014 ${formatDate(endDate)})`;
+    if (!selectedPlan) return "\u2014";
+    if (durType === "hours")
+      return `${totalUnits} ${totalUnits === 1 ? "Hour" : "Hours"} (${formatTime(startHour)} \u2014 ${formatTime(endHour)})`;
+    if (durType === "months")
+      return `${totalUnits} ${totalUnits === 1 ? "Month" : "Months"} (${formatDate(startDate)} \u2014 ${formatDate(endDate)})`;
     if (totalUnits === 1) return formatDate(startDate);
     return `${totalUnits} Days (${formatDate(startDate)} \u2014 ${formatDate(endDate)})`;
-  }, [selectedPlan, durType, totalUnits, startHour, endHour, startDate, endDate]);
+  }, [
+    selectedPlan,
+    durType,
+    totalUnits,
+    startHour,
+    endHour,
+    startDate,
+    endDate,
+  ]);
 
   const breakdownLabel = useMemo(() => {
     if (!selectedPlan || quantity === 1) return null;
@@ -656,7 +1079,10 @@ export default function PlanSelectionAndCheckoutPage() {
   const handleCheckout = async () => {
     if (!resource || !selectedPlan) return;
     if (availabilityResult && !availabilityResult.available) {
-      setErrorMessage(availabilityResult.reason || 'This space is not available for the selected dates.');
+      setErrorMessage(
+        availabilityResult.reason ||
+          "This space is not available for the selected dates.",
+      );
       return;
     }
 
@@ -691,52 +1117,95 @@ export default function PlanSelectionAndCheckoutPage() {
         setConfirmed(true);
       }
     } catch (err: any) {
-      if (err?.status === 401 || err?.code === 'UNAUTHORIZED') {
+      if (err?.status === 401 || err?.code === "UNAUTHORIZED") {
         router.push(`/login?redirect=/book/${slug}`);
         return;
       }
-      setErrorMessage(err?.message || 'Could not complete reservation hold. Please try another slot.');
+      setErrorMessage(
+        err?.message ||
+          "Could not complete reservation hold. Please try another slot.",
+      );
     } finally {
       setIsProcessing(false);
     }
   };
 
-  if (loading && !resource) return (
-    <div className="py-24 flex items-center justify-center">
-      <div className="text-center space-y-3">
-        <Loader2 className="h-8 w-8 animate-spin text-[#23055c] mx-auto" />
-        <p className="text-xs text-slate-500 font-semibold">Loading workspace and pricing options...</p>
-      </div>
-    </div>
-  );
-
-  const imageSrc = getWorkspaceImage(resource?.slug || slug, resource?.imageUrl);
-
-  if (confirmed) return (
-    <div className="py-24 flex items-center justify-center">
-      <div className="max-w-md w-full bg-white rounded-2xl p-10 border border-[#EBE7F5] shadow-sm text-center space-y-6">
-        <div className="w-16 h-16 rounded-full bg-[#23055c]/10 flex items-center justify-center mx-auto">
-          <Check className="h-8 w-8 text-[#23055c]" />
-        </div>
-        <div className="space-y-1">
-          <h2 className="text-2xl font-extrabold text-slate-900">Booking Reserved!</h2>
-          <p className="text-xs text-slate-500">Your workspace is held and awaiting payment.</p>
-        </div>
-        <div className="bg-[#faf9ff] rounded-xl p-4 border border-[#EBE7F5] space-y-2 text-left text-xs">
-          <div className="flex justify-between"><span className="text-slate-500">Reference</span><span className="font-bold text-[#23055c]">{bookingRef}</span></div>
-          <div className="flex justify-between"><span className="text-slate-500">Workspace</span><span className="font-bold text-slate-900">{resource?.name}</span></div>
-          <div className="flex justify-between"><span className="text-slate-500">Plan</span><span className="font-bold text-slate-900">{selectedPlan?.planName}</span></div>
-          <div className="flex justify-between items-start"><span className="text-slate-500">Duration</span><span className="font-medium text-slate-800 text-right max-w-[60%]">{durationLabel}</span></div>
-          <div className="flex justify-between pt-2 border-t border-[#EBE7F5]"><span className="text-slate-500">Amount Due</span><span className="font-extrabold text-[#23055c]">{'\u20A6'}{totalAmount.toLocaleString()}.00</span></div>
-        </div>
-        <div className="flex gap-3">
-          <Link href="/bookings" className="flex-1 bg-[#23055c] hover:bg-[#392271] text-white font-bold text-xs py-3 rounded-xl transition-all text-center">View Bookings</Link>
+  if (loading && !resource)
+    return (
+      <div className="py-24 flex items-center justify-center">
+        <div className="text-center space-y-3">
+          <Loader2 className="h-8 w-8 animate-spin text-[#23055c] mx-auto" />
+          <p className="text-xs text-slate-500 font-semibold">
+            Loading workspace and pricing options...
+          </p>
         </div>
       </div>
-    </div>
+    );
+
+  const imageSrc = getWorkspaceImage(
+    resource?.slug || slug,
+    resource?.imageUrl,
   );
 
-  const isSlotUnavailable = Boolean(availabilityResult && !availabilityResult.available);
+  if (confirmed)
+    return (
+      <div className="py-24 flex items-center justify-center">
+        <div className="max-w-md w-full bg-white rounded-2xl p-10 border border-[#EBE7F5] shadow-sm text-center space-y-6">
+          <div className="w-16 h-16 rounded-full bg-[#23055c]/10 flex items-center justify-center mx-auto">
+            <Check className="h-8 w-8 text-[#23055c]" />
+          </div>
+          <div className="space-y-1">
+            <h2 className="text-2xl font-extrabold text-slate-900">
+              Booking Reserved!
+            </h2>
+            <p className="text-xs text-slate-500">
+              Your workspace is held and awaiting payment.
+            </p>
+          </div>
+          <div className="bg-[#faf9ff] rounded-xl p-4 border border-[#EBE7F5] space-y-2 text-left text-xs">
+            <div className="flex justify-between">
+              <span className="text-slate-500">Reference</span>
+              <span className="font-bold text-[#23055c]">{bookingRef}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-500">Workspace</span>
+              <span className="font-bold text-slate-900">{resource?.name}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-500">Plan</span>
+              <span className="font-bold text-slate-900">
+                {selectedPlan?.planName}
+              </span>
+            </div>
+            <div className="flex justify-between items-start">
+              <span className="text-slate-500">Duration</span>
+              <span className="font-medium text-slate-800 text-right max-w-[60%]">
+                {durationLabel}
+              </span>
+            </div>
+            <div className="flex justify-between pt-2 border-t border-[#EBE7F5]">
+              <span className="text-slate-500">Amount Due</span>
+              <span className="font-extrabold text-[#23055c]">
+                {"\u20A6"}
+                {totalAmount.toLocaleString()}.00
+              </span>
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <Link
+              href="/bookings"
+              className="flex-1 bg-[#23055c] hover:bg-[#392271] text-white font-bold text-xs py-3 rounded-xl transition-all text-center"
+            >
+              View Bookings
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+
+  const isSlotUnavailable = Boolean(
+    availabilityResult && !availabilityResult.available,
+  );
   const remainingSecs = remainingHoldSeconds ?? 0;
   const holdMinutes = Math.floor(remainingSecs / 60);
   const holdSecs = remainingSecs % 60;
@@ -746,24 +1215,47 @@ export default function PlanSelectionAndCheckoutPage() {
     <div className="space-y-8">
       {/* Hero Banner */}
       <div className="relative h-[240px] sm:h-[300px] md:h-[340px] w-full rounded-2xl overflow-hidden shadow-xs border border-slate-200">
-        <img alt={resource?.name || 'Workspace'} className="w-full h-full object-cover" src={imageSrc} />
+        <img
+          alt={resource?.name || "Workspace"}
+          className="w-full h-full object-cover"
+          src={imageSrc}
+        />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-transparent" />
-        <button onClick={() => router.back()} className="absolute top-4 left-4 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white rounded-full p-2.5 transition-all z-10">
+        <button
+          onClick={() => router.back()}
+          className="absolute top-4 left-4 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white rounded-full p-2.5 transition-all z-10"
+        >
           <ArrowLeft className="h-4 w-4" />
         </button>
         <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
           <div className="flex items-end justify-between">
             <div>
-              <h1 className="text-2xl font-extrabold tracking-tight drop-shadow">{resource?.name}</h1>
+              <h1 className="text-2xl font-extrabold tracking-tight drop-shadow">
+                {resource?.name}
+              </h1>
               <div className="flex items-center gap-1.5 mt-1 text-white/80 text-xs font-medium">
                 <MapPin className="h-3.5 w-3.5 shrink-0" />
-                <span>{resource?.location || 'DAIH Campus, Redemption City'}</span>
-                {resource?.capacity && (<><span className="mx-1 opacity-50">&middot;</span><Users className="h-3.5 w-3.5 shrink-0" /><span>Capacity: up to {resource.capacity} persons</span></>)}
+                <span>
+                  {resource?.location || "DAIH Campus, Redemption City"}
+                </span>
+                {resource?.capacity && (
+                  <>
+                    <span className="mx-1 opacity-50">&middot;</span>
+                    <Users className="h-3.5 w-3.5 shrink-0" />
+                    <span>Capacity: up to {resource.capacity} persons</span>
+                  </>
+                )}
               </div>
             </div>
             <div className="flex gap-2 shrink-0">
-              <div className="bg-white/15 backdrop-blur-sm px-3 py-1.5 rounded-full flex items-center gap-1.5 text-xs font-semibold"><ShieldCheck className="h-3.5 w-3.5" /><span>Verified</span></div>
-              <div className="bg-white/15 backdrop-blur-sm px-3 py-1.5 rounded-full flex items-center gap-1.5 text-xs font-semibold"><Sparkles className="h-3.5 w-3.5" /><span>Premium</span></div>
+              <div className="bg-white/15 backdrop-blur-sm px-3 py-1.5 rounded-full flex items-center gap-1.5 text-xs font-semibold">
+                <ShieldCheck className="h-3.5 w-3.5" />
+                <span>Verified</span>
+              </div>
+              <div className="bg-white/15 backdrop-blur-sm px-3 py-1.5 rounded-full flex items-center gap-1.5 text-xs font-semibold">
+                <Sparkles className="h-3.5 w-3.5" />
+                <span>Premium</span>
+              </div>
             </div>
           </div>
         </div>
@@ -777,17 +1269,23 @@ export default function PlanSelectionAndCheckoutPage() {
               <Timer className="h-5 w-5 text-amber-300 animate-pulse" />
             </div>
             <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider text-amber-300">Spot Reserved for You</h4>
+              <h4 className="text-xs font-bold uppercase tracking-wider text-amber-300">
+                Spot Reserved for You
+              </h4>
               <p className="text-xs text-white/90">
-                Holding your reservation ({bookingRef}). Complete checkout to confirm.
+                Holding your reservation ({bookingRef}). Complete checkout to
+                confirm.
               </p>
             </div>
           </div>
           <div className="text-right">
             <span className="font-mono text-xl font-extrabold text-amber-300">
-              {String(holdMinutes).padStart(2, '0')}:{String(holdSecs).padStart(2, '0')}
+              {String(holdMinutes).padStart(2, "0")}:
+              {String(holdSecs).padStart(2, "0")}
             </span>
-            <span className="block text-[10px] text-white/70 uppercase">Time Remaining</span>
+            <span className="block text-[10px] text-white/70 uppercase">
+              Time Remaining
+            </span>
           </div>
         </div>
       )}
@@ -796,9 +1294,17 @@ export default function PlanSelectionAndCheckoutPage() {
         <div className="bg-amber-500 text-white rounded-xl p-4 flex items-center justify-between shadow-md">
           <div className="flex items-center gap-3">
             <AlertTriangle className="h-5 w-5" />
-            <p className="text-xs font-semibold">Your 10-minute reservation hold has expired. Click below to retry.</p>
+            <p className="text-xs font-semibold">
+              Your 10-minute reservation hold has expired. Click below to retry.
+            </p>
           </div>
-          <button onClick={() => { setActiveHoldId(null); setHoldExpiresAt(null); }} className="px-3 py-1.5 bg-white text-amber-700 font-bold text-xs rounded-lg cursor-pointer hover:bg-amber-50">
+          <button
+            onClick={() => {
+              setActiveHoldId(null);
+              setHoldExpiresAt(null);
+            }}
+            className="px-3 py-1.5 bg-white text-amber-700 font-bold text-xs rounded-lg cursor-pointer hover:bg-amber-50"
+          >
             Retry Hold
           </button>
         </div>
@@ -810,36 +1316,68 @@ export default function PlanSelectionAndCheckoutPage() {
         <div className="flex-1 space-y-8">
           <div>
             <div className="mb-4">
-              <h2 className="text-xl font-bold text-slate-900">Select a Plan</h2>
-              <p className="text-xs text-slate-500">Choose the best package for your needs and schedule.</p>
+              <h2 className="text-xl font-bold text-slate-900">
+                Select a Plan
+              </h2>
+              <p className="text-xs text-slate-500">
+                Choose the best package for your needs and schedule.
+              </p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {plans.map((plan) => {
                 const isSelected = plan.id === selectedPlanId;
                 return (
-                  <div key={plan.id} onClick={() => setSelectedPlanId(plan.id)}
-                    className={`rounded-xl p-6 bg-white transition-all cursor-pointer relative group flex flex-col justify-between ${isSelected ? 'border-2 border-[#23055c] shadow-md ring-1 ring-[#23055c]/20' : 'border border-[#EBE7F5] hover:shadow-md hover:border-[#23055c]/40'}`}>
-                    {plan.isPopular && (<div className="absolute top-0 right-0 bg-[#23055c] text-white font-bold text-[10px] px-3 py-1 rounded-bl-lg rounded-tr-md uppercase tracking-wider">POPULAR</div>)}
+                  <div
+                    key={plan.id}
+                    onClick={() => setSelectedPlanId(plan.id)}
+                    className={`rounded-xl p-6 bg-white transition-all cursor-pointer relative group flex flex-col justify-between ${isSelected ? "border-2 border-[#23055c] shadow-md ring-1 ring-[#23055c]/20" : "border border-[#EBE7F5] hover:shadow-md hover:border-[#23055c]/40"}`}
+                  >
+                    {plan.isPopular && (
+                      <div className="absolute top-0 right-0 bg-[#23055c] text-white font-bold text-[10px] px-3 py-1 rounded-bl-lg rounded-tr-md uppercase tracking-wider">
+                        POPULAR
+                      </div>
+                    )}
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-lg font-bold text-slate-900">{plan.planName}</h3>
-                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${isSelected ? 'border-[#23055c] bg-[#23055c]' : 'border-slate-300 group-hover:border-[#23055c]'}`}>
-                          {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
+                        <h3 className="text-lg font-bold text-slate-900">
+                          {plan.planName}
+                        </h3>
+                        <div
+                          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${isSelected ? "border-[#23055c] bg-[#23055c]" : "border-slate-300 group-hover:border-[#23055c]"}`}
+                        >
+                          {isSelected && (
+                            <div className="w-2 h-2 rounded-full bg-white" />
+                          )}
                         </div>
                       </div>
                       <div className="text-2xl font-extrabold text-[#23055c] mb-5 tracking-tight">
-                        {'\u20A6'}{Number(plan.price).toLocaleString()}<span className="text-xs font-normal text-slate-500 ml-1">{getUnitLabel(plan)}</span>
+                        {"\u20A6"}
+                        {Number(plan.price).toLocaleString()}
+                        <span className="text-xs font-normal text-slate-500 ml-1">
+                          {getUnitLabel(plan)}
+                        </span>
                       </div>
                       <ul className="flex flex-col gap-2.5 text-xs text-slate-600 border-t border-slate-100 pt-4">
-                        {(resource?.amenities || []).slice(0, 4).map((amenity, idx) => (
-                          <li key={idx} className="flex items-center gap-2"><CheckCircle2 className="h-3.5 w-3.5 text-[#23055c] shrink-0" /><span className="line-clamp-1">{amenity}</span></li>
-                        ))}
-                        <li className="flex items-center gap-2"><CheckCircle2 className="h-3.5 w-3.5 text-[#23055c] shrink-0" /><span>24/7 Power Supply &amp; WiFi</span></li>
+                        {(resource?.amenities || [])
+                          .slice(0, 4)
+                          .map((amenity, idx) => (
+                            <li key={idx} className="flex items-center gap-2">
+                              <CheckCircle2 className="h-3.5 w-3.5 text-[#23055c] shrink-0" />
+                              <span className="line-clamp-1">{amenity}</span>
+                            </li>
+                          ))}
+                        <li className="flex items-center gap-2">
+                          <CheckCircle2 className="h-3.5 w-3.5 text-[#23055c] shrink-0" />
+                          <span>24/7 Power Supply &amp; WiFi</span>
+                        </li>
                       </ul>
                     </div>
                     <div className="mt-6 pt-3 border-t border-slate-100">
-                      <button type="button" className={`w-full py-2 rounded-lg font-bold text-xs transition-colors ${isSelected ? 'bg-[#23055c] text-white' : 'bg-slate-50 text-slate-700 hover:bg-slate-100'}`}>
-                        {isSelected ? 'Selected' : 'Select Plan'}
+                      <button
+                        type="button"
+                        className={`w-full py-2 rounded-lg font-bold text-xs transition-colors ${isSelected ? "bg-[#23055c] text-white" : "bg-slate-50 text-slate-700 hover:bg-slate-100"}`}
+                      >
+                        {isSelected ? "Selected" : "Select Plan"}
                       </button>
                     </div>
                   </div>
@@ -854,10 +1392,18 @@ export default function PlanSelectionAndCheckoutPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-xl font-bold text-slate-900">
-                    {durType === 'hours' ? 'Choose Your Hours' : durType === 'months' ? 'Choose Your Duration' : 'Choose Your Dates'}
+                    {durType === "hours"
+                      ? "Choose Your Hours"
+                      : durType === "months"
+                        ? "Choose Your Duration"
+                        : "Choose Your Dates"}
                   </h2>
                   <p className="text-xs text-slate-500">
-                    {durType === 'hours' ? 'Pick a start time and how many hours you need.' : durType === 'months' ? 'Select how many months you want to subscribe.' : 'Pick a start date and how many days you need.'}
+                    {durType === "hours"
+                      ? "Pick a start time and how many hours you need."
+                      : durType === "months"
+                        ? "Select how many months you want to subscribe."
+                        : "Pick a start date and how many days you need."}
                   </p>
                 </div>
 
@@ -872,7 +1418,9 @@ export default function PlanSelectionAndCheckoutPage() {
                     <div className="flex items-center gap-1.5 text-emerald-700 text-xs font-bold px-3 py-1 bg-emerald-50 border border-emerald-200 rounded-full">
                       <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
                       <span>
-                        Available {availabilityResult.remainingSpots !== undefined && `(${availabilityResult.remainingSpots} spot${availabilityResult.remainingSpots === 1 ? '' : 's'} left)`}
+                        Available{" "}
+                        {availabilityResult.remainingSpots !== undefined &&
+                          `(${availabilityResult.remainingSpots} spot${availabilityResult.remainingSpots === 1 ? "" : "s"} left)`}
                       </span>
                     </div>
                   ) : (
@@ -904,7 +1452,9 @@ export default function PlanSelectionAndCheckoutPage() {
         {/* Right: Booking Summary & Checkout */}
         <div className="w-full lg:w-1/3">
           <div className="sticky top-20 border border-[#EBE7F5] rounded-xl bg-white p-6 shadow-sm space-y-6">
-            <h3 className="text-lg font-bold text-slate-900 border-b border-[#EBE7F5] pb-3">Booking Summary</h3>
+            <h3 className="text-lg font-bold text-slate-900 border-b border-[#EBE7F5] pb-3">
+              Booking Summary
+            </h3>
 
             {errorMessage && (
               <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 text-xs text-rose-700 flex items-start gap-2">
@@ -914,46 +1464,97 @@ export default function PlanSelectionAndCheckoutPage() {
             )}
 
             <div className="flex flex-col gap-3 text-xs text-slate-600">
-              <div className="flex justify-between items-start"><span>Plan</span><span className="font-bold text-slate-900 text-right max-w-[60%]">{selectedPlan?.planName || 'Select a plan'}</span></div>
-              <div className="flex justify-between items-start"><span>Workspace</span><span className="font-bold text-slate-900 text-right max-w-[60%]">{resource?.name}</span></div>
-              <div className="flex justify-between items-start"><span>Duration</span><span className="font-medium text-slate-800 text-right max-w-[65%]">{durationLabel}</span></div>
-              
+              <div className="flex justify-between items-start">
+                <span>Plan</span>
+                <span className="font-bold text-slate-900 text-right max-w-[60%]">
+                  {selectedPlan?.planName || "Select a plan"}
+                </span>
+              </div>
+              <div className="flex justify-between items-start">
+                <span>Workspace</span>
+                <span className="font-bold text-slate-900 text-right max-w-[60%]">
+                  {resource?.name}
+                </span>
+              </div>
+              <div className="flex justify-between items-start">
+                <span>Duration</span>
+                <span className="font-medium text-slate-800 text-right max-w-[65%]">
+                  {durationLabel}
+                </span>
+              </div>
+
               {/* Availability Line item */}
               <div className="flex justify-between items-center py-1">
                 <span>Availability</span>
-                <span className={`font-bold ${availabilityResult?.available ? 'text-emerald-700' : 'text-rose-600'}`}>
-                  {checkingAvailability ? 'Checking...' : availabilityResult?.available ? 'Guaranteed Available' : 'Slot Booked'}
+                <span
+                  className={`font-bold ${availabilityResult?.available ? "text-emerald-700" : "text-rose-600"}`}
+                >
+                  {checkingAvailability
+                    ? "Checking..."
+                    : availabilityResult?.available
+                      ? "Guaranteed Available"
+                      : "Slot Booked"}
                 </span>
               </div>
 
               {breakdownLabel && (
                 <div className="flex justify-between items-center bg-[#faf9ff] rounded-lg px-3 py-2 border border-[#EBE7F5]">
                   <span className="text-slate-500">Breakdown</span>
-                  <span className="font-semibold text-[#23055c]">{breakdownLabel}</span>
+                  <span className="font-semibold text-[#23055c]">
+                    {breakdownLabel}
+                  </span>
                 </div>
               )}
-              <div className="flex justify-between items-center pt-3 border-t border-[#EBE7F5]"><span>Subtotal</span><span className="font-semibold text-slate-900">{'\u20A6'}{subtotal.toLocaleString()}.00</span></div>
-              <div className="flex justify-between items-center"><span>Taxes &amp; Fees (VAT)</span><span className="text-emerald-700 font-medium">Included (0%)</span></div>
+              <div className="flex justify-between items-center pt-3 border-t border-[#EBE7F5]">
+                <span>Subtotal</span>
+                <span className="font-semibold text-slate-900">
+                  {"\u20A6"}
+                  {subtotal.toLocaleString()}.00
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span>Taxes &amp; Fees (VAT)</span>
+                <span className="text-emerald-700 font-medium">
+                  Included (0%)
+                </span>
+              </div>
             </div>
 
             <div className="flex justify-between items-center pt-4 border-t border-[#EBE7F5]">
               <span className="text-base font-bold text-slate-900">Total</span>
-              <span className="text-2xl font-extrabold text-[#23055c]">{'\u20A6'}{totalAmount.toLocaleString()}.00</span>
+              <span className="text-2xl font-extrabold text-[#23055c]">
+                {"\u20A6"}
+                {totalAmount.toLocaleString()}.00
+              </span>
             </div>
 
             <button
-              disabled={Boolean(isProcessing) || !selectedPlan || Boolean(isSlotUnavailable) || Boolean(isHoldExpired)}
+              disabled={
+                Boolean(isProcessing) ||
+                !selectedPlan ||
+                Boolean(isSlotUnavailable) ||
+                Boolean(isHoldExpired)
+              }
               onClick={handleCheckout}
               className="w-full bg-[#23055c] hover:bg-[#392271] text-white font-bold text-xs py-3.5 rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isProcessing ? (
-                <><Loader2 className="h-4 w-4 animate-spin" /> Processing Hold...</>
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" /> Processing
+                  Hold...
+                </>
               ) : isSlotUnavailable ? (
-                <><AlertCircle className="h-4 w-4" /> Space Unavailable</>
+                <>
+                  <AlertCircle className="h-4 w-4" /> Space Unavailable
+                </>
               ) : activeHoldId ? (
-                <><Lock className="h-4 w-4" /> Pay &amp; Confirm Booking</>
+                <>
+                  <Lock className="h-4 w-4" /> Pay &amp; Confirm Booking
+                </>
               ) : (
-                <><Lock className="h-4 w-4" /> Reserve &amp; Checkout</>
+                <>
+                  <Lock className="h-4 w-4" /> Reserve &amp; Checkout
+                </>
               )}
             </button>
             <p className="text-[11px] text-slate-400 text-center font-medium">

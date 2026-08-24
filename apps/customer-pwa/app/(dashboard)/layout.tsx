@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
-import { useAuth } from '@daih/api-client';
-import { UserRole } from '@daih/types';
-import { SidebarNav, TopAppBar } from '../../components/dashboard';
+import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
+import { useAuth } from "@daih/api-client";
+import { UserRole } from "@daih/types";
+import { SidebarNav, TopAppBar } from "../../components/dashboard";
 
 export default function DashboardLayout({
   children,
@@ -20,10 +20,10 @@ export default function DashboardLayout({
   useEffect(() => {
     if (!isLoading) {
       if (!isAuthenticated) {
-        router.push('/login');
+        router.push("/login");
       } else if (user && user.role !== UserRole.CUSTOMER) {
         // Automatically revoke staff sessions from customer dashboard
-        logout().then(() => router.push('/login'));
+        logout().then(() => router.push("/login"));
       }
     }
   }, [isLoading, isAuthenticated, user, router, logout]);
@@ -55,7 +55,7 @@ export default function DashboardLayout({
       {/* Main Content Wrapper */}
       <div
         className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${
-          isCollapsed ? 'md:ml-20' : 'md:ml-64'
+          isCollapsed ? "md:ml-20" : "md:ml-64"
         }`}
       >
         {/* Top App Bar with DAIH logo */}

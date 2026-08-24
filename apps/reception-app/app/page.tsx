@@ -1,12 +1,20 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { QrCode, CheckCircle2, XCircle, Search, ShieldCheck, UserCheck, ArrowRight } from 'lucide-react';
-import { Card, Button, Input, StatusBadge } from '@daih/ui';
-import { BookingState } from '@daih/types';
+import React, { useState } from "react";
+import {
+  QrCode,
+  CheckCircle2,
+  XCircle,
+  Search,
+  ShieldCheck,
+  UserCheck,
+  ArrowRight,
+} from "lucide-react";
+import { Card, Button, Input, StatusBadge } from "@daih/ui";
+import { BookingState } from "@daih/types";
 
 export default function ReceptionScannerPage() {
-  const [scanInput, setScanInput] = useState('');
+  const [scanInput, setScanInput] = useState("");
   const [verificationResult, setVerificationResult] = useState<any>(null);
   const [isScanning, setIsScanning] = useState(false);
 
@@ -18,11 +26,11 @@ export default function ReceptionScannerPage() {
       setIsScanning(false);
       setVerificationResult({
         valid: true,
-        reference: 'DAIH-BK-88219',
-        customerName: 'Tunde Adeleke',
-        clientId: 'DAIH-2026-0042',
-        resource: 'Hot Desk - Ground Floor Lounge',
-        validUntil: '30 Sep 2026, 9:00 PM',
+        reference: "DAIH-BK-88219",
+        customerName: "Tunde Adeleke",
+        clientId: "DAIH-2026-0042",
+        resource: "Hot Desk - Ground Floor Lounge",
+        validUntil: "30 Sep 2026, 9:00 PM",
         status: BookingState.CONFIRMED,
       });
     }, 400);
@@ -45,12 +53,17 @@ export default function ReceptionScannerPage() {
             R
           </div>
           <div>
-            <h1 className="text-xl font-bold text-white">Reception & Security Terminal</h1>
-            <p className="text-xs text-slate-400">Terminal ID: REC-GATE-01 · Officer On Duty</p>
+            <h1 className="text-xl font-bold text-white">
+              Reception & Security Terminal
+            </h1>
+            <p className="text-xs text-slate-400">
+              Terminal ID: REC-GATE-01 · Officer On Duty
+            </p>
           </div>
         </div>
         <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-semibold border border-emerald-500/20">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" /> Scanner Ready
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />{" "}
+          Scanner Ready
         </span>
       </div>
 
@@ -64,8 +77,12 @@ export default function ReceptionScannerPage() {
 
             <div className="h-56 bg-slate-950 rounded-xl border border-dashed border-slate-700 flex flex-col items-center justify-center p-6 text-center">
               <QrCode className="h-16 w-16 text-slate-600 mb-3 animate-pulse" />
-              <p className="text-xs font-medium text-slate-300">Point scanner hardware at member pass</p>
-              <p className="text-[11px] text-slate-500 mt-1">or enter reference token below</p>
+              <p className="text-xs font-medium text-slate-300">
+                Point scanner hardware at member pass
+              </p>
+              <p className="text-[11px] text-slate-500 mt-1">
+                or enter reference token below
+              </p>
             </div>
 
             <form onSubmit={handleScan} className="flex gap-2">
@@ -81,7 +98,7 @@ export default function ReceptionScannerPage() {
                 disabled={isScanning}
                 className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl transition"
               >
-                {isScanning ? 'Verifying...' : 'Validate'}
+                {isScanning ? "Verifying..." : "Validate"}
               </button>
             </form>
           </div>
@@ -94,7 +111,9 @@ export default function ReceptionScannerPage() {
               <div className="flex items-center justify-between pb-4 border-b border-slate-800">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="h-5 w-5 text-emerald-400" />
-                  <span className="font-bold text-sm text-emerald-400">Valid Access Pass</span>
+                  <span className="font-bold text-sm text-emerald-400">
+                    Valid Access Pass
+                  </span>
                 </div>
                 <StatusBadge status={verificationResult.status} />
               </div>
@@ -105,21 +124,29 @@ export default function ReceptionScannerPage() {
                   <p className="text-base font-bold text-white mt-0.5">
                     {verificationResult.customerName}
                   </p>
-                  <p className="text-slate-400 font-mono">{verificationResult.clientId}</p>
+                  <p className="text-slate-400 font-mono">
+                    {verificationResult.clientId}
+                  </p>
                 </div>
 
                 <div className="p-4 bg-slate-950 rounded-xl space-y-2 border border-slate-800">
                   <div className="flex justify-between">
                     <span className="text-slate-500">Workspace</span>
-                    <span className="font-semibold text-white">{verificationResult.resource}</span>
+                    <span className="font-semibold text-white">
+                      {verificationResult.resource}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-500">Booking Ref</span>
-                    <span className="font-mono text-amber-400 font-semibold">{verificationResult.reference}</span>
+                    <span className="font-mono text-amber-400 font-semibold">
+                      {verificationResult.reference}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-500">Pass Expiry</span>
-                    <span className="font-medium text-slate-300">{verificationResult.validUntil}</span>
+                    <span className="font-medium text-slate-300">
+                      {verificationResult.validUntil}
+                    </span>
                   </div>
                 </div>
 
@@ -148,8 +175,12 @@ export default function ReceptionScannerPage() {
           ) : (
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 text-center text-slate-500 h-full flex flex-col items-center justify-center">
               <ShieldCheck className="h-12 w-12 text-slate-700 mb-3" />
-              <p className="text-xs font-medium text-slate-400">No pass scanned</p>
-              <p className="text-[11px] text-slate-600 mt-1">Scanned credentials will appear here instantly</p>
+              <p className="text-xs font-medium text-slate-400">
+                No pass scanned
+              </p>
+              <p className="text-[11px] text-slate-600 mt-1">
+                Scanned credentials will appear here instantly
+              </p>
             </div>
           )}
         </div>

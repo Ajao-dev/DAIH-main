@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { AuthShowcasePanel } from './AuthShowcasePanel';
-import { AuthHeader } from './AuthHeader';
-import { AuthFooter } from './AuthFooter';
+import React from "react";
+import { AuthShowcasePanel } from "./AuthShowcasePanel";
+import { AuthHeader } from "./AuthHeader";
+import { AuthFooter } from "./AuthFooter";
 
 interface AuthSplitLayoutProps {
   children: React.ReactNode;
@@ -19,8 +19,8 @@ interface AuthSplitLayoutProps {
 
 export const AuthSplitLayout: React.FC<AuthSplitLayoutProps> = ({
   children,
-  showcaseTitle = 'Elevate Your Work Environment',
-  showcaseDescription = 'Join a premier community of professionals. Access meticulously designed spaces that foster focus, collaboration, and high-tier productivity.',
+  showcaseTitle = "Elevate Your Work Environment",
+  showcaseDescription = "Join a premier community of professionals. Access meticulously designed spaces that foster focus, collaboration, and high-tier productivity.",
   bgImage,
   showShowcaseLogo = false,
   showFeatures = false,
@@ -50,9 +50,7 @@ export const AuthSplitLayout: React.FC<AuthSplitLayoutProps> = ({
 
         {/* Right Side: Form Container (100% Mobile/Tablet, 50% Desktop) */}
         <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-10 lg:p-12 xl:p-16 bg-white">
-          <div className="w-full max-w-md space-y-6">
-            {children}
-          </div>
+          <div className="w-full max-w-md space-y-6">{children}</div>
         </div>
       </main>
 

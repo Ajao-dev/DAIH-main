@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import React from 'react';
-import Link from 'next/link';
-import { Clock, MapPin } from 'lucide-react';
+import React from "react";
+import Link from "next/link";
+import { Clock, MapPin } from "lucide-react";
 
 interface UpcomingBookingCardProps {
   title?: string;
@@ -10,16 +10,16 @@ interface UpcomingBookingCardProps {
   location?: string;
   detailsHref?: string;
   badge?: string;
-  badgeColor?: 'purple' | 'emerald' | 'amber';
+  badgeColor?: "purple" | "emerald" | "amber";
 }
 
 export const UpcomingBookingCard: React.FC<UpcomingBookingCardProps> = ({
-  title = 'Glass Meeting Room A',
-  time = 'Today, 2:00 PM - 3:00 PM',
-  location = 'Floor 2 · Executive Innovation Wing',
-  detailsHref = '/bookings',
+  title = "Glass Meeting Room A",
+  time = "Today, 2:00 PM - 3:00 PM",
+  location = "Floor 2 · Executive Innovation Wing",
+  detailsHref = "/bookings",
   badge,
-  badgeColor = 'purple',
+  badgeColor = "purple",
 }) => {
   return (
     <div className="bg-white border border-purple-100/90 rounded-2xl shadow-sm p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all hover:shadow-md hover:border-purple-200">
@@ -31,11 +31,11 @@ export const UpcomingBookingCard: React.FC<UpcomingBookingCardProps> = ({
           {badge && (
             <span
               className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                badgeColor === 'emerald'
-                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/80'
-                  : badgeColor === 'amber'
-                  ? 'bg-amber-50 text-amber-700 border border-amber-200/80'
-                  : 'bg-purple-50 text-[#23055c] border border-purple-100'
+                badgeColor === "emerald"
+                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200/80"
+                  : badgeColor === "amber"
+                    ? "bg-amber-50 text-amber-700 border border-amber-200/80"
+                    : "bg-purple-50 text-[#23055c] border border-purple-100"
               }`}
             >
               {badge}

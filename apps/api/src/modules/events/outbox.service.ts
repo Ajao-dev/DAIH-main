@@ -1,5 +1,5 @@
-import { OutboxEvent, OutboxStatus, Prisma } from '@prisma/client';
-import { prisma } from '../../db/client.js';
+import { OutboxEvent, OutboxStatus, Prisma } from "@prisma/client";
+import { prisma } from "../../db/client.js";
 
 export type EventHandler = (event: OutboxEvent) => Promise<void>;
 
@@ -25,7 +25,7 @@ export class OutboxService {
       aggregateId: string;
       payload: any;
     },
-    tx?: Prisma.TransactionClient
+    tx?: Prisma.TransactionClient,
   ): Promise<OutboxEvent> {
     const client = tx || prisma;
     return client.outboxEvent.create({
@@ -42,7 +42,9 @@ export class OutboxService {
   /**
    * Fetches and dispatches pending events with concurrency protection and exponential backoff
    */
-  async processPendingEvents(batchSize: number = 25): Promise<{ processed: number; failed: number }> {
+  async processPendingEvents(
+    batchSize: number = 25,
+  ): Promise<{ processed: number; failed: number }> {
     const now = new Date();
 
     const pendingEvents = await prisma.outboxEvent.findMany({
@@ -51,7 +53,7 @@ export class OutboxService {
         scheduledAt: { lte: now },
         retryCount: { lt: 5 },
       },
-      orderBy: { createdAt: 'asc' },
+      orderBy: { createdAt: "asc" },
       take: batchSize,
     });
 
@@ -67,7 +69,7 @@ export class OutboxService {
         // Find registered handlers for this event type
         const matchingHandlers = [
           ...(this.handlers.get(event.eventType) || []),
-          ...(this.handlers.get('*') || []),
+          ...(this.handlers.get("*") || []),
         ];
 
         for (const handler of matchingHandlers) {
@@ -96,16 +98,18 @@ export class OutboxService {
         await prisma.outboxEvent.update({
           where: { id: event.id },
           data: {
-            status: isTerminalFailure ? OutboxStatus.FAILED : OutboxStatus.PENDING,
+            status: isTerminalFailure
+              ? OutboxStatus.FAILED
+              : OutboxStatus.PENDING,
             retryCount: nextRetry,
-            error: err?.message || 'Unknown handler failure',
+            error: err?.message || "Unknown handler failure",
             scheduledAt: nextScheduledAt,
           },
         });
 
         console.error(
           `❌ Error processing outbox event ${event.id} (${event.eventType}):`,
-          err?.message
+          err?.message,
         );
       }
     }

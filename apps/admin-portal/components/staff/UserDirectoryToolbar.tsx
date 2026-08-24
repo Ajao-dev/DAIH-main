@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { Search, SlidersHorizontal } from 'lucide-react';
+import React from "react";
+import { Search, SlidersHorizontal } from "lucide-react";
 
 interface UserDirectoryToolbarProps {
   searchQuery: string;

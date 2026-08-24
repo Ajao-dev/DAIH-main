@@ -241,14 +241,14 @@ Use Redis-backed rate limiting.
 
 Baseline limits:
 
-| Endpoint group | Key | Baseline |
-|---|---|---|
-| Login | IP + normalized email | 5 failed attempts per 15 minutes |
-| Registration | IP | 10 attempts per hour |
-| Verification resend | IP + normalized email | 3 attempts per hour |
-| Password reset request | IP + normalized email | 3 attempts per hour |
-| Refresh | session/IP | Conservative burst limit |
-| Anonymous routes | IP | Route-class baseline |
+| Endpoint group         | Key                   | Baseline                         |
+| ---------------------- | --------------------- | -------------------------------- |
+| Login                  | IP + normalized email | 5 failed attempts per 15 minutes |
+| Registration           | IP                    | 10 attempts per hour             |
+| Verification resend    | IP + normalized email | 3 attempts per hour              |
+| Password reset request | IP + normalized email | 3 attempts per hour              |
+| Refresh                | session/IP            | Conservative burst limit         |
+| Anonymous routes       | IP                    | Route-class baseline             |
 
 Acceptance checks:
 

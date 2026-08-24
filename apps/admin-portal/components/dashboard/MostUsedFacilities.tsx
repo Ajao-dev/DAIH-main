@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import React from 'react';
-import Link from 'next/link';
+import React from "react";
+import Link from "next/link";
 
 export interface FacilityUtilization {
   id: string;
@@ -10,70 +10,70 @@ export interface FacilityUtilization {
   utilizationRate: number;
   hoursLogged: string;
   activeOccupancy: string;
-  status: 'High Demand' | 'Active' | 'Available';
+  status: "High Demand" | "Active" | "Available";
   barColorClass: string;
 }
 
 const mostUsedFacilities: FacilityUtilization[] = [
   {
-    id: 'fac-1',
-    name: 'Hot Desk Lounge',
-    type: 'Shared Workspace',
+    id: "fac-1",
+    name: "Hot Desk Lounge",
+    type: "Shared Workspace",
     utilizationRate: 92,
-    hoursLogged: '412 hrs this week',
-    activeOccupancy: '46/50 Seats',
-    status: 'High Demand',
-    barColorClass: 'bg-primary-container',
+    hoursLogged: "412 hrs this week",
+    activeOccupancy: "46/50 Seats",
+    status: "High Demand",
+    barColorClass: "bg-primary-container",
   },
   {
-    id: 'fac-2',
-    name: 'Podcast Room 1',
-    type: 'Media & Audio Studio',
+    id: "fac-2",
+    name: "Podcast Room 1",
+    type: "Media & Audio Studio",
     utilizationRate: 85,
-    hoursLogged: '68 hrs this week',
-    activeOccupancy: 'In-Use (Sarah J.)',
-    status: 'High Demand',
-    barColorClass: 'bg-secondary',
+    hoursLogged: "68 hrs this week",
+    activeOccupancy: "In-Use (Sarah J.)",
+    status: "High Demand",
+    barColorClass: "bg-secondary",
   },
   {
-    id: 'fac-3',
-    name: 'Dedicated Desks Wing',
-    type: 'Reserved Workspace',
+    id: "fac-3",
+    name: "Dedicated Desks Wing",
+    type: "Reserved Workspace",
     utilizationRate: 83,
-    hoursLogged: '380 hrs this week',
-    activeOccupancy: '20/24 Desks',
-    status: 'Active',
-    barColorClass: 'bg-on-tertiary-container',
+    hoursLogged: "380 hrs this week",
+    activeOccupancy: "20/24 Desks",
+    status: "Active",
+    barColorClass: "bg-on-tertiary-container",
   },
   {
-    id: 'fac-4',
-    name: 'Meeting Room C (Boardroom)',
-    type: 'Executive Meeting Room',
+    id: "fac-4",
+    name: "Meeting Room C (Boardroom)",
+    type: "Executive Meeting Room",
     utilizationRate: 78,
-    hoursLogged: '46 hrs this week',
-    activeOccupancy: 'Next at 16:00',
-    status: 'Available',
-    barColorClass: 'bg-[#10b981]',
+    hoursLogged: "46 hrs this week",
+    activeOccupancy: "Next at 16:00",
+    status: "Available",
+    barColorClass: "bg-[#10b981]",
   },
   {
-    id: 'fac-5',
-    name: 'Photo Studio A',
-    type: 'Media Production',
+    id: "fac-5",
+    name: "Photo Studio A",
+    type: "Media Production",
     utilizationRate: 71,
-    hoursLogged: '38 hrs this week',
-    activeOccupancy: 'Occupied until 14:00',
-    status: 'Active',
-    barColorClass: 'bg-secondary-container',
+    hoursLogged: "38 hrs this week",
+    activeOccupancy: "Occupied until 14:00",
+    status: "Active",
+    barColorClass: "bg-secondary-container",
   },
   {
-    id: 'fac-6',
-    name: 'Streaming Pod B',
-    type: 'Broadcast Pod',
+    id: "fac-6",
+    name: "Streaming Pod B",
+    type: "Broadcast Pod",
     utilizationRate: 64,
-    hoursLogged: '28 hrs this week',
-    activeOccupancy: 'Maintenance',
-    status: 'Available',
-    barColorClass: 'bg-[#f59e0b]',
+    hoursLogged: "28 hrs this week",
+    activeOccupancy: "Maintenance",
+    status: "Available",
+    barColorClass: "bg-[#f59e0b]",
   },
 ];
 
@@ -95,7 +95,9 @@ export const MostUsedFacilities: React.FC = () => {
             className="font-label-sm text-label-sm text-primary hover:underline font-semibold flex items-center gap-1"
           >
             Manage Inventory
-            <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+            <span className="material-symbols-outlined text-[16px]">
+              arrow_forward
+            </span>
           </Link>
         </div>
 
@@ -117,11 +119,11 @@ export const MostUsedFacilities: React.FC = () => {
                   </div>
                   <span
                     className={`font-label-sm text-[10px] px-2 py-0.5 rounded-full font-bold ${
-                      fac.status === 'High Demand'
-                        ? 'bg-error-container text-on-error-container'
-                        : fac.status === 'Active'
-                        ? 'bg-primary/10 text-primary'
-                        : 'bg-[#d1fae5] text-[#065f46]'
+                      fac.status === "High Demand"
+                        ? "bg-error-container text-on-error-container"
+                        : fac.status === "Active"
+                          ? "bg-primary/10 text-primary"
+                          : "bg-[#d1fae5] text-[#065f46]"
                     }`}
                   >
                     {fac.status}
@@ -135,8 +137,12 @@ export const MostUsedFacilities: React.FC = () => {
 
               <div>
                 <div className="flex items-center justify-between text-xs mb-1.5">
-                  <span className="text-[11px] text-on-surface-variant font-medium">Utilization Rate</span>
-                  <span className="font-bold text-on-surface font-mono">{fac.utilizationRate}%</span>
+                  <span className="text-[11px] text-on-surface-variant font-medium">
+                    Utilization Rate
+                  </span>
+                  <span className="font-bold text-on-surface font-mono">
+                    {fac.utilizationRate}%
+                  </span>
                 </div>
                 <div className="w-full bg-surface-variant h-2 rounded-full overflow-hidden">
                   <div

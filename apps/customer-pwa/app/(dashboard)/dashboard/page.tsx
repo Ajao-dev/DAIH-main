@@ -1,28 +1,28 @@
-'use client';
+"use client";
 
-import React from 'react';
-import Link from 'next/link';
-import { useAuth } from '@daih/api-client';
+import React from "react";
+import Link from "next/link";
+import { useAuth } from "@daih/api-client";
 import {
   ActiveSubscriptionCard,
   UpcomingBookingCard,
   FinancialOverviewCard,
   WifiAccessCard,
   RecentActivityCard,
-} from '../../../components/dashboard';
-import { Sparkles, Calendar, ArrowRight } from 'lucide-react';
+} from "../../../components/dashboard";
+import { Sparkles, Calendar, ArrowRight } from "lucide-react";
 
 export default function MemberDashboardPage() {
   const { user } = useAuth();
 
   const getGreeting = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return 'Good Morning';
-    if (hour < 17) return 'Good Afternoon';
-    return 'Good Evening';
+    if (hour < 12) return "Good Morning";
+    if (hour < 17) return "Good Afternoon";
+    return "Good Evening";
   };
 
-  const firstName = user?.firstName || 'Member';
+  const firstName = user?.firstName || "Member";
 
   return (
     <div className="space-y-8">
@@ -71,7 +71,9 @@ export default function MemberDashboardPage() {
               <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                 Upcoming Reservations
               </h3>
-              <span className="text-xs font-semibold text-[#23055c]">1 Active</span>
+              <span className="text-xs font-semibold text-[#23055c]">
+                1 Active
+              </span>
             </div>
             <UpcomingBookingCard
               title="Private Office Suite"
@@ -89,7 +91,9 @@ export default function MemberDashboardPage() {
               <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                 Confirmed Bookings
               </h3>
-              <span className="text-xs font-semibold text-slate-400">1 Scheduled</span>
+              <span className="text-xs font-semibold text-slate-400">
+                1 Scheduled
+              </span>
             </div>
             <UpcomingBookingCard
               title="Dedicated Desk #14 - Pod B"

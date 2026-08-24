@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   FinanceHeader,
   DateRangeOption,
@@ -8,22 +8,23 @@ import {
   RevenueTrendChart,
   RevenueBreakdown,
   TransactionLedgerTable,
-} from '../../components/finance';
-import { useToast } from '@daih/ui';
+} from "../../components/finance";
+import { useToast } from "@daih/ui";
 
 export default function FinancialReportsPage() {
-  const [selectedRange, setSelectedRange] = useState<DateRangeOption>('Last 30 Days');
+  const [selectedRange, setSelectedRange] =
+    useState<DateRangeOption>("Last 30 Days");
   const toast = useToast();
 
   const handleExport = () => {
     toast.success(`Exporting Financial Ledger for ${selectedRange}...`, {
-      title: 'CSV Export Initiated',
+      title: "CSV Export Initiated",
     });
   };
 
   const handleViewPendingInvoices = () => {
-    toast.info('Filtering transaction ledger by Pending status...', {
-      title: 'Ledger Filter Applied',
+    toast.info("Filtering transaction ledger by Pending status...", {
+      title: "Ledger Filter Applied",
     });
   };
 
@@ -37,9 +38,7 @@ export default function FinancialReportsPage() {
       />
 
       {/* KPI Metric Cards */}
-      <FinanceKpiGrid
-        onViewPendingInvoices={handleViewPendingInvoices}
-      />
+      <FinanceKpiGrid onViewPendingInvoices={handleViewPendingInvoices} />
 
       {/* Charts & Analytics Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

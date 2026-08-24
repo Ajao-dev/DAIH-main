@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { Eye, ChevronLeft, ChevronRight, User } from 'lucide-react';
+import React from "react";
+import { Eye, ChevronLeft, ChevronRight, User } from "lucide-react";
 
 export interface MemberRecord {
   id: string; // Client ID, e.g. DAIH-2026-000042
@@ -10,7 +10,7 @@ export interface MemberRecord {
   phone?: string;
   avatarUrl?: string;
   tier: string;
-  status: 'Active' | 'Pending' | 'Inactive';
+  status: "Active" | "Pending" | "Inactive";
   lastVisit: string;
   joinedDate?: string;
 }
@@ -38,19 +38,19 @@ export const MemberDirectoryTable: React.FC<MemberDirectoryTableProps> = ({
 
   const getTierBadgeStyle = (tier: string) => {
     switch (tier.toLowerCase()) {
-      case 'enterprise':
-        return 'bg-purple-100/70 text-[#23055c] border border-purple-200';
-      case 'professional':
-        return 'bg-amber-100/70 text-amber-900 border border-amber-200';
-      case 'creator':
-        return 'bg-slate-100 text-slate-700 border border-slate-200';
+      case "enterprise":
+        return "bg-purple-100/70 text-[#23055c] border border-purple-200";
+      case "professional":
+        return "bg-amber-100/70 text-amber-900 border border-amber-200";
+      case "creator":
+        return "bg-slate-100 text-slate-700 border border-slate-200";
       default:
-        return 'bg-indigo-50 text-[#392271] border border-indigo-100';
+        return "bg-indigo-50 text-[#392271] border border-indigo-100";
     }
   };
 
   const getInitials = (name: string) => {
-    const parts = name.trim().split(' ');
+    const parts = name.trim().split(" ");
     if (parts.length >= 2) {
       return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
     }
@@ -137,7 +137,7 @@ export const MemberDirectoryTable: React.FC<MemberDirectoryTableProps> = ({
                   <td className="p-4">
                     <span
                       className={`inline-block px-2.5 py-0.5 rounded-lg text-[11px] font-bold ${getTierBadgeStyle(
-                        member.tier
+                        member.tier,
                       )}`}
                     >
                       {member.tier}
@@ -146,19 +146,19 @@ export const MemberDirectoryTable: React.FC<MemberDirectoryTableProps> = ({
 
                   {/* Status */}
                   <td className="p-4">
-                    {member.status === 'Active' && (
+                    {member.status === "Active" && (
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#E6F4EA] text-[#137333] font-semibold text-[11px] border border-[#CEEAD6]">
                         <span className="w-1.5 h-1.5 rounded-full bg-[#137333]" />
                         Active
                       </span>
                     )}
-                    {member.status === 'Pending' && (
+                    {member.status === "Pending" && (
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#FEF7E0] text-[#B06000] font-semibold text-[11px] border border-[#FCE8B2]">
                         <span className="w-1.5 h-1.5 rounded-full bg-[#B06000]" />
                         Pending
                       </span>
                     )}
-                    {member.status === 'Inactive' && (
+                    {member.status === "Inactive" && (
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 font-semibold text-[11px] border border-slate-200">
                         <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
                         Inactive
@@ -191,9 +191,15 @@ export const MemberDirectoryTable: React.FC<MemberDirectoryTableProps> = ({
       {/* Pagination Footer */}
       <div className="p-4 border-t border-[#EBE7F5] flex flex-col sm:flex-row justify-between items-center gap-3 bg-[#F8F9FA] text-xs text-slate-600">
         <span>
-          Showing <strong className="text-slate-900">{totalCount > 0 ? startRecord : 0}</strong> to{' '}
-          <strong className="text-slate-900">{endRecord}</strong> of{' '}
-          <strong className="text-slate-900">{totalCount.toLocaleString()}</strong> members
+          Showing{" "}
+          <strong className="text-slate-900">
+            {totalCount > 0 ? startRecord : 0}
+          </strong>{" "}
+          to <strong className="text-slate-900">{endRecord}</strong> of{" "}
+          <strong className="text-slate-900">
+            {totalCount.toLocaleString()}
+          </strong>{" "}
+          members
         </span>
 
         <div className="flex items-center gap-1.5">
@@ -207,19 +213,24 @@ export const MemberDirectoryTable: React.FC<MemberDirectoryTableProps> = ({
           </button>
 
           {Array.from({ length: totalPages }, (_, i) => i + 1)
-            .filter((p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
+            .filter(
+              (p) =>
+                p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1,
+            )
             .map((p, idx, arr) => {
               const showEllipsis = idx > 0 && p - arr[idx - 1] > 1;
 
               return (
                 <React.Fragment key={p}>
-                  {showEllipsis && <span className="px-1 text-slate-400">...</span>}
+                  {showEllipsis && (
+                    <span className="px-1 text-slate-400">...</span>
+                  )}
                   <button
                     onClick={() => onPageChange(p)}
                     className={`w-8 h-8 flex items-center justify-center rounded-lg font-bold transition-colors cursor-pointer text-xs ${
                       currentPage === p
-                        ? 'bg-[#23055c] text-white shadow-xs'
-                        : 'border border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
+                        ? "bg-[#23055c] text-white shadow-xs"
+                        : "border border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
                     }`}
                   >
                     {p}

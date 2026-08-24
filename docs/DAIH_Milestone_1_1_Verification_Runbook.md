@@ -1,6 +1,6 @@
-# DAIH Milestone 1.1 — Verification & Acceptance Runbook
+# DAIH Milestone 1.1 ï¿½ Verification & Acceptance Runbook
 
-**Milestone:** 1.1 — Foundation & Identity  
+**Milestone:** 1.1 ï¿½ Foundation & Identity  
 **Purpose:** Step-by-step verification procedures for proving Milestone 1.1 readiness on staging and local environments.
 
 ---
@@ -14,6 +14,7 @@ pnpm --filter @daih/api test
 `
 
 **Expected Outcome:**
+
 - All 20 tests pass cleanly across email.test.ts, debug.test.ts, and identity.test.ts.
 
 ---
@@ -23,10 +24,13 @@ pnpm --filter @daih/api test
 Validate that all workspaces typecheck and compile without errors:
 
 `ash
+
 # 1. Typecheck all packages and apps
+
 pnpm typecheck
 
 # 2. Build production artifacts
+
 pnpm build
 `
 
@@ -35,8 +39,9 @@ pnpm build
 ## 3. End-to-End User Journeys (Smoke Tests)
 
 ### Scenario A: Customer Registration, Verification & Dashboard Access
+
 1. Navigate to Customer PWA: https://app.staging.daih.ng/register
-2. Enter Full Name, Phone, Email (	estuser@daih.ng), and Password. Confirm Policy Consent checkbox is checked.
+2. Enter Full Name, Phone, Email ( estuser@daih.ng), and Password. Confirm Policy Consent checkbox is checked.
 3. Submit form.
    - **Verification:** User is redirected to /verify-email. An outbox event is created and transactional email is dispatched via Resend/ZeptoMail.
 4. Open the verification link: https://app.staging.daih.ng/verify-email?token=<token>.
@@ -49,10 +54,11 @@ pnpm build
 ---
 
 ### Scenario B: Super Admin Seeding & Staff Provisioning
+
 1. Run initial Super Admin seed script:
    `ash
-   pnpm --filter @daih/api exec tsx src/scripts/seed-super-admin.ts
-   `
+pnpm --filter @daih/api exec tsx src/scripts/seed-super-admin.ts
+`
 2. Navigate to Admin Console: https://admin.staging.daih.ng/login
 3. Log in with SUPER_ADMIN_EMAIL and SUPER_ADMIN_PASSWORD.
    - **Verification:** Access is granted to Admin Console.
@@ -65,6 +71,7 @@ pnpm build
 ---
 
 ### Scenario C: Observability & APM Smoke Checks
+
 1. **API Sentry Exception:**
    - Trigger: GET https://api.staging.daih.ng/api/v1/debug/sentry-error
    - Verify in Sentry: Issue appears under daih-api with error message DAIH Staging Smoke Test Exception.

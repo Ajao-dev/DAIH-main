@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import React from 'react';
-import Link from 'next/link';
+import React from "react";
+import Link from "next/link";
 
 export const SystemHealthWidget: React.FC = () => {
   return (
@@ -11,7 +11,9 @@ export const SystemHealthWidget: React.FC = () => {
           <h3 className="font-headline-sm text-[20px] leading-[28px] font-semibold text-on-surface">
             System Health
           </h3>
-          <span className="material-symbols-outlined text-outline">monitor_heart</span>
+          <span className="material-symbols-outlined text-outline">
+            monitor_heart
+          </span>
         </div>
 
         <div className="space-y-4">
@@ -19,7 +21,9 @@ export const SystemHealthWidget: React.FC = () => {
           <div className="flex items-center justify-between p-3 bg-workspace-surface rounded-DEFAULT border border-accent-soft/50">
             <div className="flex items-center gap-3">
               <div className="w-2 h-2 rounded-full bg-[#10b981]" />
-              <span className="font-label-md text-label-md text-on-surface">Core API</span>
+              <span className="font-label-md text-label-md text-on-surface">
+                Core API
+              </span>
             </div>
             <span className="font-label-sm text-label-sm text-on-surface-variant font-medium">
               99.9% Uptime
@@ -30,7 +34,9 @@ export const SystemHealthWidget: React.FC = () => {
           <div className="flex items-center justify-between p-3 bg-workspace-surface rounded-DEFAULT border border-accent-soft/50">
             <div className="flex items-center gap-3">
               <div className="w-2 h-2 rounded-full bg-[#10b981]" />
-              <span className="font-label-md text-label-md text-on-surface">Stripe Webhooks</span>
+              <span className="font-label-md text-label-md text-on-surface">
+                Stripe Webhooks
+              </span>
             </div>
             <span className="font-label-sm text-label-sm text-on-surface-variant font-medium">
               Operational
@@ -41,7 +47,9 @@ export const SystemHealthWidget: React.FC = () => {
           <div className="flex items-center justify-between p-3 bg-error-container/20 rounded-DEFAULT border border-error/20">
             <div className="flex items-center gap-3">
               <div className="w-2 h-2 rounded-full bg-error animate-pulse" />
-              <span className="font-label-md text-label-md text-on-surface">Door Access Readers</span>
+              <span className="font-label-md text-label-md text-on-surface">
+                Door Access Readers
+              </span>
             </div>
             <span className="font-label-sm text-label-sm text-error font-semibold">
               2 Offline

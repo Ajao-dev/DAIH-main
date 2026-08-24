@@ -1,25 +1,30 @@
-'use client';
+"use client";
 
-import React, { useEffect, useState, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { api } from '@daih/api-client';
-import { useToast } from '@daih/ui';
-import { Loader2 } from 'lucide-react';
-import { VerifyEmailCard, VerificationStatusCard } from '../../../components/auth';
+import React, { useEffect, useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
+import { api } from "@daih/api-client";
+import { useToast } from "@daih/ui";
+import { Loader2 } from "lucide-react";
+import {
+  VerifyEmailCard,
+  VerificationStatusCard,
+} from "../../../components/auth";
 
 function VerifyEmailContent() {
   const searchParams = useSearchParams();
-  const token = searchParams.get('token');
-  const emailParam = searchParams.get('email');
+  const token = searchParams.get("token");
+  const emailParam = searchParams.get("email");
 
   const toast = useToast();
 
-  const [status, setStatus] = useState<'verifying' | 'success' | 'error' | 'awaiting'>(
-    token ? 'verifying' : 'awaiting'
-  );
+  const [status, setStatus] = useState<
+    "verifying" | "success" | "error" | "awaiting"
+  >(token ? "verifying" : "awaiting");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [resendEmail, setResendEmail] = useState(emailParam || '');
-  const [resendStatus, setResendStatus] = useState<'idle' | 'loading' | 'sent'>('idle');
+  const [resendEmail, setResendEmail] = useState(emailParam || "");
+  const [resendStatus, setResendStatus] = useState<"idle" | "loading" | "sent">(
+    "idle",
+  );
 
   useEffect(() => {
     if (!token) return;
@@ -29,18 +34,23 @@ function VerifyEmailContent() {
       try {
         await api.auth.verifyEmail(token);
         if (mounted) {
-          setStatus('success');
-          toast.success('Your email has been verified successfully!', {
-            title: 'Email Verified',
+          setStatus("success");
+          toast.success("Your email has been verified successfully!", {
+            title: "Email Verified",
           });
         }
       } catch (err: any) {
         if (mounted) {
-          setStatus('error');
-          setErrorMessage(err?.message || 'Verification link is invalid or has expired');
-          toast.error(err?.message || 'Verification link is invalid or has expired', {
-            title: 'Verification Failed',
-          });
+          setStatus("error");
+          setErrorMessage(
+            err?.message || "Verification link is invalid or has expired",
+          );
+          toast.error(
+            err?.message || "Verification link is invalid or has expired",
+            {
+              title: "Verification Failed",
+            },
+          );
         }
       }
     })();
@@ -53,21 +63,23 @@ function VerifyEmailContent() {
   const handleResend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!resendEmail.trim()) {
-      toast.warning('Please enter your email address.', { title: 'Email Required' });
+      toast.warning("Please enter your email address.", {
+        title: "Email Required",
+      });
       return;
     }
-    setResendStatus('loading');
+    setResendStatus("loading");
     try {
       await api.auth.resendVerification(resendEmail.trim().toLowerCase());
-      setResendStatus('sent');
+      setResendStatus("sent");
       toast.success(`Verification link sent to ${resendEmail}`, {
-        title: 'Verification Link Sent',
+        title: "Verification Link Sent",
       });
     } catch (err: any) {
-      setErrorMessage(err?.message || 'Failed to resend verification email');
-      setResendStatus('idle');
-      toast.error(err?.message || 'Failed to resend verification email', {
-        title: 'Resend Failed',
+      setErrorMessage(err?.message || "Failed to resend verification email");
+      setResendStatus("idle");
+      toast.error(err?.message || "Failed to resend verification email", {
+        title: "Resend Failed",
       });
     }
   };
@@ -81,8 +93,8 @@ function VerifyEmailContent() {
       </div>
 
       <main className="flex-grow flex items-center justify-center p-4 sm:p-6 lg:p-8 relative z-10 w-full min-h-[calc(100vh-80px)]">
-        {status === 'awaiting' ? (
-          <VerifyEmailCard email={emailParam || ''} />
+        {status === "awaiting" ? (
+          <VerifyEmailCard email={emailParam || ""} />
         ) : (
           <VerificationStatusCard
             status={status}

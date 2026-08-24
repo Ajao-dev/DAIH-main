@@ -1,7 +1,14 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { CreditCard, RefreshCw, Receipt, AlertTriangle, TrendingUp, TrendingDown } from 'lucide-react';
+import React from "react";
+import {
+  CreditCard,
+  RefreshCw,
+  Receipt,
+  AlertTriangle,
+  TrendingUp,
+  TrendingDown,
+} from "lucide-react";
 
 export interface FinanceKpiData {
   totalRevenue: string;
@@ -27,16 +34,16 @@ export const FinanceKpiGrid: React.FC<FinanceKpiGridProps> = ({
   onViewPendingInvoices,
 }) => {
   const kpi: FinanceKpiData = {
-    totalRevenue: data?.totalRevenue || '₦45,230,000.00',
-    revenueGrowth: data?.revenueGrowth || '12.5%',
+    totalRevenue: data?.totalRevenue || "₦45,230,000.00",
+    revenueGrowth: data?.revenueGrowth || "12.5%",
     isRevenueUp: data?.isRevenueUp ?? true,
-    mrr: data?.mrr || '₦28,500,000.00',
-    mrrGrowth: data?.mrrGrowth || '5.2%',
+    mrr: data?.mrr || "₦28,500,000.00",
+    mrrGrowth: data?.mrrGrowth || "5.2%",
     isMrrUp: data?.isMrrUp ?? true,
-    avgBookingValue: data?.avgBookingValue || '₦142,500.00',
-    avgChange: data?.avgChange || '1.1%',
+    avgBookingValue: data?.avgBookingValue || "₦142,500.00",
+    avgChange: data?.avgChange || "1.1%",
     isAvgUp: data?.isAvgUp ?? false,
-    outstandingAmount: data?.outstandingAmount || '₦3,450,000.00',
+    outstandingAmount: data?.outstandingAmount || "₦3,450,000.00",
     pendingCount: data?.pendingCount || 12,
   };
 

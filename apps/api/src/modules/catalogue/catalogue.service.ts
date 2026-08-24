@@ -1,4 +1,7 @@
-import { catalogueRepository, CatalogueRepository } from './catalogue.repository.js';
+import {
+  catalogueRepository,
+  CatalogueRepository,
+} from "./catalogue.repository.js";
 import {
   CreateResourceInput,
   UpdateResourceInput,
@@ -6,9 +9,9 @@ import {
   UpdatePricingPlanInput,
   CreateBlackoutInput,
   UpsertSchedulesInput,
-} from './catalogue.schema.js';
-import { prisma } from '../../db/client.js';
-import { outboxService } from '../events/outbox.service.js';
+} from "./catalogue.schema.js";
+import { prisma } from "../../db/client.js";
+import { outboxService } from "../events/outbox.service.js";
 
 export class CatalogueService {
   constructor(private repo: CatalogueRepository = catalogueRepository) {}
@@ -17,24 +20,34 @@ export class CatalogueService {
     if (!resource) return null;
     return {
       ...resource,
-      pricing: resource.pricing?.map((p: any) => ({
-        ...p,
-        price: Number(p.price),
-      })) || [],
-      blackouts: resource.blackouts?.map((b: any) => ({
-        ...b,
-        startDate: b.startDate instanceof Date ? b.startDate.toISOString() : b.startDate,
-        endDate: b.endDate instanceof Date ? b.endDate.toISOString() : b.endDate,
-      })) || [],
+      pricing:
+        resource.pricing?.map((p: any) => ({
+          ...p,
+          price: Number(p.price),
+        })) || [],
+      blackouts:
+        resource.blackouts?.map((b: any) => ({
+          ...b,
+          startDate:
+            b.startDate instanceof Date
+              ? b.startDate.toISOString()
+              : b.startDate,
+          endDate:
+            b.endDate instanceof Date ? b.endDate.toISOString() : b.endDate,
+        })) || [],
       schedules: resource.schedules || [],
       dailyRate: resource.pricing?.find((p: any) => p.durationDays === 1)?.price
         ? Number(resource.pricing.find((p: any) => p.durationDays === 1).price)
         : undefined,
-      hourlyRate: resource.pricing?.find((p: any) => p.durationHours === 1)?.price
+      hourlyRate: resource.pricing?.find((p: any) => p.durationHours === 1)
+        ?.price
         ? Number(resource.pricing.find((p: any) => p.durationHours === 1).price)
         : undefined,
-      monthlyRate: resource.pricing?.find((p: any) => p.durationMonths === 1)?.price
-        ? Number(resource.pricing.find((p: any) => p.durationMonths === 1).price)
+      monthlyRate: resource.pricing?.find((p: any) => p.durationMonths === 1)
+        ?.price
+        ? Number(
+            resource.pricing.find((p: any) => p.durationMonths === 1).price,
+          )
         : undefined,
     };
   }
@@ -70,13 +83,19 @@ export class CatalogueService {
     return this.formatResource(resource);
   }
 
-  async createResource(input: CreateResourceInput, actorUserId?: string, ipAddress?: string) {
+  async createResource(
+    input: CreateResourceInput,
+    actorUserId?: string,
+    ipAddress?: string,
+  ) {
     // Verify unique slug
     const existing = await this.repo.findResourceBySlug(input.slug);
     if (existing) {
-      const error: any = new Error(`Resource with slug '${input.slug}' already exists`);
+      const error: any = new Error(
+        `Resource with slug '${input.slug}' already exists`,
+      );
       error.statusCode = 409;
-      error.code = 'RESOURCE_SLUG_CONFLICT';
+      error.code = "RESOURCE_SLUG_CONFLICT";
       throw error;
     }
 
@@ -86,40 +105,55 @@ export class CatalogueService {
     await prisma.auditLog.create({
       data: {
         userId: actorUserId,
-        action: 'CATALOGUE_RESOURCE_CREATED',
-        entityType: 'FacilityResource',
+        action: "CATALOGUE_RESOURCE_CREATED",
+        entityType: "FacilityResource",
         entityId: resource.id,
-        metadata: { name: resource.name, slug: resource.slug, category: resource.category },
+        metadata: {
+          name: resource.name,
+          slug: resource.slug,
+          category: resource.category,
+        },
         ipAddress,
       },
     });
 
     // Outbox event
     await outboxService.recordEvent({
-      eventType: 'catalogue.resource_created',
-      aggregateType: 'FacilityResource',
+      eventType: "catalogue.resource_created",
+      aggregateType: "FacilityResource",
       aggregateId: resource.id,
-      payload: { resourceId: resource.id, name: resource.name, slug: resource.slug },
+      payload: {
+        resourceId: resource.id,
+        name: resource.name,
+        slug: resource.slug,
+      },
     });
 
     return this.formatResource(resource);
   }
 
-  async updateResource(id: string, input: UpdateResourceInput, actorUserId?: string, ipAddress?: string) {
+  async updateResource(
+    id: string,
+    input: UpdateResourceInput,
+    actorUserId?: string,
+    ipAddress?: string,
+  ) {
     const existing = await this.repo.findResourceById(id);
     if (!existing) {
       const error: any = new Error(`Resource '${id}' not found`);
       error.statusCode = 404;
-      error.code = 'RESOURCE_NOT_FOUND';
+      error.code = "RESOURCE_NOT_FOUND";
       throw error;
     }
 
     if (input.slug && input.slug !== existing.slug) {
       const slugConflict = await this.repo.findResourceBySlug(input.slug);
       if (slugConflict && slugConflict.id !== id) {
-        const error: any = new Error(`Resource with slug '${input.slug}' already exists`);
+        const error: any = new Error(
+          `Resource with slug '${input.slug}' already exists`,
+        );
         error.statusCode = 409;
-        error.code = 'RESOURCE_SLUG_CONFLICT';
+        error.code = "RESOURCE_SLUG_CONFLICT";
         throw error;
       }
     }
@@ -130,8 +164,8 @@ export class CatalogueService {
     await prisma.auditLog.create({
       data: {
         userId: actorUserId,
-        action: 'CATALOGUE_RESOURCE_UPDATED',
-        entityType: 'FacilityResource',
+        action: "CATALOGUE_RESOURCE_UPDATED",
+        entityType: "FacilityResource",
         entityId: id,
         metadata: { changes: input },
         ipAddress,
@@ -140,8 +174,8 @@ export class CatalogueService {
 
     // Outbox event
     await outboxService.recordEvent({
-      eventType: 'catalogue.resource_updated',
-      aggregateType: 'FacilityResource',
+      eventType: "catalogue.resource_updated",
+      aggregateType: "FacilityResource",
       aggregateId: id,
       payload: { resourceId: id, changes: input },
     });
@@ -154,7 +188,7 @@ export class CatalogueService {
     if (!existing) {
       const error: any = new Error(`Resource '${id}' not found`);
       error.statusCode = 404;
-      error.code = 'RESOURCE_NOT_FOUND';
+      error.code = "RESOURCE_NOT_FOUND";
       throw error;
     }
 
@@ -164,8 +198,8 @@ export class CatalogueService {
     await prisma.auditLog.create({
       data: {
         userId: actorUserId,
-        action: 'CATALOGUE_RESOURCE_DEACTIVATED',
-        entityType: 'FacilityResource',
+        action: "CATALOGUE_RESOURCE_DEACTIVATED",
+        entityType: "FacilityResource",
         entityId: id,
         metadata: { name: existing.name },
         ipAddress,
@@ -175,12 +209,17 @@ export class CatalogueService {
     return this.formatResource(updated);
   }
 
-  async createPricingPlan(resourceId: string, input: CreatePricingPlanInput, actorUserId?: string, ipAddress?: string) {
+  async createPricingPlan(
+    resourceId: string,
+    input: CreatePricingPlanInput,
+    actorUserId?: string,
+    ipAddress?: string,
+  ) {
     const resource = await this.repo.findResourceById(resourceId);
     if (!resource) {
       const error: any = new Error(`Resource '${resourceId}' not found`);
       error.statusCode = 404;
-      error.code = 'RESOURCE_NOT_FOUND';
+      error.code = "RESOURCE_NOT_FOUND";
       throw error;
     }
 
@@ -190,18 +229,22 @@ export class CatalogueService {
     await prisma.auditLog.create({
       data: {
         userId: actorUserId,
-        action: 'CATALOGUE_PRICING_CREATED',
-        entityType: 'ResourcePricing',
+        action: "CATALOGUE_PRICING_CREATED",
+        entityType: "ResourcePricing",
         entityId: plan.id,
-        metadata: { resourceId, planName: plan.planName, price: Number(plan.price) },
+        metadata: {
+          resourceId,
+          planName: plan.planName,
+          price: Number(plan.price),
+        },
         ipAddress,
       },
     });
 
     // Outbox event
     await outboxService.recordEvent({
-      eventType: 'catalogue.pricing_created',
-      aggregateType: 'ResourcePricing',
+      eventType: "catalogue.pricing_created",
+      aggregateType: "ResourcePricing",
       aggregateId: plan.id,
       payload: { resourceId, planId: plan.id, price: Number(plan.price) },
     });
@@ -212,12 +255,17 @@ export class CatalogueService {
     };
   }
 
-  async updatePricingPlan(planId: string, input: UpdatePricingPlanInput, actorUserId?: string, ipAddress?: string) {
+  async updatePricingPlan(
+    planId: string,
+    input: UpdatePricingPlanInput,
+    actorUserId?: string,
+    ipAddress?: string,
+  ) {
     const plan = await this.repo.findPricingPlanById(planId);
     if (!plan) {
       const error: any = new Error(`Pricing plan '${planId}' not found`);
       error.statusCode = 404;
-      error.code = 'PRICING_PLAN_NOT_FOUND';
+      error.code = "PRICING_PLAN_NOT_FOUND";
       throw error;
     }
 
@@ -227,20 +275,28 @@ export class CatalogueService {
     await prisma.auditLog.create({
       data: {
         userId: actorUserId,
-        action: 'CATALOGUE_PRICING_UPDATED',
-        entityType: 'ResourcePricing',
+        action: "CATALOGUE_PRICING_UPDATED",
+        entityType: "ResourcePricing",
         entityId: planId,
-        metadata: { previousPrice: Number(plan.price), updatedPrice: Number(updated.price), changes: input },
+        metadata: {
+          previousPrice: Number(plan.price),
+          updatedPrice: Number(updated.price),
+          changes: input,
+        },
         ipAddress,
       },
     });
 
     // Outbox event
     await outboxService.recordEvent({
-      eventType: 'catalogue.pricing_updated',
-      aggregateType: 'ResourcePricing',
+      eventType: "catalogue.pricing_updated",
+      aggregateType: "ResourcePricing",
       aggregateId: planId,
-      payload: { planId, resourceId: updated.resourceId, price: Number(updated.price) },
+      payload: {
+        planId,
+        resourceId: updated.resourceId,
+        price: Number(updated.price),
+      },
     });
 
     return {
@@ -249,12 +305,16 @@ export class CatalogueService {
     };
   }
 
-  async deletePricingPlan(planId: string, actorUserId?: string, ipAddress?: string) {
+  async deletePricingPlan(
+    planId: string,
+    actorUserId?: string,
+    ipAddress?: string,
+  ) {
     const plan = await this.repo.findPricingPlanById(planId);
     if (!plan) {
       const error: any = new Error(`Pricing plan '${planId}' not found`);
       error.statusCode = 404;
-      error.code = 'PRICING_PLAN_NOT_FOUND';
+      error.code = "PRICING_PLAN_NOT_FOUND";
       throw error;
     }
 
@@ -264,36 +324,53 @@ export class CatalogueService {
     await prisma.auditLog.create({
       data: {
         userId: actorUserId,
-        action: 'CATALOGUE_PRICING_DELETED',
-        entityType: 'ResourcePricing',
+        action: "CATALOGUE_PRICING_DELETED",
+        entityType: "ResourcePricing",
         entityId: planId,
         metadata: { resourceId: plan.resourceId, planName: plan.planName },
         ipAddress,
       },
     });
 
-    return { success: true, message: `Pricing plan '${plan.planName}' deleted successfully` };
+    return {
+      success: true,
+      message: `Pricing plan '${plan.planName}' deleted successfully`,
+    };
   }
 
-  async createBlackout(resourceId: string, input: CreateBlackoutInput, actorUserId?: string, ipAddress?: string) {
+  async createBlackout(
+    resourceId: string,
+    input: CreateBlackoutInput,
+    actorUserId?: string,
+    ipAddress?: string,
+  ) {
     const resource = await this.repo.findResourceById(resourceId);
     if (!resource) {
       const error: any = new Error(`Resource '${resourceId}' not found`);
       error.statusCode = 404;
-      error.code = 'RESOURCE_NOT_FOUND';
+      error.code = "RESOURCE_NOT_FOUND";
       throw error;
     }
 
-    const blackout = await this.repo.createBlackout(resourceId, input, actorUserId);
+    const blackout = await this.repo.createBlackout(
+      resourceId,
+      input,
+      actorUserId,
+    );
 
     // Audit log
     await prisma.auditLog.create({
       data: {
         userId: actorUserId,
-        action: 'CATALOGUE_BLACKOUT_CREATED',
-        entityType: 'ResourceBlackout',
+        action: "CATALOGUE_BLACKOUT_CREATED",
+        entityType: "ResourceBlackout",
         entityId: blackout.id,
-        metadata: { resourceId, reason: blackout.reason, startDate: blackout.startDate, endDate: blackout.endDate },
+        metadata: {
+          resourceId,
+          reason: blackout.reason,
+          startDate: blackout.startDate,
+          endDate: blackout.endDate,
+        },
         ipAddress,
       },
     });
@@ -301,29 +378,38 @@ export class CatalogueService {
     return blackout;
   }
 
-  async deleteBlackout(blackoutId: string, actorUserId?: string, ipAddress?: string) {
+  async deleteBlackout(
+    blackoutId: string,
+    actorUserId?: string,
+    ipAddress?: string,
+  ) {
     await this.repo.deleteBlackout(blackoutId);
 
     // Audit log
     await prisma.auditLog.create({
       data: {
         userId: actorUserId,
-        action: 'CATALOGUE_BLACKOUT_DELETED',
-        entityType: 'ResourceBlackout',
+        action: "CATALOGUE_BLACKOUT_DELETED",
+        entityType: "ResourceBlackout",
         entityId: blackoutId,
         ipAddress,
       },
     });
 
-    return { success: true, message: 'Blackout schedule deleted successfully' };
+    return { success: true, message: "Blackout schedule deleted successfully" };
   }
 
-  async updateSchedules(resourceId: string, input: UpsertSchedulesInput, actorUserId?: string, ipAddress?: string) {
+  async updateSchedules(
+    resourceId: string,
+    input: UpsertSchedulesInput,
+    actorUserId?: string,
+    ipAddress?: string,
+  ) {
     const resource = await this.repo.findResourceById(resourceId);
     if (!resource) {
       const error: any = new Error(`Resource '${resourceId}' not found`);
       error.statusCode = 404;
-      error.code = 'RESOURCE_NOT_FOUND';
+      error.code = "RESOURCE_NOT_FOUND";
       throw error;
     }
 
@@ -333,8 +419,8 @@ export class CatalogueService {
     await prisma.auditLog.create({
       data: {
         userId: actorUserId,
-        action: 'CATALOGUE_SCHEDULES_UPDATED',
-        entityType: 'ResourceSchedule',
+        action: "CATALOGUE_SCHEDULES_UPDATED",
+        entityType: "ResourceSchedule",
         entityId: resourceId,
         metadata: { count: schedules.length },
         ipAddress,

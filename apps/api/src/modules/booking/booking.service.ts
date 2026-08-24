@@ -1,20 +1,23 @@
-import { bookingRepository, BookingRepository } from './booking.repository.js';
+import { bookingRepository, BookingRepository } from "./booking.repository.js";
 import {
   CheckAvailabilityInput,
   CalendarAvailabilityInput,
   CreateHoldInput,
   AdminOverrideBookingInput,
   BookingFilterInput,
-} from './booking.schema.js';
+} from "./booking.schema.js";
 import {
   assertValidTransition,
   InvalidBookingStateTransitionError,
   ACTIVE_BOOKING_STATES,
-} from './booking.state-machine.js';
-import { prisma } from '../../db/client.js';
-import { outboxService } from '../events/outbox.service.js';
-import { scheduleHoldExpiry, cancelHoldExpiryJob } from '../../jobs/hold-expiry.job.js';
-import { BookingState, CalendarDayStatus } from '@daih/types';
+} from "./booking.state-machine.js";
+import { prisma } from "../../db/client.js";
+import { outboxService } from "../events/outbox.service.js";
+import {
+  scheduleHoldExpiry,
+  cancelHoldExpiryJob,
+} from "../../jobs/hold-expiry.job.js";
+import { BookingState, CalendarDayStatus } from "@daih/types";
 
 export class BookingService {
   constructor(private repo: BookingRepository = bookingRepository) {}
@@ -36,25 +39,40 @@ export class BookingService {
       id: booking.id,
       reference: booking.reference,
       resourceId: booking.resourceId,
-      resourceName: booking.resource?.name || 'Selected Space',
-      category: booking.resource?.category || 'FLEX_DESK',
+      resourceName: booking.resource?.name || "Selected Space",
+      category: booking.resource?.category || "FLEX_DESK",
       userId: booking.userId,
       customerName: booking.user
-        ? `${booking.user.firstName || ''} ${booking.user.lastName || ''}`.trim() || booking.user.email
-        : 'Customer',
+        ? `${booking.user.firstName || ""} ${booking.user.lastName || ""}`.trim() ||
+          booking.user.email
+        : "Customer",
       customerEmail: booking.user?.email,
       customerPhone: booking.user?.phoneNumber || undefined,
-      startTime: booking.startTime instanceof Date ? booking.startTime.toISOString() : booking.startTime,
-      endTime: booking.endTime instanceof Date ? booking.endTime.toISOString() : booking.endTime,
+      startTime:
+        booking.startTime instanceof Date
+          ? booking.startTime.toISOString()
+          : booking.startTime,
+      endTime:
+        booking.endTime instanceof Date
+          ? booking.endTime.toISOString()
+          : booking.endTime,
       state: booking.state,
-      qrToken: isConfirmedOrActive ? (booking.qrToken || undefined) : undefined,
+      qrToken: isConfirmedOrActive ? booking.qrToken || undefined : undefined,
       amount: Number(booking.totalAmount),
-      currency: booking.currency || 'NGN',
+      currency: booking.currency || "NGN",
       holdExpiresAt: booking.holdExpiresAt
-        ? (booking.holdExpiresAt instanceof Date ? booking.holdExpiresAt.toISOString() : booking.holdExpiresAt)
+        ? booking.holdExpiresAt instanceof Date
+          ? booking.holdExpiresAt.toISOString()
+          : booking.holdExpiresAt
         : null,
-      createdAt: booking.createdAt instanceof Date ? booking.createdAt.toISOString() : booking.createdAt,
-      updatedAt: booking.updatedAt instanceof Date ? booking.updatedAt.toISOString() : booking.updatedAt,
+      createdAt:
+        booking.createdAt instanceof Date
+          ? booking.createdAt.toISOString()
+          : booking.createdAt,
+      updatedAt:
+        booking.updatedAt instanceof Date
+          ? booking.updatedAt.toISOString()
+          : booking.updatedAt,
     };
   }
 
@@ -71,14 +89,14 @@ export class BookingService {
       return {
         available: false,
         resourceId: input.resourceId,
-        resourceName: resource?.name || 'Workspace',
-        category: resource?.category || ('FLEX_DESK' as any),
+        resourceName: resource?.name || "Workspace",
+        category: resource?.category || ("FLEX_DESK" as any),
         capacity: 0,
         activeCount: 0,
         remainingSpots: 0,
         startTime: input.startTime,
         endTime: input.endTime,
-        reason: 'Workspace is currently offline or inactive',
+        reason: "Workspace is currently offline or inactive",
       };
     }
 
@@ -103,13 +121,16 @@ export class BookingService {
         remainingSpots: 0,
         startTime: input.startTime,
         endTime: input.endTime,
-        reason: 'Workspace is unavailable due to scheduled maintenance or a private blackout',
+        reason:
+          "Workspace is unavailable due to scheduled maintenance or a private blackout",
       };
     }
 
     // 2. Day-of-week operating hours check
     const dayOfWeek = start.getDay();
-    const schedule = (resource.schedules || []).find((s) => s.dayOfWeek === dayOfWeek);
+    const schedule = (resource.schedules || []).find(
+      (s) => s.dayOfWeek === dayOfWeek,
+    );
     if (schedule && schedule.isClosed) {
       return {
         available: false,
@@ -121,7 +142,7 @@ export class BookingService {
         remainingSpots: 0,
         startTime: input.startTime,
         endTime: input.endTime,
-        reason: 'Workspace is closed on this day of the week',
+        reason: "Workspace is closed on this day of the week",
       };
     }
 
@@ -130,7 +151,7 @@ export class BookingService {
       prisma,
       resource.id,
       start,
-      end
+      end,
     );
 
     const remainingSpots = Math.max(0, resource.capacity - activeCount);
@@ -146,7 +167,9 @@ export class BookingService {
       remainingSpots,
       startTime: input.startTime,
       endTime: input.endTime,
-      reason: available ? undefined : 'All available slots for this workspace are currently reserved',
+      reason: available
+        ? undefined
+        : "All available slots for this workspace are currently reserved",
     };
   }
 
@@ -156,15 +179,19 @@ export class BookingService {
   async getCalendarAvailability(input: CalendarAvailabilityInput) {
     const resource = await this.repo.findResource(input.resourceId);
     if (!resource || !resource.isActive) {
-      const error: any = new Error(`Resource '${input.resourceId}' is not active or found`);
+      const error: any = new Error(
+        `Resource '${input.resourceId}' is not active or found`,
+      );
       error.statusCode = 404;
-      error.code = 'RESOURCE_NOT_FOUND';
+      error.code = "RESOURCE_NOT_FOUND";
       throw error;
     }
 
     const now = new Date();
-    const targetMonth = input.month || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    const [yearStr, monthStr] = targetMonth.split('-');
+    const targetMonth =
+      input.month ||
+      `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const [yearStr, monthStr] = targetMonth.split("-");
     const year = parseInt(yearStr, 10);
     const month = parseInt(monthStr, 10) - 1; // 0-indexed month
 
@@ -178,10 +205,7 @@ export class BookingService {
         state: { in: ACTIVE_BOOKING_STATES },
         startTime: { lt: endOfMonth },
         endTime: { gt: startOfMonth },
-        OR: [
-          { holdExpiresAt: null },
-          { holdExpiresAt: { gt: now } },
-        ],
+        OR: [{ holdExpiresAt: null }, { holdExpiresAt: { gt: now } }],
       },
       select: { startTime: true, endTime: true },
     });
@@ -198,10 +222,10 @@ export class BookingService {
       const limit = new Date(Math.min(bEnd.getTime(), endOfMonth.getTime()));
 
       while (cur <= limit) {
-        const dStr = cur.toISOString().split('T')[0];
+        const dStr = cur.toISOString().split("T")[0];
         busyDates[dStr] = {
           status: CalendarDayStatus.BLACKOUT,
-          reason: b.reason || 'Scheduled Maintenance',
+          reason: b.reason || "Scheduled Maintenance",
         };
         cur.setUTCDate(cur.getUTCDate() + 1);
       }
@@ -215,8 +239,8 @@ export class BookingService {
     if (closedDaysOfWeek.length > 0) {
       const daysInTargetMonth = new Date(year, month + 1, 0).getDate();
       for (let d = 1; d <= daysInTargetMonth; d++) {
-        const dayTwoDigits = String(d).padStart(2, '0');
-        const monthTwoDigits = String(month + 1).padStart(2, '0');
+        const dayTwoDigits = String(d).padStart(2, "0");
+        const monthTwoDigits = String(month + 1).padStart(2, "0");
         const dStr = `${year}-${monthTwoDigits}-${dayTwoDigits}`;
         const noonDate = new Date(`${dStr}T12:00:00.000Z`);
         const dayOfWeek = noonDate.getUTCDay();
@@ -225,7 +249,7 @@ export class BookingService {
           if (!busyDates[dStr]) {
             busyDates[dStr] = {
               status: CalendarDayStatus.CLOSED,
-              reason: 'Workspace is closed on this day',
+              reason: "Workspace is closed on this day",
             };
           }
         }
@@ -236,12 +260,14 @@ export class BookingService {
     const dateBookingsMap: Record<string, { start: Date; end: Date }[]> = {};
 
     bookings.forEach((bk) => {
-      const bStart = bk.startTime instanceof Date ? bk.startTime : new Date(bk.startTime);
-      const bEnd = bk.endTime instanceof Date ? bk.endTime : new Date(bk.endTime);
+      const bStart =
+        bk.startTime instanceof Date ? bk.startTime : new Date(bk.startTime);
+      const bEnd =
+        bk.endTime instanceof Date ? bk.endTime : new Date(bk.endTime);
 
       const cur = new Date(Math.max(bStart.getTime(), startOfMonth.getTime()));
       while (cur < bEnd && cur <= endOfMonth) {
-        const dStr = cur.toISOString().split('T')[0];
+        const dStr = cur.toISOString().split("T")[0];
         if (!dateBookingsMap[dStr]) dateBookingsMap[dStr] = [];
         dateBookingsMap[dStr].push({ start: bStart, end: bEnd });
         cur.setUTCDate(cur.getUTCDate() + 1);
@@ -250,7 +276,12 @@ export class BookingService {
 
     Object.entries(dateBookingsMap).forEach(([dStr, list]) => {
       // If already blackout or closed, keep existing status
-      if (busyDates[dStr] && [CalendarDayStatus.BLACKOUT, CalendarDayStatus.CLOSED].includes(busyDates[dStr].status)) {
+      if (
+        busyDates[dStr] &&
+        [CalendarDayStatus.BLACKOUT, CalendarDayStatus.CLOSED].includes(
+          busyDates[dStr].status,
+        )
+      ) {
         return;
       }
 
@@ -262,15 +293,22 @@ export class BookingService {
       const bookedHours = new Set<number>();
       list.forEach((b) => {
         for (let h = 0; h < 24; h++) {
-          const slotStart = new Date(`${dStr}T${String(h).padStart(2, '0')}:00:00.000Z`);
-          const slotEnd = new Date(`${dStr}T${String(h).padStart(2, '0')}:59:59.999Z`);
+          const slotStart = new Date(
+            `${dStr}T${String(h).padStart(2, "0")}:00:00.000Z`,
+          );
+          const slotEnd = new Date(
+            `${dStr}T${String(h).padStart(2, "0")}:59:59.999Z`,
+          );
           if (b.start < slotEnd && b.end > slotStart) {
             bookedHours.add(h);
           }
         }
       });
 
-      const status = remainingSpots <= 0 ? CalendarDayStatus.FULL : CalendarDayStatus.LIMITED;
+      const status =
+        remainingSpots <= 0
+          ? CalendarDayStatus.FULL
+          : CalendarDayStatus.LIMITED;
 
       busyDates[dStr] = {
         status,
@@ -312,9 +350,11 @@ export class BookingService {
           });
 
           if (!resource || !resource.isActive) {
-            const error: any = new Error(`Workspace resource '${input.resourceId}' is inactive or not found`);
+            const error: any = new Error(
+              `Workspace resource '${input.resourceId}' is inactive or not found`,
+            );
             error.statusCode = 404;
-            error.code = 'RESOURCE_NOT_FOUND';
+            error.code = "RESOURCE_NOT_FOUND";
             throw error;
           }
 
@@ -323,12 +363,18 @@ export class BookingService {
 
           // Check blackouts
           const isBlackedOut = (resource.blackouts || []).some((b) => {
-            return b.isActive && start < new Date(b.endDate) && end > new Date(b.startDate);
+            return (
+              b.isActive &&
+              start < new Date(b.endDate) &&
+              end > new Date(b.startDate)
+            );
           });
           if (isBlackedOut) {
-            const error: any = new Error('Workspace is unavailable due to scheduled maintenance');
+            const error: any = new Error(
+              "Workspace is unavailable due to scheduled maintenance",
+            );
             error.statusCode = 409;
-            error.code = 'SLOT_UNAVAILABLE';
+            error.code = "SLOT_UNAVAILABLE";
             throw error;
           }
 
@@ -337,19 +383,21 @@ export class BookingService {
             tx,
             resource.id,
             start,
-            end
+            end,
           );
 
           if (activeCount >= resource.capacity) {
-            const error: any = new Error('Workspace capacity is fully reserved for the selected time range');
+            const error: any = new Error(
+              "Workspace capacity is fully reserved for the selected time range",
+            );
             error.statusCode = 409;
-            error.code = 'SLOT_UNAVAILABLE';
+            error.code = "SLOT_UNAVAILABLE";
             throw error;
           }
 
           // Calculate price
           let calculatedPrice = 4000;
-          let currency = 'NGN';
+          let currency = "NGN";
 
           if (input.planId) {
             const plan = resource.pricing.find((p) => p.id === input.planId);
@@ -364,7 +412,7 @@ export class BookingService {
 
           const now = new Date();
           const holdExpiresAt = new Date(now.getTime() + 10 * 60 * 1000); // 10 minutes hold
-          const datePart = now.toISOString().slice(0, 10).replace(/-/g, '');
+          const datePart = now.toISOString().slice(0, 10).replace(/-/g, "");
           const randomSuffix = Math.floor(10000 + Math.random() * 90000);
           const reference = `DAIH-BK-${datePart}-${randomSuffix}`;
 
@@ -384,7 +432,7 @@ export class BookingService {
         {
           maxWait: 15000,
           timeout: 20000,
-        }
+        },
       );
 
       // Schedule BullMQ delayed hold expiration job
@@ -392,8 +440,8 @@ export class BookingService {
 
       // Record outbox event
       await outboxService.recordEvent({
-        eventType: 'booking.hold_created',
-        aggregateType: 'Booking',
+        eventType: "booking.hold_created",
+        aggregateType: "Booking",
         aggregateId: booking.id,
         payload: {
           bookingId: booking.id,
@@ -412,7 +460,8 @@ export class BookingService {
         userId: booking.userId,
         startTime: booking.startTime.toISOString(),
         endTime: booking.endTime.toISOString(),
-        holdExpiresAt: booking.holdExpiresAt?.toISOString() || new Date().toISOString(),
+        holdExpiresAt:
+          booking.holdExpiresAt?.toISOString() || new Date().toISOString(),
         totalAmount: Number(booking.totalAmount),
         currency: booking.currency,
         state: booking.state,
@@ -420,13 +469,17 @@ export class BookingService {
     } catch (err: any) {
       if (
         err.statusCode === 409 ||
-        err.code === 'SLOT_UNAVAILABLE' ||
-        err.code === 'P2002' ||
-        /exclusion|no_overlapping_active_bookings|23P01|duplicate/i.test(err.message || '')
+        err.code === "SLOT_UNAVAILABLE" ||
+        err.code === "P2002" ||
+        /exclusion|no_overlapping_active_bookings|23P01|duplicate/i.test(
+          err.message || "",
+        )
       ) {
-        const conflictError: any = new Error('Workspace capacity is fully reserved for the selected time range');
+        const conflictError: any = new Error(
+          "Workspace capacity is fully reserved for the selected time range",
+        );
         conflictError.statusCode = 409;
-        conflictError.code = 'SLOT_UNAVAILABLE';
+        conflictError.code = "SLOT_UNAVAILABLE";
         throw conflictError;
       }
       throw err;
@@ -436,26 +489,37 @@ export class BookingService {
   /**
    * Extend hold expiry (e.g. when user clicks Complete Checkout and initiates payment)
    */
-  async extendHold(bookingId: string, userId: string, extraMinutes: number = 10) {
+  async extendHold(
+    bookingId: string,
+    userId: string,
+    extraMinutes: number = 10,
+  ) {
     const booking = await this.repo.findById(bookingId);
     if (!booking) {
       const error: any = new Error(`Booking '${bookingId}' not found`);
       error.statusCode = 404;
-      error.code = 'BOOKING_NOT_FOUND';
+      error.code = "BOOKING_NOT_FOUND";
       throw error;
     }
 
     if (booking.userId !== userId) {
-      const error: any = new Error('You are not authorized to modify this booking');
+      const error: any = new Error(
+        "You are not authorized to modify this booking",
+      );
       error.statusCode = 403;
-      error.code = 'FORBIDDEN';
+      error.code = "FORBIDDEN";
       throw error;
     }
 
-    if (booking.state !== BookingState.HELD && booking.state !== BookingState.PENDING_PAYMENT) {
-      const error: any = new Error(`Cannot extend hold for booking in state '${booking.state}'`);
+    if (
+      booking.state !== BookingState.HELD &&
+      booking.state !== BookingState.PENDING_PAYMENT
+    ) {
+      const error: any = new Error(
+        `Cannot extend hold for booking in state '${booking.state}'`,
+      );
       error.statusCode = 400;
-      error.code = 'INVALID_BOOKING_STATE';
+      error.code = "INVALID_BOOKING_STATE";
       throw error;
     }
 
@@ -468,7 +532,8 @@ export class BookingService {
     return {
       success: true,
       bookingId: updated.id,
-      holdExpiresAt: updated.holdExpiresAt?.toISOString() || newExpiry.toISOString(),
+      holdExpiresAt:
+        updated.holdExpiresAt?.toISOString() || newExpiry.toISOString(),
     };
   }
 
@@ -479,18 +544,34 @@ export class BookingService {
     const booking = await this.repo.findById(bookingId);
     if (!booking) return;
 
-    if (booking.state === BookingState.HELD || booking.state === BookingState.PENDING_PAYMENT) {
-      if (booking.holdExpiresAt && new Date(booking.holdExpiresAt) <= new Date()) {
-        assertValidTransition(booking.state as BookingState, BookingState.EXPIRED, booking.id);
+    if (
+      booking.state === BookingState.HELD ||
+      booking.state === BookingState.PENDING_PAYMENT
+    ) {
+      if (
+        booking.holdExpiresAt &&
+        new Date(booking.holdExpiresAt) <= new Date()
+      ) {
+        assertValidTransition(
+          booking.state as BookingState,
+          BookingState.EXPIRED,
+          booking.id,
+        );
         await this.repo.updateState(prisma, booking.id, BookingState.EXPIRED);
 
-        console.log(`⏰ Booking hold expired for '${booking.reference}' (${booking.id})`);
+        console.log(
+          `⏰ Booking hold expired for '${booking.reference}' (${booking.id})`,
+        );
 
         await outboxService.recordEvent({
-          eventType: 'booking.hold_expired',
-          aggregateType: 'Booking',
+          eventType: "booking.hold_expired",
+          aggregateType: "Booking",
           aggregateId: booking.id,
-          payload: { bookingId: booking.id, reference: booking.reference, resourceId: booking.resourceId },
+          payload: {
+            bookingId: booking.id,
+            reference: booking.reference,
+            resourceId: booking.resourceId,
+          },
         });
       }
     }
@@ -499,45 +580,65 @@ export class BookingService {
   /**
    * Cancel an active booking or hold
    */
-  async cancelBooking(bookingId: string, userId: string, reason?: string, actorRole?: string) {
+  async cancelBooking(
+    bookingId: string,
+    userId: string,
+    reason?: string,
+    actorRole?: string,
+  ) {
     const booking = await this.repo.findById(bookingId);
     if (!booking) {
       const error: any = new Error(`Booking '${bookingId}' not found`);
       error.statusCode = 404;
-      error.code = 'BOOKING_NOT_FOUND';
+      error.code = "BOOKING_NOT_FOUND";
       throw error;
     }
 
     // Permission check
     const isOwner = booking.userId === userId;
-    const isStaff = actorRole && ['OPERATIONS_ADMIN', 'SUPER_ADMIN'].includes(actorRole);
+    const isStaff =
+      actorRole && ["OPERATIONS_ADMIN", "SUPER_ADMIN"].includes(actorRole);
     if (!isOwner && !isStaff) {
-      const error: any = new Error('You are not authorized to cancel this booking');
+      const error: any = new Error(
+        "You are not authorized to cancel this booking",
+      );
       error.statusCode = 403;
-      error.code = 'FORBIDDEN';
+      error.code = "FORBIDDEN";
       throw error;
     }
 
-    assertValidTransition(booking.state as BookingState, BookingState.CANCELLED, booking.id);
+    assertValidTransition(
+      booking.state as BookingState,
+      BookingState.CANCELLED,
+      booking.id,
+    );
 
-    const updated = await this.repo.updateState(prisma, bookingId, BookingState.CANCELLED);
+    const updated = await this.repo.updateState(
+      prisma,
+      bookingId,
+      BookingState.CANCELLED,
+    );
     await cancelHoldExpiryJob(bookingId);
 
     // Audit log
     await prisma.auditLog.create({
       data: {
         userId,
-        action: 'BOOKING_CANCELLED',
-        entityType: 'Booking',
+        action: "BOOKING_CANCELLED",
+        entityType: "Booking",
         entityId: bookingId,
-        metadata: { reference: booking.reference, previousState: booking.state, reason },
+        metadata: {
+          reference: booking.reference,
+          previousState: booking.state,
+          reason,
+        },
       },
     });
 
     // Outbox event
     await outboxService.recordEvent({
-      eventType: 'booking.cancelled',
-      aggregateType: 'Booking',
+      eventType: "booking.cancelled",
+      aggregateType: "Booking",
       aggregateId: bookingId,
       payload: { bookingId, reference: booking.reference, reason },
     });
@@ -553,7 +654,7 @@ export class BookingService {
     if (!booking) {
       const error: any = new Error(`Booking '${bookingId}' not found`);
       error.statusCode = 404;
-      error.code = 'BOOKING_NOT_FOUND';
+      error.code = "BOOKING_NOT_FOUND";
       throw error;
     }
 
@@ -566,31 +667,46 @@ export class BookingService {
           booking.resourceId,
           booking.startTime,
           booking.endTime,
-          booking.id
+          booking.id,
         );
         if (activeCount >= resource.capacity) {
-          await this.repo.updateState(prisma, bookingId, BookingState.CANCELLED);
-          const error: any = new Error(`Cannot confirm payment for expired booking '${booking.reference}': space is fully booked.`);
+          await this.repo.updateState(
+            prisma,
+            bookingId,
+            BookingState.CANCELLED,
+          );
+          const error: any = new Error(
+            `Cannot confirm payment for expired booking '${booking.reference}': space is fully booked.`,
+          );
           error.statusCode = 409;
-          error.code = 'SLOT_UNAVAILABLE';
+          error.code = "SLOT_UNAVAILABLE";
           throw error;
         }
       }
     }
 
-    assertValidTransition(booking.state as BookingState, BookingState.CONFIRMED, booking.id);
+    assertValidTransition(
+      booking.state as BookingState,
+      BookingState.CONFIRMED,
+      booking.id,
+    );
 
     const qrToken = `daih_qr_${booking.id}_${Date.now()}`;
-    const updated = await this.repo.updateState(prisma, bookingId, BookingState.CONFIRMED, {
-      qrToken,
-      holdExpiresAt: null,
-    });
+    const updated = await this.repo.updateState(
+      prisma,
+      bookingId,
+      BookingState.CONFIRMED,
+      {
+        qrToken,
+        holdExpiresAt: null,
+      },
+    );
 
     await cancelHoldExpiryJob(bookingId);
 
     await outboxService.recordEvent({
-      eventType: 'booking.confirmed',
-      aggregateType: 'Booking',
+      eventType: "booking.confirmed",
+      aggregateType: "Booking",
       aggregateId: bookingId,
       payload: { bookingId, reference: booking.reference, qrToken },
     });
@@ -637,18 +753,26 @@ export class BookingService {
    * Operations Admin Manual Override / Force Reservation
    * Mandatory overrideReason is logged to AuditLog
    */
-  async adminOverride(adminUserId: string, input: AdminOverrideBookingInput, ipAddress?: string) {
+  async adminOverride(
+    adminUserId: string,
+    input: AdminOverrideBookingInput,
+    ipAddress?: string,
+  ) {
     const resource = await this.repo.findResource(input.resourceId);
     if (!resource) {
-      const error: any = new Error(`Workspace resource '${input.resourceId}' not found`);
+      const error: any = new Error(
+        `Workspace resource '${input.resourceId}' not found`,
+      );
       error.statusCode = 404;
-      error.code = 'RESOURCE_NOT_FOUND';
+      error.code = "RESOURCE_NOT_FOUND";
       throw error;
     }
 
     let targetUserId = input.userId;
     if (!targetUserId && input.customerEmail) {
-      const user = await prisma.user.findUnique({ where: { email: input.customerEmail } });
+      const user = await prisma.user.findUnique({
+        where: { email: input.customerEmail },
+      });
       targetUserId = user ? user.id : adminUserId;
     }
     if (!targetUserId) {
@@ -658,7 +782,7 @@ export class BookingService {
     const start = new Date(input.startTime);
     const end = new Date(input.endTime);
     const now = new Date();
-    const datePart = now.toISOString().slice(0, 10).replace(/-/g, '');
+    const datePart = now.toISOString().slice(0, 10).replace(/-/g, "");
     const randomSuffix = Math.floor(10000 + Math.random() * 90000);
     const reference = `DAIH-OVR-${datePart}-${randomSuffix}`;
     const targetState = input.state || BookingState.CONFIRMED;
@@ -672,8 +796,11 @@ export class BookingService {
         endTime: end,
         state: targetState as any,
         totalAmount: input.waiveFee ? 0 : input.totalAmount || 0,
-        currency: input.currency || 'NGN',
-        qrToken: targetState === BookingState.CONFIRMED ? `daih_qr_${Date.now()}` : null,
+        currency: input.currency || "NGN",
+        qrToken:
+          targetState === BookingState.CONFIRMED
+            ? `daih_qr_${Date.now()}`
+            : null,
       },
       include: {
         resource: true,
@@ -685,8 +812,8 @@ export class BookingService {
     await prisma.auditLog.create({
       data: {
         userId: adminUserId,
-        action: 'BOOKING_ADMIN_OVERRIDE',
-        entityType: 'Booking',
+        action: "BOOKING_ADMIN_OVERRIDE",
+        entityType: "Booking",
         entityId: booking.id,
         metadata: {
           reference: booking.reference,
@@ -703,8 +830,8 @@ export class BookingService {
 
     // Outbox event
     await outboxService.recordEvent({
-      eventType: 'booking.admin_overridden',
-      aggregateType: 'Booking',
+      eventType: "booking.admin_overridden",
+      aggregateType: "Booking",
       aggregateId: booking.id,
       payload: {
         bookingId: booking.id,

@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import React from 'react';
-import Link from 'next/link';
+import React from "react";
+import Link from "next/link";
 
 export default function EventSinglePage() {
   return (
@@ -15,7 +15,9 @@ export default function EventSinglePage() {
             </div>
             <div className="col-md-4">
               <div className="text-md-end">
-                <span className="badge bg-color p-2">Date: 15 December 2026</span>
+                <span className="badge bg-color p-2">
+                  Date: 15 December 2026
+                </span>
               </div>
             </div>
             <div className="clearfix"></div>
@@ -28,19 +30,26 @@ export default function EventSinglePage() {
           <div className="row">
             <div className="col-lg-8">
               <div id="slider-carousel" className="mb30">
-                <img src="/images/event-details-slider/1.jpg" className="img-fluid rounded" alt="DAIH Event" />
+                <img
+                  src="/images/event-details-slider/1.jpg"
+                  className="img-fluid rounded"
+                  alt="DAIH Event"
+                />
               </div>
 
               <div className="spacer-single"></div>
 
               <h3>Event Overview</h3>
               <p>
-                Join us at Dare Adeboye Innovation Hub (DAIH) for an engaging session designed to inspire,
-                connect, and equip you with practical insights. Expect meaningful conversations, real learning,
-                and opportunities to network with professionals, founders, and creatives.
+                Join us at Dare Adeboye Innovation Hub (DAIH) for an engaging
+                session designed to inspire, connect, and equip you with
+                practical insights. Expect meaningful conversations, real
+                learning, and opportunities to network with professionals,
+                founders, and creatives.
               </p>
               <p className="mb-0">
-                <strong>What to expect:</strong> Keynotes, fireside discussions, live Q&amp;A, interactive workshops, and high-value networking.
+                <strong>What to expect:</strong> Keynotes, fireside discussions,
+                live Q&amp;A, interactive workshops, and high-value networking.
               </p>
 
               <div className="spacer-single"></div>
@@ -69,7 +78,8 @@ export default function EventSinglePage() {
                   <i className="bg-color fa fa-map-marker"></i>
                   <div className="si-inner">
                     <h5 className="event-meta-title">Location</h5>
-                    Abiona Street By House of Favour, Main Gate, Redemption City, Ogun State
+                    Abiona Street By House of Favour, Main Gate, Redemption
+                    City, Ogun State
                   </div>
                 </div>
 
@@ -90,23 +100,54 @@ export default function EventSinglePage() {
                     </div>
 
                     <div className="col-md-6 mt-3">
-                      <input type="text" name="first_name" id="first_name" className="form-control" placeholder="First Name" required />
+                      <input
+                        type="text"
+                        name="first_name"
+                        id="first_name"
+                        className="form-control"
+                        placeholder="First Name"
+                        required
+                      />
                     </div>
 
                     <div className="col-md-6 mt-3">
-                      <input type="text" name="last_name" id="last_name" className="form-control" placeholder="Last Name" required />
+                      <input
+                        type="text"
+                        name="last_name"
+                        id="last_name"
+                        className="form-control"
+                        placeholder="Last Name"
+                        required
+                      />
                     </div>
 
                     <div className="col-md-12 mt-3">
-                      <input type="email" name="work_email" id="work_email" className="form-control" placeholder="Email Address" required />
+                      <input
+                        type="email"
+                        name="work_email"
+                        id="work_email"
+                        className="form-control"
+                        placeholder="Email Address"
+                        required
+                      />
                     </div>
 
                     <div className="col-md-12 mt-3">
-                      <input type="tel" name="phone" id="phone" className="form-control" placeholder="Phone Number" required />
+                      <input
+                        type="tel"
+                        name="phone"
+                        id="phone"
+                        className="form-control"
+                        placeholder="Phone Number"
+                        required
+                      />
                     </div>
 
                     <div className="col-md-12 mt-4">
-                      <button type="button" className="btn-main btn-fullwidth text-center">
+                      <button
+                        type="button"
+                        className="btn-main btn-fullwidth text-center"
+                      >
                         Register for Free Pass
                       </button>
                     </div>

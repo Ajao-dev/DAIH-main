@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import React from 'react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import React from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   CalendarCheck,
@@ -16,9 +16,9 @@ import {
   ChevronRight,
   Shield,
   ExternalLink,
-} from 'lucide-react';
-import { useAuth } from '@daih/api-client';
-import { cn } from '@daih/ui';
+} from "lucide-react";
+import { useAuth } from "@daih/api-client";
+import { cn } from "@daih/ui";
 
 export interface AdminSidebarProps {
   isMobileOpen: boolean;
@@ -34,83 +34,83 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
 
   const navigationSections = [
     {
-      title: 'Operations & Hub',
+      title: "Operations & Hub",
       items: [
         {
-          name: 'Dashboard',
-          href: '/',
+          name: "Dashboard",
+          href: "/",
           icon: LayoutDashboard,
-          description: 'Live floor pulse & overview',
-          badge: 'Live',
+          description: "Live floor pulse & overview",
+          badge: "Live",
         },
         {
-          name: 'Bookings',
-          href: '/bookings',
+          name: "Bookings",
+          href: "/bookings",
           icon: CalendarCheck,
-          description: 'Reservations, holds & VIP overrides',
+          description: "Reservations, holds & VIP overrides",
         },
         {
-          name: 'Operations',
-          href: '/operations',
+          name: "Operations",
+          href: "/operations",
           icon: Layers,
-          description: 'Desks, rooms, holds & capacity',
+          description: "Desks, rooms, holds & capacity",
           subItems: [
-            { name: 'Resource Capacity Pools', href: '/operations#pools' },
-            { name: 'Active Holds & Overrides', href: '/operations#holds' },
+            { name: "Resource Capacity Pools", href: "/operations#pools" },
+            { name: "Active Holds & Overrides", href: "/operations#holds" },
           ],
         },
         {
-          name: 'Customers',
-          href: '/customers',
+          name: "Customers",
+          href: "/customers",
           icon: Users,
-          description: 'Member directory & Client IDs',
+          description: "Member directory & Client IDs",
           subItems: [
-            { name: 'Member Directory', href: '/customers#directory' },
-            { name: 'Membership Tiers', href: '/customers#tiers' },
+            { name: "Member Directory", href: "/customers#directory" },
+            { name: "Membership Tiers", href: "/customers#tiers" },
           ],
         },
       ],
     },
     {
-      title: 'Finance & Commerce',
+      title: "Finance & Commerce",
       items: [
         {
-          name: 'Finance',
-          href: '/finance',
+          name: "Finance",
+          href: "/finance",
           icon: Receipt,
-          description: 'Paystack ledger & settlements',
+          description: "Paystack ledger & settlements",
           subItems: [
-            { name: 'Revenue Summary', href: '/finance#summary' },
-            { name: 'Live Transaction Log', href: '/finance#transactions' },
+            { name: "Revenue Summary", href: "/finance#summary" },
+            { name: "Live Transaction Log", href: "/finance#transactions" },
           ],
         },
       ],
     },
     {
-      title: 'Governance & Analytics',
+      title: "Governance & Analytics",
       items: [
         {
-          name: 'Reports',
-          href: '/reports',
+          name: "Reports",
+          href: "/reports",
           icon: BarChart3,
-          description: 'Footfall & space analytics',
+          description: "Footfall & space analytics",
           subItems: [
-            { name: 'Space Utilisation', href: '/reports#utilisation' },
-            { name: 'Pre-Generated Reports', href: '/reports#exports' },
+            { name: "Space Utilisation", href: "/reports#utilisation" },
+            { name: "Pre-Generated Reports", href: "/reports#exports" },
           ],
         },
         {
-          name: 'Staff Management',
-          href: '/staff',
+          name: "Staff Management",
+          href: "/staff",
           icon: UserCheck,
-          description: 'Team directory & RBAC roles',
-          badge: 'RBAC',
+          description: "Team directory & RBAC roles",
+          badge: "RBAC",
         },
         {
-          name: 'Settings',
-          href: '/settings',
+          name: "Settings",
+          href: "/settings",
           icon: Settings,
-          description: 'Workspace & hub preferences',
+          description: "Workspace & hub preferences",
         },
       ],
     },
@@ -119,15 +119,15 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   const handleLogout = async () => {
     try {
       await logout();
-      window.location.href = '/login';
+      window.location.href = "/login";
     } catch {
-      window.location.href = '/login';
+      window.location.href = "/login";
     }
   };
 
   const getInitials = (name?: string) => {
-    if (!name) return 'AD';
-    const parts = name.trim().split(' ');
+    if (!name) return "AD";
+    const parts = name.trim().split(" ");
     if (parts.length >= 2) {
       return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
     }
@@ -137,8 +137,8 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   return (
     <aside
       className={cn(
-        'fixed lg:sticky top-[65px] left-0 h-[calc(100vh-65px)] w-64 lg:w-72 bg-white border-r border-[#EBE7F5] z-40 overflow-y-auto flex flex-col justify-between transition-transform duration-300 shadow-xs shrink-0',
-        isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        "fixed lg:sticky top-[65px] left-0 h-[calc(100vh-65px)] w-64 lg:w-72 bg-white border-r border-[#EBE7F5] z-40 overflow-y-auto flex flex-col justify-between transition-transform duration-300 shadow-xs shrink-0",
+        isMobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
       )}
     >
       <div className="p-4 sm:p-5 flex-1">
@@ -154,8 +154,8 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                 {section.items.map((item) => {
                   const Icon = item.icon;
                   const isActive =
-                    item.href === '/'
-                      ? pathname === '/'
+                    item.href === "/"
+                      ? pathname === "/"
                       : pathname.startsWith(item.href);
 
                   return (
@@ -164,10 +164,10 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                         href={item.href}
                         onClick={onMobileClose}
                         className={cn(
-                          'flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs transition-all group relative',
+                          "flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs transition-all group relative",
                           isActive
-                            ? 'bg-[#392271] text-white font-bold shadow-sm'
-                            : 'text-slate-600 hover:bg-[#F8F9FA] hover:text-[#23055c]'
+                            ? "bg-[#392271] text-white font-bold shadow-sm"
+                            : "text-slate-600 hover:bg-[#F8F9FA] hover:text-[#23055c]",
                         )}
                       >
                         {/* Left Active Accent Bar */}
@@ -177,10 +177,10 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
 
                         <div
                           className={cn(
-                            'p-1.5 rounded-lg shrink-0 transition-colors',
+                            "p-1.5 rounded-lg shrink-0 transition-colors",
                             isActive
-                              ? 'bg-white/20 text-white'
-                              : 'bg-purple-50 text-[#23055c] group-hover:bg-purple-100'
+                              ? "bg-white/20 text-white"
+                              : "bg-purple-50 text-[#23055c] group-hover:bg-purple-100",
                           )}
                         >
                           <Icon className="w-4 h-4" />
@@ -192,10 +192,10 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                             {item.badge && (
                               <span
                                 className={cn(
-                                   'text-[9px] font-extrabold px-1.5 py-0.5 rounded-md shrink-0',
+                                  "text-[9px] font-extrabold px-1.5 py-0.5 rounded-md shrink-0",
                                   isActive
-                                    ? 'bg-white/25 text-white'
-                                    : 'bg-purple-100 text-[#23055c]'
+                                    ? "bg-white/25 text-white"
+                                    : "bg-purple-100 text-[#23055c]",
                                 )}
                               >
                                 {item.badge}
@@ -204,8 +204,8 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                           </div>
                           <div
                             className={cn(
-                              'text-[10px] truncate font-normal',
-                              isActive ? 'text-white/75' : 'text-slate-400'
+                              "text-[10px] truncate font-normal",
+                              isActive ? "text-white/75" : "text-slate-400",
                             )}
                           >
                             {item.description}
@@ -214,21 +214,23 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                       </Link>
 
                       {/* Sub-items (if active or expanded) */}
-                      {isActive && item.subItems && item.subItems.length > 0 && (
-                        <div className="pl-9 pr-2 py-1 space-y-0.5 border-l-2 border-purple-100 ml-5 my-1">
-                          {item.subItems.map((sub, subIdx) => (
-                            <Link
-                              key={subIdx}
-                              href={sub.href}
-                              onClick={onMobileClose}
-                              className="flex items-center justify-between py-1 px-2 text-[11px] font-medium text-slate-500 hover:text-[#23055c] hover:bg-purple-50/50 rounded-md transition-colors"
-                            >
-                              <span>{sub.name}</span>
-                              <ChevronRight className="w-3 h-3 text-slate-300" />
-                            </Link>
-                          ))}
-                        </div>
-                      )}
+                      {isActive &&
+                        item.subItems &&
+                        item.subItems.length > 0 && (
+                          <div className="pl-9 pr-2 py-1 space-y-0.5 border-l-2 border-purple-100 ml-5 my-1">
+                            {item.subItems.map((sub, subIdx) => (
+                              <Link
+                                key={subIdx}
+                                href={sub.href}
+                                onClick={onMobileClose}
+                                className="flex items-center justify-between py-1 px-2 text-[11px] font-medium text-slate-500 hover:text-[#23055c] hover:bg-purple-50/50 rounded-md transition-colors"
+                              >
+                                <span>{sub.name}</span>
+                                <ChevronRight className="w-3 h-3 text-slate-300" />
+                              </Link>
+                            ))}
+                          </div>
+                        )}
                     </div>
                   );
                 })}
@@ -242,15 +244,17 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       <div className="p-4 border-t border-[#EBE7F5] bg-[#F8F9FA] space-y-3">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#23055c] to-[#65519f] text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-xs">
-            {getInitials(user ? `${user.firstName} ${user.lastName}` : 'Admin')}
+            {getInitials(user ? `${user.firstName} ${user.lastName}` : "Admin")}
           </div>
           <div className="min-w-0 flex-1">
             <div className="font-bold text-xs text-slate-900 truncate">
-              {user ? `${user.firstName} ${user.lastName}` : 'Staff Administrator'}
+              {user
+                ? `${user.firstName} ${user.lastName}`
+                : "Staff Administrator"}
             </div>
             <div className="text-[10px] text-slate-500 truncate flex items-center gap-1">
               <Shield className="w-3 h-3 text-[#23055c]" />
-              <span>{user?.role || 'OPERATIONS_ADMIN'}</span>
+              <span>{user?.role || "OPERATIONS_ADMIN"}</span>
             </div>
           </div>
 

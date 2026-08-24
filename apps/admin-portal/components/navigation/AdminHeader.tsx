@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import React from 'react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { Menu, X, Shield, ExternalLink } from 'lucide-react';
-import { useAuth } from '@daih/api-client';
+import React from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Menu, X, Shield, ExternalLink } from "lucide-react";
+import { useAuth } from "@daih/api-client";
 
 export interface AdminHeaderProps {
   isMobileOpen: boolean;
@@ -19,16 +19,28 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
   const { user } = useAuth();
 
   const getPageInfo = (path: string): { title: string; category: string } => {
-    if (path === '/') return { title: 'Operations Dashboard', category: 'Overview' };
-    if (path.startsWith('/bookings')) return { title: 'Booking Engine & Reservations', category: 'Operations' };
-    if (path.startsWith('/operations')) return { title: 'Hub Operations & Resources', category: 'Operations' };
-    if (path.startsWith('/customers')) return { title: 'Member Directory & Customers', category: 'Operations' };
-    if (path.startsWith('/finance')) return { title: 'Finance & Payment Reconciliation', category: 'Finance' };
-    if (path.startsWith('/reports')) return { title: 'Utilisation & Analytics Reports', category: 'Governance' };
-    if (path.startsWith('/staff')) return { title: 'Staff & RBAC Role Management', category: 'Governance' };
-    if (path.startsWith('/settings')) return { title: 'Workspace & System Settings', category: 'Governance' };
-    if (path.startsWith('/login')) return { title: 'Admin Authentication', category: 'Auth' };
-    return { title: 'Admin Console', category: 'Portal' };
+    if (path === "/")
+      return { title: "Operations Dashboard", category: "Overview" };
+    if (path.startsWith("/bookings"))
+      return { title: "Booking Engine & Reservations", category: "Operations" };
+    if (path.startsWith("/operations"))
+      return { title: "Hub Operations & Resources", category: "Operations" };
+    if (path.startsWith("/customers"))
+      return { title: "Member Directory & Customers", category: "Operations" };
+    if (path.startsWith("/finance"))
+      return { title: "Finance & Payment Reconciliation", category: "Finance" };
+    if (path.startsWith("/reports"))
+      return {
+        title: "Utilisation & Analytics Reports",
+        category: "Governance",
+      };
+    if (path.startsWith("/staff"))
+      return { title: "Staff & RBAC Role Management", category: "Governance" };
+    if (path.startsWith("/settings"))
+      return { title: "Workspace & System Settings", category: "Governance" };
+    if (path.startsWith("/login"))
+      return { title: "Admin Authentication", category: "Auth" };
+    return { title: "Admin Console", category: "Portal" };
   };
 
   const pageInfo = getPageInfo(pathname);
@@ -42,7 +54,11 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
           className="lg:hidden text-[#23055c] p-2 rounded-xl hover:bg-slate-100 transition-colors border border-slate-200 cursor-pointer"
           aria-label="Toggle Navigation Menu"
         >
-          {isMobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          {isMobileOpen ? (
+            <X className="w-5 h-5" />
+          ) : (
+            <Menu className="w-5 h-5" />
+          )}
         </button>
 
         <Link href="/" className="flex items-center gap-2.5">
@@ -92,7 +108,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
         {/* User Role Pill */}
         <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-50 border border-purple-200 text-[#23055c] text-[11px] font-bold">
           <Shield className="w-3.5 h-3.5" />
-          <span>{user?.role || 'OPERATIONS_ADMIN'}</span>
+          <span>{user?.role || "OPERATIONS_ADMIN"}</span>
         </div>
       </div>
     </header>

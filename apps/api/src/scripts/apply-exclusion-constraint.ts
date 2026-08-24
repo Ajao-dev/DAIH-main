@@ -1,13 +1,21 @@
-import { prisma } from '../db/client.js';
-import fs from 'fs';
-import path from 'path';
+import { prisma } from "../db/client.js";
+import fs from "fs";
+import path from "path";
 
 async function applyExclusionConstraint() {
-  console.log('Applying PostgreSQL GiST exclusion constraint on bookings table...');
+  console.log(
+    "Applying PostgreSQL GiST exclusion constraint on bookings table...",
+  );
   try {
     const candidatePaths = [
-      path.join(process.cwd(), 'apps/api/src/db/raw-sql/booking-exclusion-constraint.sql'),
-      path.join(process.cwd(), 'src/db/raw-sql/booking-exclusion-constraint.sql'),
+      path.join(
+        process.cwd(),
+        "apps/api/src/db/raw-sql/booking-exclusion-constraint.sql",
+      ),
+      path.join(
+        process.cwd(),
+        "src/db/raw-sql/booking-exclusion-constraint.sql",
+      ),
     ];
 
     let sql = `
@@ -23,25 +31,27 @@ async function applyExclusionConstraint() {
 
     for (const p of candidatePaths) {
       if (fs.existsSync(p)) {
-        sql = fs.readFileSync(p, 'utf8');
+        sql = fs.readFileSync(p, "utf8");
         break;
       }
     }
 
     // Split statements and execute
     const statements = sql
-      .split(';')
+      .split(";")
       .map((s) => s.trim())
-      .filter((s) => s.length > 0 && !s.startsWith('--'));
+      .filter((s) => s.length > 0 && !s.startsWith("--"));
 
     for (const statement of statements) {
       console.log(`Executing SQL: ${statement.substring(0, 50)}...`);
       await prisma.$executeRawUnsafe(statement);
     }
 
-    console.log('✅ PostgreSQL GiST exclusion constraint successfully applied.');
+    console.log(
+      "✅ PostgreSQL GiST exclusion constraint successfully applied.",
+    );
   } catch (err) {
-    console.error('Failed to apply exclusion constraint:', err);
+    console.error("Failed to apply exclusion constraint:", err);
     process.exit(1);
   } finally {
     await prisma.$disconnect();

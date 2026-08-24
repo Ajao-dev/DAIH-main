@@ -1,15 +1,15 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { useParams } from 'next/navigation';
-import { api } from '@daih/api-client';
-import { FacilityResource } from '@daih/types';
-import { Loader2 } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { api } from "@daih/api-client";
+import { FacilityResource } from "@daih/types";
+import { Loader2 } from "lucide-react";
 
 export default function DynamicWorkspacePage() {
   const params = useParams();
-  const slug = String(params?.slug || '');
+  const slug = String(params?.slug || "");
   const [resource, setResource] = useState<FacilityResource | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -36,7 +36,10 @@ export default function DynamicWorkspacePage() {
     return (
       <div className="py-24 text-center">
         <h2>Workspace Not Found</h2>
-        <p className="text-muted mt-2">The requested workspace "{slug}" does not exist in our active catalogue.</p>
+        <p className="text-muted mt-2">
+          The requested workspace "{slug}" does not exist in our active
+          catalogue.
+        </p>
         <Link href="/our-plans" className="btn-main mt-4 inline-block">
           View All Plans
         </Link>
@@ -45,18 +48,23 @@ export default function DynamicWorkspacePage() {
   }
 
   const name = resource.name;
-  const description = resource.description || 'Modern and flexible workspace equipped with enterprise-grade amenities.';
+  const description =
+    resource.description ||
+    "Modern and flexible workspace equipped with enterprise-grade amenities.";
   const capacity = resource.capacity || 1;
-  const location = resource.location || 'DAIH Hub';
-  const image = resource.imageUrl || '/images/search/2.jpg';
-  const amenities = resource.amenities && resource.amenities.length > 0 ? resource.amenities : [
-    'High-Speed Internet / Wi-Fi',
-    '24/7 Uninterrupted Power Supply',
-    'Air Conditioning',
-    'Ergonomic Workstations',
-    'Complimentary Water & Coffee',
-    'CCTV Security & Access Control',
-  ];
+  const location = resource.location || "DAIH Hub";
+  const image = resource.imageUrl || "/images/search/2.jpg";
+  const amenities =
+    resource.amenities && resource.amenities.length > 0
+      ? resource.amenities
+      : [
+          "High-Speed Internet / Wi-Fi",
+          "24/7 Uninterrupted Power Supply",
+          "Air Conditioning",
+          "Ergonomic Workstations",
+          "Complimentary Water & Coffee",
+          "CCTV Security & Access Control",
+        ];
 
   return (
     <>
@@ -65,9 +73,15 @@ export default function DynamicWorkspacePage() {
           <div className="row">
             <div className="col-md-12">
               <ul className="crumb">
-                <li><Link href="/">Home</Link></li>
-                <li><Link href="/our-plans">Our Plans</Link></li>
-                <li><Link href={`/plans/${slug}`}>{name}</Link></li>
+                <li>
+                  <Link href="/">Home</Link>
+                </li>
+                <li>
+                  <Link href="/our-plans">Our Plans</Link>
+                </li>
+                <li>
+                  <Link href={`/plans/${slug}`}>{name}</Link>
+                </li>
               </ul>
               <h2>{name}</h2>
             </div>
@@ -81,13 +95,19 @@ export default function DynamicWorkspacePage() {
           <div className="row">
             <div className="col-lg-8">
               <div className="mb30 rounded overflow-hidden shadow-sm">
-                <img src={image} className="img-fluid w-100" alt={name} style={{ maxHeight: '420px', objectFit: 'cover' }} />
+                <img
+                  src={image}
+                  className="img-fluid w-100"
+                  alt={name}
+                  style={{ maxHeight: "420px", objectFit: "cover" }}
+                />
               </div>
 
               <h3>Overview</h3>
               <p>{description}</p>
               <p className="text-muted small">
-                <i className="fa fa-map-marker text-primary mr-1"></i> {location} &bull; Max Capacity: {capacity}
+                <i className="fa fa-map-marker text-primary mr-1"></i>{" "}
+                {location} &bull; Max Capacity: {capacity}
               </p>
 
               <div className="spacer-single"></div>
@@ -107,14 +127,21 @@ export default function DynamicWorkspacePage() {
                 {resource?.pricing && resource.pricing.length > 0 ? (
                   <div className="space-y-3">
                     {resource.pricing.map((p) => (
-                      <div key={p.id} className="d-flex justify-content-between align-items-center border-bottom pb-2 mb-2">
+                      <div
+                        key={p.id}
+                        className="d-flex justify-content-between align-items-center border-bottom pb-2 mb-2"
+                      >
                         <span className="font-weight-bold">{p.planName}</span>
-                        <span className="text-primary font-weight-bold">₦{Number(p.price).toLocaleString()}</span>
+                        <span className="text-primary font-weight-bold">
+                          ₦{Number(p.price).toLocaleString()}
+                        </span>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-muted small">Contact reception or select your plan online.</p>
+                  <p className="text-muted small">
+                    Contact reception or select your plan online.
+                  </p>
                 )}
 
                 <div className="spacer-20"></div>

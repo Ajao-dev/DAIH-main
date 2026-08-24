@@ -1,4 +1,4 @@
-import { UserRole } from '@daih/types';
+import { UserRole } from "@daih/types";
 
 export interface UserSummaryDTO {
   id: string;
@@ -25,8 +25,8 @@ export interface RegisterDTO {
 export interface LoginDTO {
   email: string;
   password: string;
-  portal?: 'customer' | 'admin' | string;
-  audience?: 'CUSTOMER' | 'ADMIN' | string;
+  portal?: "customer" | "admin" | string;
+  audience?: "CUSTOMER" | "ADMIN" | string;
 }
 
 export interface CreateStaffUserDTO {

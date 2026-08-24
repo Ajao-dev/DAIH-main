@@ -1,11 +1,15 @@
-import { Request, Response } from 'express';
-import rateLimit from 'express-rate-limit';
-import { RedisStore } from 'rate-limit-redis';
-import { redis } from '../config/redis.js';
-import { config } from '../config/env.js';
+import { Request, Response } from "express";
+import rateLimit from "express-rate-limit";
+import { RedisStore } from "rate-limit-redis";
+import { redis } from "../config/redis.js";
+import { config } from "../config/env.js";
 
 function createRedisStore(prefix: string) {
-  if (config.env === 'test' || !config.redisUrl || config.redisUrl.includes('********')) {
+  if (
+    config.env === "test" ||
+    !config.redisUrl ||
+    config.redisUrl.includes("********")
+  ) {
     return undefined;
   }
   try {
@@ -21,8 +25,8 @@ function createRedisStore(prefix: string) {
 
 const standardHandler = (_req: Request, res: Response) => {
   res.status(429).json({
-    code: 'RATE_LIMIT_EXCEEDED',
-    message: 'Too many requests. Please slow down and try again later.',
+    code: "RATE_LIMIT_EXCEEDED",
+    message: "Too many requests. Please slow down and try again later.",
   });
 };
 
@@ -34,14 +38,16 @@ export const loginRateLimiter = rateLimit({
   max: config.rateLimit.loginMax,
   standardHeaders: true,
   legacyHeaders: false,
-  store: createRedisStore('login'),
+  store: createRedisStore("login"),
   keyGenerator: (req: Request) => {
-    const email = req.body?.email ? String(req.body.email).toLowerCase().trim() : '';
-    const ip = req.ip || req.socket.remoteAddress || 'unknown';
+    const email = req.body?.email
+      ? String(req.body.email).toLowerCase().trim()
+      : "";
+    const ip = req.ip || req.socket.remoteAddress || "unknown";
     return `${ip}:${email}`;
   },
   handler: standardHandler,
-  skip: () => config.env === 'test', // Skip in automated tests unless explicitly testing rate limits
+  skip: () => config.env === "test", // Skip in automated tests unless explicitly testing rate limits
 });
 
 /**
@@ -52,12 +58,12 @@ export const registrationRateLimiter = rateLimit({
   max: config.rateLimit.registerMax,
   standardHeaders: true,
   legacyHeaders: false,
-  store: createRedisStore('reg'),
+  store: createRedisStore("reg"),
   keyGenerator: (req: Request) => {
-    return req.ip || req.socket.remoteAddress || 'unknown';
+    return req.ip || req.socket.remoteAddress || "unknown";
   },
   handler: standardHandler,
-  skip: () => config.env === 'test',
+  skip: () => config.env === "test",
 });
 
 /**
@@ -68,14 +74,16 @@ export const verificationResendRateLimiter = rateLimit({
   max: config.rateLimit.verifyResendMax,
   standardHeaders: true,
   legacyHeaders: false,
-  store: createRedisStore('vresend'),
+  store: createRedisStore("vresend"),
   keyGenerator: (req: Request) => {
-    const email = req.body?.email ? String(req.body.email).toLowerCase().trim() : '';
-    const ip = req.ip || req.socket.remoteAddress || 'unknown';
+    const email = req.body?.email
+      ? String(req.body.email).toLowerCase().trim()
+      : "";
+    const ip = req.ip || req.socket.remoteAddress || "unknown";
     return `${ip}:${email}`;
   },
   handler: standardHandler,
-  skip: () => config.env === 'test',
+  skip: () => config.env === "test",
 });
 
 /**
@@ -86,14 +94,16 @@ export const passwordResetRateLimiter = rateLimit({
   max: config.rateLimit.passwordResetMax,
   standardHeaders: true,
   legacyHeaders: false,
-  store: createRedisStore('pwreset'),
+  store: createRedisStore("pwreset"),
   keyGenerator: (req: Request) => {
-    const email = req.body?.email ? String(req.body.email).toLowerCase().trim() : '';
-    const ip = req.ip || req.socket.remoteAddress || 'unknown';
+    const email = req.body?.email
+      ? String(req.body.email).toLowerCase().trim()
+      : "";
+    const ip = req.ip || req.socket.remoteAddress || "unknown";
     return `${ip}:${email}`;
   },
   handler: standardHandler,
-  skip: () => config.env === 'test',
+  skip: () => config.env === "test",
 });
 
 /**
@@ -104,10 +114,10 @@ export const refreshRateLimiter = rateLimit({
   max: 30,
   standardHeaders: true,
   legacyHeaders: false,
-  store: createRedisStore('refresh'),
+  store: createRedisStore("refresh"),
   keyGenerator: (req: Request) => {
-    return req.ip || req.socket.remoteAddress || 'unknown';
+    return req.ip || req.socket.remoteAddress || "unknown";
   },
   handler: standardHandler,
-  skip: () => config.env === 'test',
+  skip: () => config.env === "test",
 });

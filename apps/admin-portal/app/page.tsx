@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   DashboardHeader,
   KpiGrid,
@@ -9,7 +9,7 @@ import {
   MostUsedFacilities,
   DailyActivityTable,
   WalkInModal,
-} from '../components/dashboard';
+} from "../components/dashboard";
 
 export default function AdminOperationsDashboard() {
   const [isWalkInModalOpen, setIsWalkInModalOpen] = useState(false);

@@ -1,12 +1,12 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
-import { useAuth } from '@daih/api-client';
-import { AdminHeader, AdminSidebar } from '../components/navigation';
-import { AccessDeniedView } from '../components/auth/AccessDeniedView';
-import { Loader2 } from 'lucide-react';
-import { Permission, ROLE_PERMISSIONS, UserRole } from '@daih/types';
+import React, { useState, useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useAuth } from "@daih/api-client";
+import { AdminHeader, AdminSidebar } from "../components/navigation";
+import { AccessDeniedView } from "../components/auth/AccessDeniedView";
+import { Loader2 } from "lucide-react";
+import { Permission, ROLE_PERMISSIONS, UserRole } from "@daih/types";
 
 interface RoutePermissionRule {
   pathPrefix: string;
@@ -15,31 +15,31 @@ interface RoutePermissionRule {
 
 const ROUTE_RULES: RoutePermissionRule[] = [
   {
-    pathPrefix: '/bookings',
+    pathPrefix: "/bookings",
     permission: Permission.BOOKINGS_READ_ALL,
   },
   {
-    pathPrefix: '/staff',
+    pathPrefix: "/staff",
     permission: Permission.USERS_MANAGE,
   },
   {
-    pathPrefix: '/finance',
+    pathPrefix: "/finance",
     permission: Permission.PAYMENTS_READ,
   },
   {
-    pathPrefix: '/reports',
+    pathPrefix: "/reports",
     permission: Permission.REPORTS_VIEW,
   },
   {
-    pathPrefix: '/settings',
+    pathPrefix: "/settings",
     permission: Permission.SYSTEM_CONFIG,
   },
   {
-    pathPrefix: '/operations',
+    pathPrefix: "/operations",
     permission: Permission.BOOKINGS_READ_ALL,
   },
   {
-    pathPrefix: '/customers',
+    pathPrefix: "/customers",
     permission: Permission.BOOKINGS_READ_ALL,
   },
 ];
@@ -54,14 +54,15 @@ export function AdminShell({ children }: AdminShellProps) {
   const { user, isAuthenticated, isLoading } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const isLoginPage = pathname === '/login' || pathname.startsWith('/login');
-  const isAccessDeniedPage = pathname === '/access-denied' || pathname.startsWith('/access-denied');
+  const isLoginPage = pathname === "/login" || pathname.startsWith("/login");
+  const isAccessDeniedPage =
+    pathname === "/access-denied" || pathname.startsWith("/access-denied");
   const isPublicPage = isLoginPage || isAccessDeniedPage;
 
   // Enforce authentication on all protected console routes
   useEffect(() => {
     if (!isLoading && !isAuthenticated && !isPublicPage) {
-      router.replace('/login');
+      router.replace("/login");
     }
   }, [isLoading, isAuthenticated, isPublicPage, router]);
 
@@ -88,42 +89,49 @@ export function AdminShell({ children }: AdminShellProps) {
 
   // Check RBAC permission for current route
   const matchingRule = ROUTE_RULES.find(
-    (rule) => pathname === rule.pathPrefix || pathname.startsWith(`${rule.pathPrefix}/`)
+    (rule) =>
+      pathname === rule.pathPrefix ||
+      pathname.startsWith(`${rule.pathPrefix}/`),
   );
 
-  const rawRole = (user?.role || '').toString().toUpperCase();
+  const rawRole = (user?.role || "").toString().toUpperCase();
   const isSuperAdmin =
-    rawRole === 'SUPER_ADMIN' ||
-    rawRole === 'ADMIN' ||
+    rawRole === "SUPER_ADMIN" ||
+    rawRole === "ADMIN" ||
     rawRole === UserRole.SUPER_ADMIN;
 
   const roleKey =
-    Object.values(UserRole).find((r) => r.toUpperCase() === rawRole) || (user?.role as UserRole);
-  const userPermissions = roleKey && ROLE_PERMISSIONS[roleKey] ? ROLE_PERMISSIONS[roleKey] : [];
+    Object.values(UserRole).find((r) => r.toUpperCase() === rawRole) ||
+    (user?.role as UserRole);
+  const userPermissions =
+    roleKey && ROLE_PERMISSIONS[roleKey] ? ROLE_PERMISSIONS[roleKey] : [];
 
   const hasPermission =
     isSuperAdmin ||
     !matchingRule ||
     userPermissions.includes(matchingRule.permission) ||
-    (pathname.startsWith('/bookings') &&
-      (rawRole === 'OPERATIONS_ADMIN' ||
-        rawRole === 'RECEPTION_OFFICER' ||
+    (pathname.startsWith("/bookings") &&
+      (rawRole === "OPERATIONS_ADMIN" ||
+        rawRole === "RECEPTION_OFFICER" ||
         userPermissions.includes(Permission.BOOKINGS_READ_ALL))) ||
-    (pathname.startsWith('/operations') &&
-      (rawRole === 'OPERATIONS_ADMIN' ||
+    (pathname.startsWith("/operations") &&
+      (rawRole === "OPERATIONS_ADMIN" ||
         userPermissions.includes(Permission.RESOURCES_MANAGE) ||
         userPermissions.includes(Permission.BOOKINGS_READ_ALL))) ||
-    (pathname.startsWith('/customers') &&
-      (rawRole === 'OPERATIONS_ADMIN' || userPermissions.includes(Permission.BOOKINGS_READ_ALL))) ||
-    (pathname.startsWith('/finance') &&
-      (rawRole === 'FINANCE_OFFICER' || userPermissions.includes(Permission.PAYMENTS_READ))) ||
-    (pathname.startsWith('/reports') &&
-      (rawRole === 'MANAGEMENT_VIEWER' ||
-        rawRole === 'FINANCE_OFFICER' ||
-        rawRole === 'OPERATIONS_ADMIN' ||
+    (pathname.startsWith("/customers") &&
+      (rawRole === "OPERATIONS_ADMIN" ||
+        userPermissions.includes(Permission.BOOKINGS_READ_ALL))) ||
+    (pathname.startsWith("/finance") &&
+      (rawRole === "FINANCE_OFFICER" ||
+        userPermissions.includes(Permission.PAYMENTS_READ))) ||
+    (pathname.startsWith("/reports") &&
+      (rawRole === "MANAGEMENT_VIEWER" ||
+        rawRole === "FINANCE_OFFICER" ||
+        rawRole === "OPERATIONS_ADMIN" ||
         userPermissions.includes(Permission.REPORTS_VIEW))) ||
-    (pathname.startsWith('/staff') &&
-      (rawRole === 'OPERATIONS_ADMIN' || userPermissions.includes(Permission.USERS_MANAGE)));
+    (pathname.startsWith("/staff") &&
+      (rawRole === "OPERATIONS_ADMIN" ||
+        userPermissions.includes(Permission.USERS_MANAGE)));
 
   const isForbidden = !hasPermission;
 
@@ -158,17 +166,13 @@ export function AdminShell({ children }: AdminShellProps) {
 
         {/* Main Content Area */}
         <main className="flex-1 p-4 sm:p-6 md:p-8 bg-[#f7f9ff] min-w-0 overflow-y-auto">
-          <div className="max-w-7xl mx-auto w-full">
-            {children}
-          </div>
+          <div className="max-w-7xl mx-auto w-full">{children}</div>
         </main>
       </div>
 
       {/* Shared Console Footer */}
       <footer className="bg-[#23055c] text-white w-full px-4 sm:px-8 py-5 flex flex-col sm:flex-row justify-between items-center gap-4 mt-auto border-t border-[#392271] z-10 relative text-xs">
-        <div className="font-bold tracking-tight text-sm">
-          DAIH Workspace
-        </div>
+        <div className="font-bold tracking-tight text-sm">DAIH Workspace</div>
         <nav className="flex flex-wrap justify-center gap-4 sm:gap-6 text-slate-300 text-xs">
           <span>Operations Console</span>
           <span>•</span>

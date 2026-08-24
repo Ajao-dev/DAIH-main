@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import * as Sentry from '@sentry/nextjs';
-import { useEffect } from 'react';
+import * as Sentry from "@sentry/nextjs";
+import { useEffect } from "react";
 
 export default function GlobalError({
   error,
@@ -21,9 +21,12 @@ export default function GlobalError({
           <div className="w-12 h-12 rounded-full bg-error/10 text-error flex items-center justify-center mb-4">
             <span className="material-symbols-outlined text-[28px]">error</span>
           </div>
-          <h2 className="text-xl font-bold text-on-surface mb-2 font-display">Something went wrong</h2>
+          <h2 className="text-xl font-bold text-on-surface mb-2 font-display">
+            Something went wrong
+          </h2>
           <p className="text-xs text-on-surface-variant max-w-md mb-6">
-            An unexpected error occurred in the DAIH Admin Console. Our telemetry system has logged this incident.
+            An unexpected error occurred in the DAIH Admin Console. Our
+            telemetry system has logged this incident.
           </p>
           <button
             onClick={() => reset()}

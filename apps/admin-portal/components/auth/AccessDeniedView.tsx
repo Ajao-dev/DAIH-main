@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import React from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { ShieldAlert, ArrowLeft, LogOut } from 'lucide-react';
-import { useAuth } from '@daih/api-client';
-import { UserRole } from '@daih/types';
+import React from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { ShieldAlert, ArrowLeft, LogOut } from "lucide-react";
+import { useAuth } from "@daih/api-client";
+import { UserRole } from "@daih/types";
 
 export interface AccessDeniedViewProps {
   message?: string;
@@ -20,21 +20,21 @@ export const AccessDeniedView: React.FC<AccessDeniedViewProps> = ({
   const handleLogout = async () => {
     try {
       await logout();
-      router.push('/login');
+      router.push("/login");
     } catch {
-      router.push('/login');
+      router.push("/login");
     }
   };
 
   const getDashboardRoute = (): string => {
-    if (!user) return '/login';
+    if (!user) return "/login";
     switch (user.role) {
       case UserRole.FINANCE_OFFICER:
-        return '/finance';
+        return "/finance";
       case UserRole.MANAGEMENT_VIEWER:
-        return '/reports';
+        return "/reports";
       default:
-        return '/';
+        return "/";
     }
   };
 

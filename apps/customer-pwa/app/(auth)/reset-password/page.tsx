@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import React, { Suspense } from 'react';
-import Link from 'next/link';
-import { Loader2 } from 'lucide-react';
-import { ResetPasswordCard } from '../../../components/auth';
+import React, { Suspense } from "react";
+import Link from "next/link";
+import { Loader2 } from "lucide-react";
+import { ResetPasswordCard } from "../../../components/auth";
 
 export default function ResetPasswordPage() {
   return (
@@ -32,20 +32,34 @@ export default function ResetPasswordPage() {
         <div className="w-full py-4 px-4 sm:px-8 lg:px-12 flex flex-col md:flex-row justify-between items-center gap-3 text-xs text-slate-500">
           <div className="font-bold text-[#23055c]">DAIH Workspace</div>
           <div className="flex flex-wrap justify-center gap-5">
-            <Link href="/privacy" className="hover:text-[#23055c] transition-colors">
+            <Link
+              href="/privacy"
+              className="hover:text-[#23055c] transition-colors"
+            >
               Privacy Policy
             </Link>
-            <Link href="/terms" className="hover:text-[#23055c] transition-colors">
+            <Link
+              href="/terms"
+              className="hover:text-[#23055c] transition-colors"
+            >
               Terms of Service
             </Link>
-            <Link href="/security" className="hover:text-[#23055c] transition-colors">
+            <Link
+              href="/security"
+              className="hover:text-[#23055c] transition-colors"
+            >
               Security
             </Link>
-            <Link href="/support" className="hover:text-[#23055c] transition-colors">
+            <Link
+              href="/support"
+              className="hover:text-[#23055c] transition-colors"
+            >
               Contact Support
             </Link>
           </div>
-          <div>© {new Date().getFullYear()} DAIH Workspace. All rights reserved.</div>
+          <div>
+            © {new Date().getFullYear()} DAIH Workspace. All rights reserved.
+          </div>
         </div>
       </footer>
     </div>

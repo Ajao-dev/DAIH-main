@@ -1,8 +1,8 @@
-import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
-import { config } from '../config/env.js';
-import { prisma } from '../db/client.js';
-import { UserRole } from '@daih/types';
+import { Request, Response, NextFunction } from "express";
+import jwt from "jsonwebtoken";
+import { config } from "../config/env.js";
+import { prisma } from "../db/client.js";
+import { UserRole } from "@daih/types";
 
 export interface AuthRequest extends Request {
   user?: {
@@ -17,25 +17,31 @@ export interface AuthRequest extends Request {
 export const authenticate = async (
   req: AuthRequest,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
     res.status(401).json({
-      code: 'UNAUTHORIZED',
-      message: 'Authentication token is missing or invalid',
+      code: "UNAUTHORIZED",
+      message: "Authentication token is missing or invalid",
     });
     return;
   }
 
-  const token = authHeader.split(' ')[1];
+  const token = authHeader.split(" ")[1];
 
   try {
     const payload = jwt.verify(token, config.jwt.secret) as any;
-    if (!payload || !payload.id || !payload.email || !payload.role || !payload.clientId) {
+    if (
+      !payload ||
+      !payload.id ||
+      !payload.email ||
+      !payload.role ||
+      !payload.clientId
+    ) {
       res.status(401).json({
-        code: 'INVALID_TOKEN',
-        message: 'Token claims are incomplete or malformed',
+        code: "INVALID_TOKEN",
+        message: "Token claims are incomplete or malformed",
       });
       return;
     }
@@ -48,8 +54,9 @@ export const authenticate = async (
 
       if (!session || session.isRevoked || session.expiresAt < new Date()) {
         res.status(401).json({
-          code: 'SESSION_REVOKED',
-          message: 'This session has been logged out or replaced by a new token. Please log in again.',
+          code: "SESSION_REVOKED",
+          message:
+            "This session has been logged out or replaced by a new token. Please log in again.",
         });
         return;
       }
@@ -65,8 +72,8 @@ export const authenticate = async (
     next();
   } catch (error) {
     res.status(401).json({
-      code: 'INVALID_TOKEN',
-      message: 'Token has expired or is invalid',
+      code: "INVALID_TOKEN",
+      message: "Token has expired or is invalid",
     });
   }
 };

@@ -7,7 +7,7 @@ interface CacheEntry<T> {
 class ApiCacheManager {
   private memoryCache = new Map<string, CacheEntry<any>>();
   private inFlightRequests = new Map<string, Promise<any>>();
-  private readonly storagePrefix = 'daih_cache_v1_';
+  private readonly storagePrefix = "daih_cache_v1_";
 
   /**
    * Get cached data if valid according to TTL
@@ -23,7 +23,7 @@ class ApiCacheManager {
     }
 
     // Try localStorage fallback
-    if (typeof window !== 'undefined' && window.localStorage) {
+    if (typeof window !== "undefined" && window.localStorage) {
       try {
         const raw = window.localStorage.getItem(this.storagePrefix + key);
         if (raw) {
@@ -54,9 +54,12 @@ class ApiCacheManager {
 
     this.memoryCache.set(key, entry);
 
-    if (typeof window !== 'undefined' && window.localStorage) {
+    if (typeof window !== "undefined" && window.localStorage) {
       try {
-        window.localStorage.setItem(this.storagePrefix + key, JSON.stringify(entry));
+        window.localStorage.setItem(
+          this.storagePrefix + key,
+          JSON.stringify(entry),
+        );
       } catch {
         // Ignore localStorage write quota errors
       }
@@ -69,7 +72,7 @@ class ApiCacheManager {
   invalidate(pattern?: string): void {
     if (!pattern) {
       this.memoryCache.clear();
-      if (typeof window !== 'undefined' && window.localStorage) {
+      if (typeof window !== "undefined" && window.localStorage) {
         try {
           Object.keys(window.localStorage).forEach((key) => {
             if (key.startsWith(this.storagePrefix)) {
@@ -90,7 +93,7 @@ class ApiCacheManager {
       }
     });
 
-    if (typeof window !== 'undefined' && window.localStorage) {
+    if (typeof window !== "undefined" && window.localStorage) {
       try {
         Object.keys(window.localStorage).forEach((key) => {
           if (key.startsWith(this.storagePrefix) && key.includes(pattern)) {
@@ -110,7 +113,7 @@ class ApiCacheManager {
     key: string,
     fetcher: () => Promise<T>,
     ttlMs: number = 300000, // Default 5 minutes
-    options: { forceRefresh?: boolean; silentRevalidate?: boolean } = {}
+    options: { forceRefresh?: boolean; silentRevalidate?: boolean } = {},
   ): Promise<T> {
     const { forceRefresh = false, silentRevalidate = true } = options;
 
@@ -136,7 +139,10 @@ class ApiCacheManager {
   /**
    * Joins identical concurrent HTTP requests into a single promise
    */
-  private async executeDeduplicatedFetcher<T>(key: string, fetcher: () => Promise<T>): Promise<T> {
+  private async executeDeduplicatedFetcher<T>(
+    key: string,
+    fetcher: () => Promise<T>,
+  ): Promise<T> {
     if (this.inFlightRequests.has(key)) {
       return this.inFlightRequests.get(key) as Promise<T>;
     }

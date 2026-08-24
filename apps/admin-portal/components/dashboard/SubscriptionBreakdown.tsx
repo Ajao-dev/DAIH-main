@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import React from 'react';
+import React from "react";
 
 export interface SubscriptionPlanMetric {
   name: string;
@@ -13,36 +13,36 @@ export interface SubscriptionPlanMetric {
 
 const subscriptionPlans: SubscriptionPlanMetric[] = [
   {
-    name: 'Daily Hot Desk Pass',
+    name: "Daily Hot Desk Pass",
     count: 148,
     percentage: 42,
-    revenueContribution: '$5,180',
-    colorClass: 'text-primary',
-    barColorClass: 'bg-primary-container',
+    revenueContribution: "$5,180",
+    colorClass: "text-primary",
+    barColorClass: "bg-primary-container",
   },
   {
-    name: 'Monthly Dedicated Desk',
+    name: "Monthly Dedicated Desk",
     count: 58,
     percentage: 31,
-    revenueContribution: '$26,100',
-    colorClass: 'text-secondary',
-    barColorClass: 'bg-secondary',
+    revenueContribution: "$26,100",
+    colorClass: "text-secondary",
+    barColorClass: "bg-secondary",
   },
   {
-    name: 'Weekly Flex Plan',
+    name: "Weekly Flex Plan",
     count: 36,
     percentage: 16,
-    revenueContribution: '$5,400',
-    colorClass: 'text-on-tertiary-container',
-    barColorClass: 'bg-on-tertiary-container',
+    revenueContribution: "$5,400",
+    colorClass: "text-on-tertiary-container",
+    barColorClass: "bg-on-tertiary-container",
   },
   {
-    name: 'Corporate & Private Suite',
+    name: "Corporate & Private Suite",
     count: 8,
     percentage: 11,
-    revenueContribution: '$8,600',
-    colorClass: 'text-[#10b981]',
-    barColorClass: 'bg-[#10b981]',
+    revenueContribution: "$8,600",
+    colorClass: "text-[#10b981]",
+    barColorClass: "bg-[#10b981]",
   },
 ];
 
@@ -59,7 +59,9 @@ export const SubscriptionBreakdown: React.FC = () => {
               Active tier allocation & plan revenue share
             </p>
           </div>
-          <span className="material-symbols-outlined text-outline">pie_chart</span>
+          <span className="material-symbols-outlined text-outline">
+            pie_chart
+          </span>
         </div>
 
         {/* Stacked Progress Bar */}
@@ -82,7 +84,9 @@ export const SubscriptionBreakdown: React.FC = () => {
               className="p-3 bg-workspace-surface rounded-DEFAULT border border-accent-soft/60 flex items-center justify-between hover:border-primary/40 transition-colors"
             >
               <div className="flex items-center gap-3">
-                <div className={`w-2.5 h-2.5 rounded-full ${plan.barColorClass}`} />
+                <div
+                  className={`w-2.5 h-2.5 rounded-full ${plan.barColorClass}`}
+                />
                 <div>
                   <h4 className="font-label-md text-label-md text-on-surface font-semibold">
                     {plan.name}

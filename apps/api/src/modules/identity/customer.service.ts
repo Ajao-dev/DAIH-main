@@ -1,4 +1,4 @@
-import { prisma } from '../../db/client.js';
+import { prisma } from "../../db/client.js";
 import {
   UserRole,
   CustomerFilterDTO,
@@ -6,15 +6,17 @@ import {
   CustomerRecord,
   CustomerMetrics,
   CreateCustomerDTO,
-} from '@daih/types';
-import { clientIdService } from './client-id.service.js';
-import { passwordService } from './password.service.js';
+} from "@daih/types";
+import { clientIdService } from "./client-id.service.js";
+import { passwordService } from "./password.service.js";
 
 export class CustomerService {
   /**
    * Fetches paginated customers with search, status filters, and live aggregated metrics.
    */
-  async getCustomers(filter: CustomerFilterDTO = {}): Promise<CustomerListResponse> {
+  async getCustomers(
+    filter: CustomerFilterDTO = {},
+  ): Promise<CustomerListResponse> {
     const page = Number(filter.page) || 1;
     const limit = Number(filter.limit) || 10;
     const skip = (page - 1) * limit;
@@ -26,76 +28,88 @@ export class CustomerService {
     if (filter.search && filter.search.trim()) {
       const q = filter.search.trim();
       whereClause.OR = [
-        { firstName: { contains: q, mode: 'insensitive' } },
-        { lastName: { contains: q, mode: 'insensitive' } },
-        { email: { contains: q, mode: 'insensitive' } },
-        { clientId: { contains: q, mode: 'insensitive' } },
-        { phoneNumber: { contains: q, mode: 'insensitive' } },
+        { firstName: { contains: q, mode: "insensitive" } },
+        { lastName: { contains: q, mode: "insensitive" } },
+        { email: { contains: q, mode: "insensitive" } },
+        { clientId: { contains: q, mode: "insensitive" } },
+        { phoneNumber: { contains: q, mode: "insensitive" } },
       ];
     }
 
-    if (filter.status && filter.status !== 'ALL') {
+    if (filter.status && filter.status !== "ALL") {
       const st = filter.status.toUpperCase();
-      if (st === 'ACTIVE') {
+      if (st === "ACTIVE") {
         whereClause.isVerified = true;
-      } else if (st === 'PENDING') {
+      } else if (st === "PENDING") {
         whereClause.isVerified = false;
       }
     }
 
-    const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    const startOfMonth = new Date(
+      new Date().getFullYear(),
+      new Date().getMonth(),
+      1,
+    );
 
-    const [users, total, totalCount, activeCount, newThisMonthCount, completedBookings] =
-      await Promise.all([
-        prisma.user.findMany({
-          where: whereClause,
-          include: {
-            bookings: {
-              orderBy: { startTime: 'desc' },
-              take: 1,
-              include: {
-                resource: {
-                  select: { name: true, category: true },
-                },
+    const [
+      users,
+      total,
+      totalCount,
+      activeCount,
+      newThisMonthCount,
+      completedBookings,
+    ] = await Promise.all([
+      prisma.user.findMany({
+        where: whereClause,
+        include: {
+          bookings: {
+            orderBy: { startTime: "desc" },
+            take: 1,
+            include: {
+              resource: {
+                select: { name: true, category: true },
               },
             },
-            _count: {
-              select: { bookings: true },
-            },
           },
-          orderBy: { createdAt: 'desc' },
-          skip,
-          take: limit,
-        }),
-        prisma.user.count({ where: whereClause }),
-        prisma.user.count({ where: { role: UserRole.CUSTOMER } }),
-        prisma.user.count({ where: { role: UserRole.CUSTOMER, isVerified: true } }),
-        prisma.user.count({
-          where: {
-            role: UserRole.CUSTOMER,
-            createdAt: { gte: startOfMonth },
+          _count: {
+            select: { bookings: true },
           },
-        }),
-        prisma.booking.findMany({
-          where: {
-            state: { in: ['CONFIRMED', 'COMPLETED', 'CHECKED_IN'] },
-          },
-          select: {
-            totalAmount: true,
-          },
-        }),
-      ]);
+        },
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+      }),
+      prisma.user.count({ where: whereClause }),
+      prisma.user.count({ where: { role: UserRole.CUSTOMER } }),
+      prisma.user.count({
+        where: { role: UserRole.CUSTOMER, isVerified: true },
+      }),
+      prisma.user.count({
+        where: {
+          role: UserRole.CUSTOMER,
+          createdAt: { gte: startOfMonth },
+        },
+      }),
+      prisma.booking.findMany({
+        where: {
+          state: { in: ["CONFIRMED", "COMPLETED", "CHECKED_IN"] },
+        },
+        select: {
+          totalAmount: true,
+        },
+      }),
+    ]);
 
     const totalRevSum = completedBookings.reduce(
       (sum, b) => sum + Number(b.totalAmount || 0),
-      0
+      0,
     );
     const formattedRev =
       totalRevSum >= 1000000
         ? `₦${(totalRevSum / 1000000).toFixed(1)}M`
         : totalRevSum >= 1000
-        ? `₦${(totalRevSum / 1000).toFixed(1)}k`
-        : `₦${totalRevSum.toLocaleString()}`;
+          ? `₦${(totalRevSum / 1000).toFixed(1)}k`
+          : `₦${totalRevSum.toLocaleString()}`;
 
     const metrics: CustomerMetrics = {
       totalMembers: totalCount,
@@ -106,21 +120,26 @@ export class CustomerService {
 
     const customers: CustomerRecord[] = users.map((u) => {
       const latestBooking = u.bookings?.[0];
-      let tier = 'Dedicated Desk';
+      let tier = "Dedicated Desk";
       if (latestBooking?.resource) {
         tier = latestBooking.resource.name;
       }
 
-      let lastVisit = 'No visits yet';
+      let lastVisit = "No visits yet";
       if (latestBooking) {
-        lastVisit = new Date(latestBooking.startTime).toLocaleDateString('en-NG', {
-          day: 'numeric',
-          month: 'short',
-          year: 'numeric',
-        });
+        lastVisit = new Date(latestBooking.startTime).toLocaleDateString(
+          "en-NG",
+          {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+          },
+        );
       }
 
-      const status: 'Active' | 'Pending' | 'Inactive' = u.isVerified ? 'Active' : 'Pending';
+      const status: "Active" | "Pending" | "Inactive" = u.isVerified
+        ? "Active"
+        : "Pending";
 
       return {
         id: u.clientId,
@@ -133,10 +152,10 @@ export class CustomerService {
         tier,
         status,
         lastVisit,
-        joinedDate: new Date(u.createdAt).toLocaleDateString('en-NG', {
-          day: 'numeric',
-          month: 'short',
-          year: 'numeric',
+        joinedDate: new Date(u.createdAt).toLocaleDateString("en-NG", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
         }),
         totalBookings: u._count.bookings,
         totalSpent: 0,
@@ -163,8 +182,8 @@ export class CustomerService {
     });
 
     if (existing) {
-      const error: any = new Error('An account with this email already exists');
-      error.code = 'EMAIL_ALREADY_EXISTS';
+      const error: any = new Error("An account with this email already exists");
+      error.code = "EMAIL_ALREADY_EXISTS";
       error.statusCode = 409;
       throw error;
     }
@@ -190,8 +209,8 @@ export class CustomerService {
     await prisma.policyConsent.create({
       data: {
         userId: user.id,
-        policyVersion: '1.0',
-        purpose: 'ADMIN_ONBOARDED_CONSENT',
+        policyVersion: "1.0",
+        purpose: "ADMIN_ONBOARDED_CONSENT",
       },
     });
 
@@ -203,13 +222,13 @@ export class CustomerService {
       lastName: user.lastName,
       email: user.email,
       phone: user.phoneNumber ?? undefined,
-      tier: dto.tier || 'Dedicated Desk',
-      status: 'Active',
-      lastVisit: 'Just now',
-      joinedDate: new Date(user.createdAt).toLocaleDateString('en-NG', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
+      tier: dto.tier || "Dedicated Desk",
+      status: "Active",
+      lastVisit: "Just now",
+      joinedDate: new Date(user.createdAt).toLocaleDateString("en-NG", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
       }),
       totalBookings: 0,
       totalSpent: 0,

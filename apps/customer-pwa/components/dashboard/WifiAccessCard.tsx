@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { Wifi, Copy, Check } from 'lucide-react';
-import { useToast } from '@daih/ui';
+import React from "react";
+import { Wifi, Copy, Check } from "lucide-react";
+import { useToast } from "@daih/ui";
 
 interface WifiAccessCardProps {
   networkName?: string;
@@ -10,8 +10,8 @@ interface WifiAccessCardProps {
 }
 
 export const WifiAccessCard: React.FC<WifiAccessCardProps> = ({
-  networkName = 'DAIH_Executive_5G',
-  password = 'InnovateTogether2026',
+  networkName = "DAIH_Executive_5G",
+  password = "InnovateTogether2026",
 }) => {
   const [copied, setCopied] = React.useState(false);
   const toast = useToast();
@@ -20,10 +20,12 @@ export const WifiAccessCard: React.FC<WifiAccessCardProps> = ({
     try {
       await navigator.clipboard.writeText(password);
       setCopied(true);
-      toast.success('Wi-Fi password copied to clipboard!', { title: 'Wi-Fi Connected' });
+      toast.success("Wi-Fi password copied to clipboard!", {
+        title: "Wi-Fi Connected",
+      });
       setTimeout(() => setCopied(false), 2500);
     } catch {
-      toast.info(`Wi-Fi Password: ${password}`, { title: 'Network Password' });
+      toast.info(`Wi-Fi Password: ${password}`, { title: "Network Password" });
     }
   };
 

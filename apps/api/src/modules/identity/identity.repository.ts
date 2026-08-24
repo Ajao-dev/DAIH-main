@@ -1,6 +1,6 @@
-import { Prisma, User, UserRole } from '@prisma/client';
-import { prisma } from '../../db/client.js';
-import { config } from '../../config/env.js';
+import { Prisma, User, UserRole } from "@prisma/client";
+import { prisma } from "../../db/client.js";
+import { config } from "../../config/env.js";
 
 export interface CreateCustomerData {
   firstName: string;
@@ -50,7 +50,9 @@ export class IdentityRepository {
    */
   async createCustomer(data: CreateCustomerData): Promise<User> {
     const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + config.jwt.verificationExpiresInHours);
+    expiresAt.setHours(
+      expiresAt.getHours() + config.jwt.verificationExpiresInHours,
+    );
 
     return prisma.$transaction(async (tx) => {
       // 1. Create User
@@ -72,7 +74,7 @@ export class IdentityRepository {
         data: {
           userId: user.id,
           policyVersion: data.policyVersion,
-          purpose: 'TERMS_AND_PRIVACY_AGREEMENT',
+          purpose: "TERMS_AND_PRIVACY_AGREEMENT",
         },
       });
 
@@ -88,8 +90,8 @@ export class IdentityRepository {
       // 4. Record Transactional Outbox Events
       await tx.outboxEvent.create({
         data: {
-          eventType: 'identity.user_registered',
-          aggregateType: 'User',
+          eventType: "identity.user_registered",
+          aggregateType: "User",
           aggregateId: user.id,
           payload: {
             userId: user.id,
@@ -102,8 +104,8 @@ export class IdentityRepository {
 
       await tx.outboxEvent.create({
         data: {
-          eventType: 'identity.policy_consent_captured',
-          aggregateType: 'PolicyConsent',
+          eventType: "identity.policy_consent_captured",
+          aggregateType: "PolicyConsent",
           aggregateId: user.id,
           payload: {
             userId: user.id,
@@ -115,8 +117,8 @@ export class IdentityRepository {
 
       await tx.outboxEvent.create({
         data: {
-          eventType: 'identity.email_verification_requested',
-          aggregateType: 'User',
+          eventType: "identity.email_verification_requested",
+          aggregateType: "User",
           aggregateId: user.id,
           payload: {
             userId: user.id,
@@ -142,15 +144,15 @@ export class IdentityRepository {
       });
 
       if (!record) {
-        throw new Error('TOKEN_NOT_FOUND');
+        throw new Error("TOKEN_NOT_FOUND");
       }
 
       if (record.usedAt) {
-        throw new Error('TOKEN_ALREADY_USED');
+        throw new Error("TOKEN_ALREADY_USED");
       }
 
       if (record.expiresAt < new Date()) {
-        throw new Error('TOKEN_EXPIRED');
+        throw new Error("TOKEN_EXPIRED");
       }
 
       // Mark token as used
@@ -168,8 +170,8 @@ export class IdentityRepository {
       // Record outbox event
       await tx.outboxEvent.create({
         data: {
-          eventType: 'identity.email_verified',
-          aggregateType: 'User',
+          eventType: "identity.email_verified",
+          aggregateType: "User",
           aggregateId: updatedUser.id,
           payload: {
             userId: updatedUser.id,
@@ -191,10 +193,12 @@ export class IdentityRepository {
     tokenHash: string,
     rawToken?: string,
     email?: string,
-    firstName?: string
+    firstName?: string,
   ): Promise<void> {
     const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + config.jwt.verificationExpiresInHours);
+    expiresAt.setHours(
+      expiresAt.getHours() + config.jwt.verificationExpiresInHours,
+    );
 
     await prisma.$transaction(async (tx) => {
       // Invalidate older unused tokens for this user
@@ -213,8 +217,8 @@ export class IdentityRepository {
 
       await tx.outboxEvent.create({
         data: {
-          eventType: 'identity.email_verification_requested',
-          aggregateType: 'User',
+          eventType: "identity.email_verification_requested",
+          aggregateType: "User",
           aggregateId: userId,
           payload: {
             userId,
@@ -236,10 +240,12 @@ export class IdentityRepository {
     tokenHash: string,
     rawToken?: string,
     email?: string,
-    firstName?: string
+    firstName?: string,
   ): Promise<void> {
     const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + config.jwt.passwordResetExpiresInHours);
+    expiresAt.setHours(
+      expiresAt.getHours() + config.jwt.passwordResetExpiresInHours,
+    );
 
     await prisma.$transaction(async (tx) => {
       // Invalidate older unused reset tokens
@@ -258,8 +264,8 @@ export class IdentityRepository {
 
       await tx.outboxEvent.create({
         data: {
-          eventType: 'identity.password_reset_requested',
-          aggregateType: 'User',
+          eventType: "identity.password_reset_requested",
+          aggregateType: "User",
           aggregateId: userId,
           payload: {
             userId,
@@ -276,22 +282,25 @@ export class IdentityRepository {
   /**
    * Resets user password, marks reset token used, and emits outbox event
    */
-  async resetPasswordByTokenHash(tokenHash: string, newPasswordHash: string): Promise<User> {
+  async resetPasswordByTokenHash(
+    tokenHash: string,
+    newPasswordHash: string,
+  ): Promise<User> {
     return prisma.$transaction(async (tx) => {
       const record = await tx.passwordResetToken.findUnique({
         where: { tokenHash },
       });
 
       if (!record) {
-        throw new Error('TOKEN_NOT_FOUND');
+        throw new Error("TOKEN_NOT_FOUND");
       }
 
       if (record.usedAt) {
-        throw new Error('TOKEN_ALREADY_USED');
+        throw new Error("TOKEN_ALREADY_USED");
       }
 
       if (record.expiresAt < new Date()) {
-        throw new Error('TOKEN_EXPIRED');
+        throw new Error("TOKEN_EXPIRED");
       }
 
       // Mark token used
@@ -315,8 +324,8 @@ export class IdentityRepository {
       // Emit outbox event
       await tx.outboxEvent.create({
         data: {
-          eventType: 'identity.password_changed',
-          aggregateType: 'User',
+          eventType: "identity.password_changed",
+          aggregateType: "User",
           aggregateId: updatedUser.id,
           payload: {
             userId: updatedUser.id,
@@ -332,7 +341,9 @@ export class IdentityRepository {
   /**
    * Creates a staff user account
    */
-  async createStaffUser(data: CreateStaffData & { setupToken?: string }): Promise<User> {
+  async createStaffUser(
+    data: CreateStaffData & { setupToken?: string },
+  ): Promise<User> {
     return prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: {
@@ -349,8 +360,8 @@ export class IdentityRepository {
 
       await tx.outboxEvent.create({
         data: {
-          eventType: 'identity.staff_user_created',
-          aggregateType: 'User',
+          eventType: "identity.staff_user_created",
+          aggregateType: "User",
           aggregateId: user.id,
           payload: {
             userId: user.id,
@@ -377,7 +388,7 @@ export class IdentityRepository {
           not: UserRole.CUSTOMER,
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
   }
 }

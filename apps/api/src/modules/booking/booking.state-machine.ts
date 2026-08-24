@@ -1,20 +1,20 @@
-import { BookingState } from '@daih/types';
+import { BookingState } from "@daih/types";
 
 export class InvalidBookingStateTransitionError extends Error {
-  public code = 'INVALID_BOOKING_STATE_TRANSITION';
+  public code = "INVALID_BOOKING_STATE_TRANSITION";
   public statusCode = 400;
 
   constructor(
     public fromState: BookingState,
     public toState: BookingState,
     public bookingId?: string,
-    message?: string
+    message?: string,
   ) {
     super(
       message ||
-        `Cannot transition booking ${bookingId ? `'${bookingId}' ` : ''}from state '${fromState}' to '${toState}'`
+        `Cannot transition booking ${bookingId ? `'${bookingId}' ` : ""}from state '${fromState}' to '${toState}'`,
     );
-    this.name = 'InvalidBookingStateTransitionError';
+    this.name = "InvalidBookingStateTransitionError";
   }
 }
 
@@ -57,13 +57,8 @@ export const ALLOWED_TRANSITIONS: Record<BookingState, BookingState[]> = {
     BookingState.COMPLETED,
     BookingState.CANCELLED,
   ],
-  [BookingState.CHECKED_IN]: [
-    BookingState.CHECKED_OUT,
-    BookingState.COMPLETED,
-  ],
-  [BookingState.CHECKED_OUT]: [
-    BookingState.COMPLETED,
-  ],
+  [BookingState.CHECKED_IN]: [BookingState.CHECKED_OUT, BookingState.COMPLETED],
+  [BookingState.CHECKED_OUT]: [BookingState.COMPLETED],
   [BookingState.COMPLETED]: [],
   [BookingState.CANCELLED]: [],
   [BookingState.EXPIRED]: [
@@ -76,7 +71,10 @@ export const ALLOWED_TRANSITIONS: Record<BookingState, BookingState[]> = {
 /**
  * Checks whether transitioning from `fromState` to `toState` is permitted.
  */
-export function isValidTransition(fromState: BookingState, toState: BookingState): boolean {
+export function isValidTransition(
+  fromState: BookingState,
+  toState: BookingState,
+): boolean {
   if (fromState === toState) return true;
   const allowed = ALLOWED_TRANSITIONS[fromState] || [];
   return allowed.includes(toState);
@@ -88,7 +86,7 @@ export function isValidTransition(fromState: BookingState, toState: BookingState
 export function assertValidTransition(
   fromState: BookingState,
   toState: BookingState,
-  bookingId?: string
+  bookingId?: string,
 ): void {
   if (!isValidTransition(fromState, toState)) {
     throw new InvalidBookingStateTransitionError(fromState, toState, bookingId);
@@ -106,12 +104,18 @@ export const ACTIVE_BOOKING_STATES: BookingState[] = [
   BookingState.CHECKED_IN,
 ];
 
-export function isActiveHoldOrBooking(state: BookingState, holdExpiresAt?: Date | null): boolean {
+export function isActiveHoldOrBooking(
+  state: BookingState,
+  holdExpiresAt?: Date | null,
+): boolean {
   if (!ACTIVE_BOOKING_STATES.includes(state)) {
     return false;
   }
   // For holds or pending payment, verify hold expiration
-  if ((state === BookingState.HELD || state === BookingState.PENDING_PAYMENT) && holdExpiresAt) {
+  if (
+    (state === BookingState.HELD || state === BookingState.PENDING_PAYMENT) &&
+    holdExpiresAt
+  ) {
     return new Date(holdExpiresAt) > new Date();
   }
   return true;

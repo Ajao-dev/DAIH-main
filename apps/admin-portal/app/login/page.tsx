@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { AdminLoginCard } from '../../components/auth';
+import React from "react";
+import { AdminLoginCard } from "../../components/auth";
 
 export default function AdminLoginPage() {
   return (

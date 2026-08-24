@@ -1,4 +1,4 @@
-import { prisma } from '../../db/client.js';
+import { prisma } from "../../db/client.js";
 import {
   CreateResourceInput,
   UpdateResourceInput,
@@ -6,20 +6,20 @@ import {
   UpdatePricingPlanInput,
   CreateBlackoutInput,
   UpsertSchedulesInput,
-} from './catalogue.schema.js';
+} from "./catalogue.schema.js";
 
 export class CatalogueRepository {
   async findActiveResources() {
     return prisma.facilityResource.findMany({
       where: { isActive: true },
-      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
       include: {
         pricing: {
           where: { isActive: true },
-          orderBy: { price: 'asc' },
+          orderBy: { price: "asc" },
         },
         schedules: {
-          orderBy: { dayOfWeek: 'asc' },
+          orderBy: { dayOfWeek: "asc" },
         },
       },
     });
@@ -31,17 +31,17 @@ export class CatalogueRepository {
       include: {
         pricing: {
           where: { isActive: true },
-          orderBy: { price: 'asc' },
+          orderBy: { price: "asc" },
         },
         schedules: {
-          orderBy: { dayOfWeek: 'asc' },
+          orderBy: { dayOfWeek: "asc" },
         },
         blackouts: {
           where: {
             isActive: true,
             endDate: { gte: new Date() },
           },
-          orderBy: { startDate: 'asc' },
+          orderBy: { startDate: "asc" },
         },
       },
     });
@@ -52,13 +52,13 @@ export class CatalogueRepository {
       where: { id },
       include: {
         pricing: {
-          orderBy: { createdAt: 'asc' },
+          orderBy: { createdAt: "asc" },
         },
         schedules: {
-          orderBy: { dayOfWeek: 'asc' },
+          orderBy: { dayOfWeek: "asc" },
         },
         blackouts: {
-          orderBy: { startDate: 'desc' },
+          orderBy: { startDate: "desc" },
         },
       },
     });
@@ -66,16 +66,16 @@ export class CatalogueRepository {
 
   async findAllAdminResources() {
     return prisma.facilityResource.findMany({
-      orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
       include: {
         pricing: {
-          orderBy: { price: 'asc' },
+          orderBy: { price: "asc" },
         },
         schedules: {
-          orderBy: { dayOfWeek: 'asc' },
+          orderBy: { dayOfWeek: "asc" },
         },
         blackouts: {
-          orderBy: { startDate: 'desc' },
+          orderBy: { startDate: "desc" },
         },
         _count: {
           select: { bookings: true },
@@ -112,7 +112,9 @@ export class CatalogueRepository {
         ...(data.name !== undefined && { name: data.name }),
         ...(data.slug !== undefined && { slug: data.slug }),
         ...(data.category !== undefined && { category: data.category }),
-        ...(data.description !== undefined && { description: data.description }),
+        ...(data.description !== undefined && {
+          description: data.description,
+        }),
         ...(data.capacity !== undefined && { capacity: data.capacity }),
         ...(data.location !== undefined && { location: data.location }),
         ...(data.amenities !== undefined && { amenities: data.amenities }),
@@ -166,13 +168,17 @@ export class CatalogueRepository {
         durationDays: data.durationDays,
         durationMonths: data.durationMonths,
         price: data.price,
-        currency: data.currency || 'NGN',
+        currency: data.currency || "NGN",
         isPopular: data.isPopular ?? false,
         isActive: data.isActive ?? true,
         isNightPlan: data.isNightPlan ?? false,
         operatingHours: data.operatingHours,
-        ...(data.effectiveFrom ? { effectiveFrom: new Date(data.effectiveFrom) } : {}),
-        ...(data.effectiveTo ? { effectiveTo: new Date(data.effectiveTo) } : {}),
+        ...(data.effectiveFrom
+          ? { effectiveFrom: new Date(data.effectiveFrom) }
+          : {}),
+        ...(data.effectiveTo
+          ? { effectiveTo: new Date(data.effectiveTo) }
+          : {}),
       },
     });
   }
@@ -182,17 +188,29 @@ export class CatalogueRepository {
       where: { id: planId },
       data: {
         ...(data.planName !== undefined && { planName: data.planName }),
-        ...(data.durationHours !== undefined && { durationHours: data.durationHours }),
-        ...(data.durationDays !== undefined && { durationDays: data.durationDays }),
-        ...(data.durationMonths !== undefined && { durationMonths: data.durationMonths }),
+        ...(data.durationHours !== undefined && {
+          durationHours: data.durationHours,
+        }),
+        ...(data.durationDays !== undefined && {
+          durationDays: data.durationDays,
+        }),
+        ...(data.durationMonths !== undefined && {
+          durationMonths: data.durationMonths,
+        }),
         ...(data.price !== undefined && { price: data.price }),
         ...(data.currency !== undefined && { currency: data.currency }),
         ...(data.isPopular !== undefined && { isPopular: data.isPopular }),
         ...(data.isActive !== undefined && { isActive: data.isActive }),
-        ...(data.isNightPlan !== undefined && { isNightPlan: data.isNightPlan }),
-        ...(data.operatingHours !== undefined && { operatingHours: data.operatingHours }),
+        ...(data.isNightPlan !== undefined && {
+          isNightPlan: data.isNightPlan,
+        }),
+        ...(data.operatingHours !== undefined && {
+          operatingHours: data.operatingHours,
+        }),
         ...(data.effectiveFrom !== undefined && {
-          effectiveFrom: data.effectiveFrom ? new Date(data.effectiveFrom) : undefined,
+          effectiveFrom: data.effectiveFrom
+            ? new Date(data.effectiveFrom)
+            : undefined,
         }),
         ...(data.effectiveTo !== undefined && {
           effectiveTo: data.effectiveTo ? new Date(data.effectiveTo) : null,
@@ -207,7 +225,11 @@ export class CatalogueRepository {
     });
   }
 
-  async createBlackout(resourceId: string, data: CreateBlackoutInput, createdByUserId?: string) {
+  async createBlackout(
+    resourceId: string,
+    data: CreateBlackoutInput,
+    createdByUserId?: string,
+  ) {
     return prisma.resourceBlackout.create({
       data: {
         resourceId,
@@ -229,7 +251,7 @@ export class CatalogueRepository {
   async findBlackoutsByResource(resourceId: string) {
     return prisma.resourceBlackout.findMany({
       where: { resourceId },
-      orderBy: { startDate: 'desc' },
+      orderBy: { startDate: "desc" },
     });
   }
 

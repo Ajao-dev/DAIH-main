@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import React, { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { AlertCircle, RefreshCw, Loader2 } from 'lucide-react';
+import React, { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { AlertCircle, RefreshCw, Loader2 } from "lucide-react";
 
 export default function ErrorBoundary({
   error,
@@ -14,18 +14,18 @@ export default function ErrorBoundary({
   const router = useRouter();
 
   useEffect(() => {
-    console.error('Customer PWA Runtime Error:', error);
+    console.error("Customer PWA Runtime Error:", error);
   }, [error]);
 
   const is401Unauthorized =
     (error as any)?.status === 401 ||
-    (error as any)?.code === 'UNAUTHORIZED' ||
-    error.message?.includes('401') ||
-    error.message?.toLowerCase().includes('unauthorized');
+    (error as any)?.code === "UNAUTHORIZED" ||
+    error.message?.includes("401") ||
+    error.message?.toLowerCase().includes("unauthorized");
 
   useEffect(() => {
-    if (is401Unauthorized && typeof window !== 'undefined') {
-      window.location.href = '/login';
+    if (is401Unauthorized && typeof window !== "undefined") {
+      window.location.href = "/login";
     }
   }, [is401Unauthorized]);
 
@@ -33,7 +33,9 @@ export default function ErrorBoundary({
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center p-6 text-center">
         <Loader2 className="w-8 h-8 text-[#23055c] animate-spin mb-3" />
-        <p className="text-xs font-bold text-slate-600">Session expired. Redirecting to login...</p>
+        <p className="text-xs font-bold text-slate-600">
+          Session expired. Redirecting to login...
+        </p>
       </div>
     );
   }
@@ -43,9 +45,12 @@ export default function ErrorBoundary({
       <div className="w-14 h-14 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center mb-4">
         <AlertCircle className="w-7 h-7 text-rose-600" />
       </div>
-      <h2 className="text-xl font-bold text-slate-800 mb-2">Something went wrong</h2>
+      <h2 className="text-xl font-bold text-slate-800 mb-2">
+        Something went wrong
+      </h2>
       <p className="text-xs text-slate-500 max-w-md mb-6 leading-relaxed">
-        {error.message || 'An unexpected error occurred. Please try reloading or check your connection.'}
+        {error.message ||
+          "An unexpected error occurred. Please try reloading or check your connection."}
       </p>
       <button
         onClick={() => reset()}

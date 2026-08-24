@@ -1,8 +1,8 @@
-import { UserRole } from '@daih/types';
-import { identityRepository } from './identity.repository.js';
-import { passwordService } from './password.service.js';
-import { clientIdService } from './client-id.service.js';
-import { CreateStaffUserDTO, UserSummaryDTO } from './identity.types.js';
+import { UserRole } from "@daih/types";
+import { identityRepository } from "./identity.repository.js";
+import { passwordService } from "./password.service.js";
+import { clientIdService } from "./client-id.service.js";
+import { CreateStaffUserDTO, UserSummaryDTO } from "./identity.types.js";
 
 export class StaffUserService {
   /**
@@ -11,8 +11,8 @@ export class StaffUserService {
   async createStaffUser(dto: CreateStaffUserDTO): Promise<UserSummaryDTO> {
     const existing = await identityRepository.findByEmail(dto.email);
     if (existing) {
-      const error: any = new Error('An account with this email already exists');
-      error.code = 'EMAIL_ALREADY_EXISTS';
+      const error: any = new Error("An account with this email already exists");
+      error.code = "EMAIL_ALREADY_EXISTS";
       error.statusCode = 409;
       throw error;
     }

@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import React from 'react';
-import Link from 'next/link';
-import { Search, SlidersHorizontal, ArrowRight } from 'lucide-react';
-import { CategoryChips, CategoryOption } from './CategoryChips';
+import React from "react";
+import Link from "next/link";
+import { Search, SlidersHorizontal, ArrowRight } from "lucide-react";
+import { CategoryChips, CategoryOption } from "./CategoryChips";
 
 interface DiscoveryHeaderProps {
   searchQuery: string;
@@ -58,8 +58,8 @@ export const DiscoveryHeader: React.FC<DiscoveryHeaderProps> = ({
             onClick={onToggleFilters}
             className={`flex items-center justify-center gap-2 px-4 py-2 border rounded-lg text-xs font-semibold transition-colors shadow-xs cursor-pointer ${
               isFilterOpen
-                ? 'bg-[#e8ddff] border-[#23055c] text-[#23055c]'
-                : 'border-[#EBE7F5] bg-white hover:bg-[#f1f4f9] text-slate-700'
+                ? "bg-[#e8ddff] border-[#23055c] text-[#23055c]"
+                : "border-[#EBE7F5] bg-white hover:bg-[#f1f4f9] text-slate-700"
             }`}
           >
             <SlidersHorizontal className="w-4 h-4" />

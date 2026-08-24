@@ -1,8 +1,12 @@
-import { IEmailProvider, SendEmailOptions, SendEmailResult } from './email.interface.js';
-import { ResendEmailProvider } from './providers/resend.provider.js';
-import { ZeptoMailEmailProvider } from './providers/zeptomail.provider.js';
-import { MockEmailProvider } from './providers/mock.provider.js';
-import { config } from '../../config/env.js';
+import {
+  IEmailProvider,
+  SendEmailOptions,
+  SendEmailResult,
+} from "./email.interface.js";
+import { ResendEmailProvider } from "./providers/resend.provider.js";
+import { ZeptoMailEmailProvider } from "./providers/zeptomail.provider.js";
+import { MockEmailProvider } from "./providers/mock.provider.js";
+import { config } from "../../config/env.js";
 
 export class EmailService {
   private primaryProvider: IEmailProvider;
@@ -22,20 +26,20 @@ export class EmailService {
   async sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
     // If explicitly set to mock or running in test without keys, use Mock Provider
     if (
-      config.email.provider === 'mock' ||
+      config.email.provider === "mock" ||
       (!config.email.resendApiKey && !config.email.zeptomailApiKey)
     ) {
       return this.mockProvider.sendEmail(options);
     }
 
     // 1. Attempt Primary (Resend)
-    if (config.email.resendApiKey && config.email.provider !== 'zeptomail') {
+    if (config.email.resendApiKey && config.email.provider !== "zeptomail") {
       const primaryResult = await this.primaryProvider.sendEmail(options);
       if (primaryResult.success) {
         return primaryResult;
       }
       console.warn(
-        `⚠️ Primary email provider (Resend) failed: ${primaryResult.error}. Attempting ZeptoMail fallback...`
+        `⚠️ Primary email provider (Resend) failed: ${primaryResult.error}. Attempting ZeptoMail fallback...`,
       );
     }
 
@@ -46,22 +50,22 @@ export class EmailService {
         return fallbackResult;
       }
       console.error(
-        `❌ Fallback email provider (ZeptoMail) failed: ${fallbackResult.error}`
+        `❌ Fallback email provider (ZeptoMail) failed: ${fallbackResult.error}`,
       );
     }
 
     // 3. If in non-production, fallback to mock so flows don't crash
-    if (config.env !== 'production') {
+    if (config.env !== "production") {
       console.warn(
-        '⚠️ Both live email providers failed or were unconfigured; falling back to Mock provider in development'
+        "⚠️ Both live email providers failed or were unconfigured; falling back to Mock provider in development",
       );
       return this.mockProvider.sendEmail(options);
     }
 
     return {
       success: false,
-      provider: 'none',
-      error: 'All email providers failed to deliver message',
+      provider: "none",
+      error: "All email providers failed to deliver message",
     };
   }
 
@@ -71,7 +75,7 @@ export class EmailService {
   async sendVerificationEmail(
     to: string,
     name: string,
-    rawToken: string
+    rawToken: string,
   ): Promise<SendEmailResult> {
     const verifyUrl = `${config.frontendUrls.customer}/verify-email?token=${encodeURIComponent(rawToken)}`;
 
@@ -114,7 +118,7 @@ export class EmailService {
 
     return this.sendEmail({
       to,
-      subject: 'Verify your DAIH Hub Account',
+      subject: "Verify your DAIH Hub Account",
       html,
       text: `Hello ${name},\n\nPlease verify your email by clicking: ${verifyUrl}\n\nThis link expires in ${config.jwt.verificationExpiresInHours} hours.`,
     });
@@ -126,7 +130,7 @@ export class EmailService {
   async sendPasswordResetEmail(
     to: string,
     name: string,
-    rawToken: string
+    rawToken: string,
   ): Promise<SendEmailResult> {
     const resetUrl = `${config.frontendUrls.customer}/reset-password?token=${encodeURIComponent(rawToken)}`;
 
@@ -168,7 +172,7 @@ export class EmailService {
 
     return this.sendEmail({
       to,
-      subject: 'Reset Your DAIH Password',
+      subject: "Reset Your DAIH Password",
       html,
       text: `Hello ${name},\n\nReset your password here: ${resetUrl}\n\nExpires in ${config.jwt.passwordResetExpiresInHours} hour(s).`,
     });
@@ -181,7 +185,7 @@ export class EmailService {
     to: string,
     name: string,
     role: string,
-    setupToken?: string
+    setupToken?: string,
   ): Promise<SendEmailResult> {
     const setupUrl = setupToken
       ? `${config.frontendUrls.admin}/reset-password?token=${encodeURIComponent(setupToken)}`
@@ -218,7 +222,7 @@ export class EmailService {
 
     return this.sendEmail({
       to,
-      subject: 'Welcome to DAIH Operations & Admin Console',
+      subject: "Welcome to DAIH Operations & Admin Console",
       html,
       text: `Hello ${name},\n\nYou have been assigned the role ${role} on the DAIH Admin Console. Access: ${setupUrl}`,
     });

@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import React from 'react';
-import Link from 'next/link';
-import { QrCode } from 'lucide-react';
+import React from "react";
+import Link from "next/link";
+import { QrCode } from "lucide-react";
 
 interface ActiveSubscriptionCardProps {
   planName?: string;
@@ -11,9 +11,9 @@ interface ActiveSubscriptionCardProps {
 }
 
 export const ActiveSubscriptionCard: React.FC<ActiveSubscriptionCardProps> = ({
-  planName = 'Executive Elite',
-  qrHref = '/qr',
-  billingCycle = 'Monthly Unlimited · Renews 30 Sept 2026',
+  planName = "Executive Elite",
+  qrHref = "/qr",
+  billingCycle = "Monthly Unlimited · Renews 30 Sept 2026",
 }) => {
   return (
     <div className="bg-white border border-purple-100/90 rounded-2xl shadow-sm p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all hover:shadow-md hover:border-purple-200">

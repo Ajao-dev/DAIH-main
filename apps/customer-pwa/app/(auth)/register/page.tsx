@@ -1,15 +1,15 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   AuthSplitLayout,
   RegisterForm,
   VerificationSuccessCard,
-} from '../../../components/auth';
+} from "../../../components/auth";
 
 export default function CustomerRegisterPage() {
   const [isSuccess, setIsSuccess] = useState(false);
-  const [createdEmail, setCreatedEmail] = useState('');
+  const [createdEmail, setCreatedEmail] = useState("");
 
   const handleSuccess = (email: string) => {
     setCreatedEmail(email);

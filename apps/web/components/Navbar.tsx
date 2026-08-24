@@ -1,6 +1,6 @@
-import React from 'react';
-import Link from 'next/link';
-import { ArrowRight, Sparkles, MapPin, Phone } from 'lucide-react';
+import React from "react";
+import Link from "next/link";
+import { ArrowRight, Sparkles, MapPin, Phone } from "lucide-react";
 
 export const Navbar = () => {
   return (
@@ -27,22 +27,40 @@ export const Navbar = () => {
             <Link href="/" className="hover:text-amber-300 transition-colors">
               Home
             </Link>
-            <Link href="/plans" className="hover:text-amber-300 transition-colors">
+            <Link
+              href="/plans"
+              className="hover:text-amber-300 transition-colors"
+            >
               Our Plans
             </Link>
-            <Link href="/about" className="hover:text-amber-300 transition-colors">
+            <Link
+              href="/about"
+              className="hover:text-amber-300 transition-colors"
+            >
               About Us
             </Link>
-            <Link href="/events" className="hover:text-amber-300 transition-colors">
+            <Link
+              href="/events"
+              className="hover:text-amber-300 transition-colors"
+            >
               Events
             </Link>
-            <Link href="/gallery" className="hover:text-amber-300 transition-colors">
+            <Link
+              href="/gallery"
+              className="hover:text-amber-300 transition-colors"
+            >
               Gallery
             </Link>
-            <Link href="/jobs" className="hover:text-amber-300 transition-colors">
+            <Link
+              href="/jobs"
+              className="hover:text-amber-300 transition-colors"
+            >
               Careers
             </Link>
-            <Link href="/contact" className="hover:text-amber-300 transition-colors">
+            <Link
+              href="/contact"
+              className="hover:text-amber-300 transition-colors"
+            >
               Contact
             </Link>
           </nav>

@@ -162,7 +162,7 @@
       this._adjustSettings(
         elem,
         inst,
-        options.until != null || options.since != null || timezoneChanged
+        options.until != null || options.since != null || timezoneChanged,
       );
       var now = new Date();
       if (
@@ -190,7 +190,7 @@
                 inst,
                 inst._show,
                 inst.options.significant,
-                new Date()
+                new Date(),
               );
         if (
           inst.options.tickInterval == 1 ||
@@ -271,21 +271,21 @@
         if (inst._since != null) {
           inst._since = this.UTCDate(
             timezone,
-            this._determineTime(inst._since, null)
+            this._determineTime(inst._since, null),
           );
           if (inst._since && serverOffset) {
             inst._since.setMilliseconds(
-              inst._since.getMilliseconds() + serverOffset
+              inst._since.getMilliseconds() + serverOffset,
             );
           }
         }
         inst._until = this.UTCDate(
           timezone,
-          this._determineTime(inst.options.until, now)
+          this._determineTime(inst.options.until, now),
         );
         if (serverOffset) {
           inst._until.setMilliseconds(
-            inst._until.getMilliseconds() + serverOffset
+            inst._until.getMilliseconds() + serverOffset,
           );
         }
       }
@@ -339,7 +339,7 @@
               "m" +
               sign +
               inst._periods[6] +
-              "s"
+              "s",
           );
           this._addElem(elem);
         }
@@ -354,15 +354,15 @@
       return !inst
         ? null
         : inst._hold == "pause"
-        ? inst._savePeriods
-        : !inst._hold
-        ? inst._periods
-        : this._calculatePeriods(
-            inst,
-            inst._show,
-            inst.options.significant,
-            new Date()
-          );
+          ? inst._savePeriods
+          : !inst._hold
+            ? inst._periods
+            : this._calculatePeriods(
+                inst,
+                inst._show,
+                inst.options.significant,
+                new Date(),
+              );
     },
     _determineTime: function (setting, defaultTime) {
       var self = this;
@@ -416,10 +416,10 @@
         setting == null
           ? defaultTime
           : typeof setting == "string"
-          ? offsetString(setting)
-          : typeof setting == "number"
-          ? offsetNumeric(setting)
-          : setting;
+            ? offsetString(setting)
+            : typeof setting == "number"
+              ? offsetNumeric(setting)
+              : setting;
       if (time) time.setMilliseconds(0);
       return time;
     },
@@ -437,7 +437,7 @@
             inst,
             inst._show,
             inst.options.significant,
-            new Date()
+            new Date(),
           );
       var shownNonZero = false;
       var showCount = 0;
@@ -500,7 +500,7 @@
             inst.options.layout,
             inst.options.compact,
             inst.options.significant,
-            showSignificant
+            showSignificant,
           )
         : (inst.options.compact
             ? '<span class="' +
@@ -553,7 +553,7 @@
       layout,
       compact,
       significant,
-      showSignificant
+      showSignificant,
     ) {
       var labels = inst.options[compact ? "compactLabels" : "labels"];
       var whichLabels = inst.options.whichLabels || this._normalLabels;
@@ -631,13 +631,13 @@
         var period = "yowdhms".charAt(i);
         var re = new RegExp(
           "\\{" + period + "<\\}([\\s\\S]*)\\{" + period + ">\\}",
-          "g"
+          "g",
         );
         html = html.replace(
           re,
           (!significant && show[i]) || (significant && showSignificant[i])
             ? "$1"
-            : ""
+            : "",
         );
       }
       $.each(subs, function (n, v) {
@@ -692,7 +692,7 @@
         var lastNow = this._getDaysInMonth(now.getFullYear(), now.getMonth());
         var lastUntil = this._getDaysInMonth(
           until.getFullYear(),
-          until.getMonth()
+          until.getMonth(),
         );
         var sameDay =
           until.getDate() == now.getDate() ||
@@ -711,7 +711,7 @@
             ((until.getDate() < now.getDate() && !sameDay) ||
             (sameDay && getSecs(until) < getSecs(now))
               ? -1
-              : 0)
+              : 0),
         );
         periods[Y] = show[Y] ? Math.floor(months / 12) : 0;
         periods[O] = show[O] ? months - periods[Y] * 12 : 0;
@@ -719,7 +719,7 @@
         var wasLastDay = now.getDate() == lastNow;
         var lastDay = this._getDaysInMonth(
           now.getFullYear() + periods[Y],
-          now.getMonth() + periods[O]
+          now.getMonth() + periods[O],
         );
         if (now.getDate() > lastDay) {
           now.setDate(lastDay);

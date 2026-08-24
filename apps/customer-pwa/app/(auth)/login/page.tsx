@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { AuthSplitLayout, LoginForm } from '../../../components/auth';
+import React from "react";
+import { AuthSplitLayout, LoginForm } from "../../../components/auth";
 
 export default function CustomerLoginPage() {
   return (

@@ -1,15 +1,9 @@
-'use client';
+"use client";
 
-import React from 'react';
-import Link from 'next/link';
-import { useAuth } from '@daih/api-client';
-import {
-  Search,
-  Bell,
-  HelpCircle,
-  Menu,
-  Sparkles,
-} from 'lucide-react';
+import React from "react";
+import Link from "next/link";
+import { useAuth } from "@daih/api-client";
+import { Search, Bell, HelpCircle, Menu, Sparkles } from "lucide-react";
 
 interface TopAppBarProps {
   title?: string;
@@ -41,7 +35,7 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
             alt="DAIH Hub Logo"
             className="h-8 w-auto object-contain transition-transform group-hover:scale-105"
           />
-          {title && title !== 'Executive Flux' && (
+          {title && title !== "Executive Flux" && (
             <span className="text-base sm:text-lg font-bold tracking-tight text-[#23055c] border-l border-slate-200 pl-3">
               {title}
             </span>
@@ -89,8 +83,8 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
           {/* User Profile Avatar */}
           <Link href="/dashboard" className="flex items-center gap-2 ml-1">
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#23055c] to-[#392271] text-white flex items-center justify-center font-bold text-xs shadow-xs border border-purple-200/80">
-              {user?.firstName?.[0] || 'M'}
-              {user?.lastName?.[0] || ''}
+              {user?.firstName?.[0] || "M"}
+              {user?.lastName?.[0] || ""}
             </div>
           </Link>
         </div>

@@ -28,7 +28,8 @@ a.btn-main:hover,
   font-size: 24px;
   vertical-align: top;
 }
-.pricing-s1 .price .m, .pricing-s1 .price .y {
+.pricing-s1 .price .m,
+.pricing-s1 .price .y {
   font-size: 36px;
   font-weight: 700;
 }

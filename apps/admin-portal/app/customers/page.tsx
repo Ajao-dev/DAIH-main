@@ -1,17 +1,17 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { UserPlus, RefreshCw, Loader2, Users } from 'lucide-react';
-import { useToast } from '@daih/ui';
-import { api } from '@daih/api-client';
-import { CustomerRecord, CustomerMetrics } from '@daih/types';
+import React, { useState, useEffect, useCallback } from "react";
+import { UserPlus, RefreshCw, Loader2, Users } from "lucide-react";
+import { useToast } from "@daih/ui";
+import { api } from "@daih/api-client";
+import { CustomerRecord, CustomerMetrics } from "@daih/types";
 import {
   MemberMetricsGrid,
   MemberDirectoryToolbar,
   MemberDirectoryTable,
   MemberDetailModal,
   AddMemberModal,
-} from '../../components/customers';
+} from "../../components/customers";
 
 export default function CustomersPage() {
   const toast = useToast();
@@ -20,20 +20,22 @@ export default function CustomersPage() {
     totalMembers: 0,
     activeNow: 0,
     newThisMonth: 0,
-    mrrGrowth: '₦0',
+    mrrGrowth: "₦0",
   });
   const [loading, setLoading] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
 
   // Filters & Pagination
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('ALL');
-  const [tierFilter, setTierFilter] = useState('ALL');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [tierFilter, setTierFilter] = useState("ALL");
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
 
   // Modals
-  const [selectedMember, setSelectedMember] = useState<CustomerRecord | null>(null);
+  const [selectedMember, setSelectedMember] = useState<CustomerRecord | null>(
+    null,
+  );
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
@@ -42,8 +44,8 @@ export default function CustomersPage() {
     try {
       const res = await api.customers.getCustomers({
         search: searchQuery.trim() || undefined,
-        status: statusFilter === 'ALL' ? undefined : statusFilter,
-        tier: tierFilter === 'ALL' ? undefined : tierFilter,
+        status: statusFilter === "ALL" ? undefined : statusFilter,
+        tier: tierFilter === "ALL" ? undefined : tierFilter,
         page: currentPage,
         limit: pageSize,
       });
@@ -54,9 +56,12 @@ export default function CustomersPage() {
         setMetrics(res.metrics);
       }
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to fetch customer members from database', {
-        title: 'Error Loading Customers',
-      });
+      toast.error(
+        err?.message || "Failed to fetch customer members from database",
+        {
+          title: "Error Loading Customers",
+        },
+      );
     } finally {
       setLoading(false);
     }
@@ -84,7 +89,8 @@ export default function CustomersPage() {
             Member Directory
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Live database records of community members, Client IDs, and active subscriptions.
+            Live database records of community members, Client IDs, and active
+            subscriptions.
           </p>
         </div>
 
@@ -94,7 +100,9 @@ export default function CustomersPage() {
             className="p-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl transition-all shadow-2xs cursor-pointer"
             title="Refresh Live Data"
           >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin text-[#23055c]' : ''}`} />
+            <RefreshCw
+              className={`h-4 w-4 ${loading ? "animate-spin text-[#23055c]" : ""}`}
+            />
           </button>
           <button
             onClick={() => setIsAddModalOpen(true)}
@@ -142,15 +150,19 @@ export default function CustomersPage() {
           {loading ? (
             <div className="py-24 text-center space-y-3">
               <Loader2 className="h-8 w-8 animate-spin text-[#23055c] mx-auto" />
-              <p className="text-xs text-slate-500 font-semibold">Loading live members from database...</p>
+              <p className="text-xs text-slate-500 font-semibold">
+                Loading live members from database...
+              </p>
             </div>
           ) : customers.length === 0 ? (
             <div className="py-20 text-center space-y-3">
               <Users className="h-10 w-10 text-slate-300 mx-auto" />
-              <p className="text-sm font-bold text-slate-700">No members found</p>
+              <p className="text-sm font-bold text-slate-700">
+                No members found
+              </p>
               <p className="text-xs text-slate-400">
-                {searchQuery || statusFilter !== 'ALL' || tierFilter !== 'ALL'
-                  ? 'No members match the selected filters. Try resetting search or filter.'
+                {searchQuery || statusFilter !== "ALL" || tierFilter !== "ALL"
+                  ? "No members match the selected filters. Try resetting search or filter."
                   : 'No registered customers in the database yet. Click "Add New Member" to create one.'}
               </p>
             </div>

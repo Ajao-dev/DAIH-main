@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import { UserRole } from '@daih/types';
-import { X, Save, Edit2 } from 'lucide-react';
-import { AdminUserRecord } from './UserDirectoryTable';
+import React, { useState, useEffect } from "react";
+import { UserRole } from "@daih/types";
+import { X, Save, Edit2 } from "lucide-react";
+import { AdminUserRecord } from "./UserDirectoryTable";
 
 export interface EditStaffModalProps {
   isOpen: boolean;
@@ -18,17 +18,19 @@ export const EditStaffModal: React.FC<EditStaffModalProps> = ({
   onClose,
   onStaffUpdated,
 }) => {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [role, setRole] = useState<UserRole>(UserRole.OPERATIONS_ADMIN);
-  const [status, setStatus] = useState<'ACTIVE' | 'PENDING' | 'DEACTIVATED'>('ACTIVE');
+  const [status, setStatus] = useState<"ACTIVE" | "PENDING" | "DEACTIVATED">(
+    "ACTIVE",
+  );
 
   useEffect(() => {
     if (staff) {
       setName(staff.name);
       setEmail(staff.email);
-      setPhone(staff.phone || '');
+      setPhone(staff.phone || "");
       setRole(staff.role);
       setStatus(staff.status);
     }
@@ -63,7 +65,9 @@ export const EditStaffModal: React.FC<EditStaffModalProps> = ({
         <div className="px-6 py-4 border-b border-[#EBE7F5] flex justify-between items-center bg-white">
           <div className="flex items-center gap-2">
             <Edit2 className="w-5 h-5 text-[#23055c]" />
-            <h2 className="text-base font-bold text-slate-900">Edit Staff Details</h2>
+            <h2 className="text-base font-bold text-slate-900">
+              Edit Staff Details
+            </h2>
           </div>
           <button
             onClick={onClose}
@@ -76,7 +80,9 @@ export const EditStaffModal: React.FC<EditStaffModalProps> = ({
         {/* Form */}
         <form onSubmit={handleSave} className="p-6 space-y-4">
           <div className="space-y-1.5">
-            <label className="block text-xs font-bold text-slate-700">Full Name</label>
+            <label className="block text-xs font-bold text-slate-700">
+              Full Name
+            </label>
             <input
               type="text"
               required
@@ -87,7 +93,9 @@ export const EditStaffModal: React.FC<EditStaffModalProps> = ({
           </div>
 
           <div className="space-y-1.5">
-            <label className="block text-xs font-bold text-slate-700">Official Email</label>
+            <label className="block text-xs font-bold text-slate-700">
+              Official Email
+            </label>
             <input
               type="email"
               required
@@ -98,7 +106,9 @@ export const EditStaffModal: React.FC<EditStaffModalProps> = ({
           </div>
 
           <div className="space-y-1.5">
-            <label className="block text-xs font-bold text-slate-700">Phone Number</label>
+            <label className="block text-xs font-bold text-slate-700">
+              Phone Number
+            </label>
             <input
               type="tel"
               value={phone}
@@ -109,23 +119,35 @@ export const EditStaffModal: React.FC<EditStaffModalProps> = ({
           </div>
 
           <div className="space-y-1.5">
-            <label className="block text-xs font-bold text-slate-700">Assigned Operational Role</label>
+            <label className="block text-xs font-bold text-slate-700">
+              Assigned Operational Role
+            </label>
             <select
               value={role}
               onChange={(e) => setRole(e.target.value as UserRole)}
               className="w-full h-11 px-3.5 bg-[#F8F9FA] border border-[#EBE7F5] rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:border-[#23055c]"
             >
-              <option value={UserRole.OPERATIONS_ADMIN}>Operations Admin</option>
+              <option value={UserRole.OPERATIONS_ADMIN}>
+                Operations Admin
+              </option>
               <option value={UserRole.FINANCE_OFFICER}>Finance Officer</option>
-              <option value={UserRole.RECEPTION_OFFICER}>Reception Officer</option>
-              <option value={UserRole.SECURITY_OFFICER}>Security Officer</option>
-              <option value={UserRole.MANAGEMENT_VIEWER}>Management Viewer</option>
+              <option value={UserRole.RECEPTION_OFFICER}>
+                Reception Officer
+              </option>
+              <option value={UserRole.SECURITY_OFFICER}>
+                Security Officer
+              </option>
+              <option value={UserRole.MANAGEMENT_VIEWER}>
+                Management Viewer
+              </option>
               <option value={UserRole.SUPER_ADMIN}>Super Admin</option>
             </select>
           </div>
 
           <div className="space-y-1.5">
-            <label className="block text-xs font-bold text-slate-700">Status</label>
+            <label className="block text-xs font-bold text-slate-700">
+              Status
+            </label>
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value as any)}

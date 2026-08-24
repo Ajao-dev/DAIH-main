@@ -1,20 +1,35 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@daih/api-client';
-import { useToast } from '@daih/ui';
-import { UserRole } from '@daih/types';
-import { Mail, KeyRound, Lock, Eye, EyeOff, Loader2, ArrowRight, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@daih/api-client";
+import { useToast } from "@daih/ui";
+import { UserRole } from "@daih/types";
+import {
+  Mail,
+  KeyRound,
+  Lock,
+  Eye,
+  EyeOff,
+  Loader2,
+  ArrowRight,
+  AlertCircle,
+} from "lucide-react";
 
 export const AdminLoginForm: React.FC = () => {
   const router = useRouter();
-  const { login, logout, user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const {
+    login,
+    logout,
+    user,
+    isAuthenticated,
+    isLoading: authLoading,
+  } = useAuth();
   const toast = useToast();
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -22,30 +37,35 @@ export const AdminLoginForm: React.FC = () => {
 
   // If already authenticated with staff/admin role, automatically redirect to dashboard
   useEffect(() => {
-    if (!authLoading && isAuthenticated && user && user.role !== UserRole.CUSTOMER) {
-      router.replace('/');
+    if (
+      !authLoading &&
+      isAuthenticated &&
+      user &&
+      user.role !== UserRole.CUSTOMER
+    ) {
+      router.replace("/");
     }
   }, [authLoading, isAuthenticated, user, router]);
 
   const validate = (): boolean => {
     if (!email.trim()) {
-      toast.warning('Please enter your administrator email address.', {
-        title: 'Email Required',
+      toast.warning("Please enter your administrator email address.", {
+        title: "Email Required",
       });
       return false;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email.trim())) {
-      toast.warning('Please enter a valid administrator email address.', {
-        title: 'Invalid Email Format',
+      toast.warning("Please enter a valid administrator email address.", {
+        title: "Invalid Email Format",
       });
       return false;
     }
 
     if (!password) {
-      toast.warning('Please enter your administrator password.', {
-        title: 'Password Required',
+      toast.warning("Please enter your administrator password.", {
+        title: "Password Required",
       });
       return false;
     }
@@ -65,36 +85,40 @@ export const AdminLoginForm: React.FC = () => {
       const loggedUser = await login({
         email: email.trim().toLowerCase(),
         password,
-        portal: 'admin',
+        portal: "admin",
       });
 
       // Enforce staff/admin role access
       if (loggedUser.role === UserRole.CUSTOMER) {
         await logout();
         const msg =
-          'Access Denied: Customer accounts cannot access the Staff & Admin Console. Please use the Customer PWA.';
+          "Access Denied: Customer accounts cannot access the Staff & Admin Console. Please use the Customer PWA.";
         setErrorMessage(msg);
-        toast.error(msg, { title: 'Access Denied' });
+        toast.error(msg, { title: "Access Denied" });
         return;
       }
 
-      toast.success(`Welcome back, ${loggedUser.firstName}! Redirecting to dashboard...`, {
-        title: 'Access Granted',
-      });
+      toast.success(
+        `Welcome back, ${loggedUser.firstName}! Redirecting to dashboard...`,
+        {
+          title: "Access Granted",
+        },
+      );
 
       // Direct redirection to dashboard
-      router.replace('/');
-      if (typeof window !== 'undefined') {
+      router.replace("/");
+      if (typeof window !== "undefined") {
         setTimeout(() => {
-          if (window.location.pathname === '/login') {
-            window.location.href = '/';
+          if (window.location.pathname === "/login") {
+            window.location.href = "/";
           }
         }, 150);
       }
     } catch (err: any) {
-      const msg = err?.message || 'Invalid administrator credentials. Please try again.';
+      const msg =
+        err?.message || "Invalid administrator credentials. Please try again.";
       setErrorMessage(msg);
-      toast.error(msg, { title: 'Authentication Failed' });
+      toast.error(msg, { title: "Authentication Failed" });
     } finally {
       setIsLoading(false);
     }
@@ -114,7 +138,10 @@ export const AdminLoginForm: React.FC = () => {
       <form noValidate onSubmit={handleLogin} className="space-y-4">
         {/* Email Field */}
         <div className="space-y-1.5 text-left">
-          <label className="block text-xs font-bold text-slate-700" htmlFor="email">
+          <label
+            className="block text-xs font-bold text-slate-700"
+            htmlFor="email"
+          >
             Admin Email
           </label>
           <div className="relative">
@@ -136,7 +163,10 @@ export const AdminLoginForm: React.FC = () => {
 
         {/* Password Field */}
         <div className="space-y-1.5 text-left">
-          <label className="block text-xs font-bold text-slate-700" htmlFor="password">
+          <label
+            className="block text-xs font-bold text-slate-700"
+            htmlFor="password"
+          >
             Password
           </label>
           <div className="relative">
@@ -146,7 +176,7 @@ export const AdminLoginForm: React.FC = () => {
             <input
               id="password"
               name="password"
-              type={showPassword ? 'text' : 'password'}
+              type={showPassword ? "text" : "password"}
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -157,9 +187,13 @@ export const AdminLoginForm: React.FC = () => {
               type="button"
               onClick={() => setShowPassword((prev) => !prev)}
               className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-[#23055c] transition-colors cursor-pointer"
-              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              aria-label={showPassword ? "Hide password" : "Show password"}
             >
-              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              {showPassword ? (
+                <EyeOff className="w-4 h-4" />
+              ) : (
+                <Eye className="w-4 h-4" />
+              )}
             </button>
           </div>
         </div>

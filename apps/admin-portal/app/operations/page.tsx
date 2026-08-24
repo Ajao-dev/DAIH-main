@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useToast } from '@daih/ui';
-import { api } from '@daih/api-client';
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { useToast } from "@daih/ui";
+import { api } from "@daih/api-client";
 import {
   FacilityResource,
   CreateResourceDTO,
@@ -10,10 +10,10 @@ import {
   UpdatePricingPlanDTO,
   CreateBlackoutDTO,
   UpsertScheduleDTO,
-} from '@daih/types';
-import { ResourceMetrics } from '../../components/operations/ResourceMetrics';
-import { ResourceCard } from '../../components/operations/ResourceCard';
-import { ResourceTableView } from '../../components/operations/ResourceTableView';
+} from "@daih/types";
+import { ResourceMetrics } from "../../components/operations/ResourceMetrics";
+import { ResourceCard } from "../../components/operations/ResourceCard";
+import { ResourceTableView } from "../../components/operations/ResourceTableView";
 import {
   AddEditResourceModal,
   PricingManagementModal,
@@ -21,27 +21,41 @@ import {
   ScheduleManagementModal,
   ResourceFilterModal,
   DeleteResourceModal,
-} from '../../components/operations/ResourceModals';
-import { Plus, Filter, LayoutGrid, List, Loader2, RefreshCw, Layers } from 'lucide-react';
+} from "../../components/operations/ResourceModals";
+import {
+  Plus,
+  Filter,
+  LayoutGrid,
+  List,
+  Loader2,
+  RefreshCw,
+  Layers,
+} from "lucide-react";
 
 export default function OperationsPage() {
   const toast = useToast();
   const [resources, setResources] = useState<FacilityResource[]>([]);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
   // Filter state
   const [filterModalOpen, setFilterModalOpen] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
-  const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
+  const [selectedCategory, setSelectedCategory] = useState<string>("ALL");
+  const [selectedStatus, setSelectedStatus] = useState<string>("ALL");
 
   // Modal states
   const [isAddOpen, setIsAddOpen] = useState(false);
-  const [resourceToEdit, setResourceToEdit] = useState<FacilityResource | null>(null);
-  const [pricingResource, setPricingResource] = useState<FacilityResource | null>(null);
-  const [blackoutResource, setBlackoutResource] = useState<FacilityResource | null>(null);
-  const [scheduleResource, setScheduleResource] = useState<FacilityResource | null>(null);
-  const [resourceToDelete, setResourceToDelete] = useState<FacilityResource | null>(null);
+  const [resourceToEdit, setResourceToEdit] = useState<FacilityResource | null>(
+    null,
+  );
+  const [pricingResource, setPricingResource] =
+    useState<FacilityResource | null>(null);
+  const [blackoutResource, setBlackoutResource] =
+    useState<FacilityResource | null>(null);
+  const [scheduleResource, setScheduleResource] =
+    useState<FacilityResource | null>(null);
+  const [resourceToDelete, setResourceToDelete] =
+    useState<FacilityResource | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const fetchResources = useCallback(async () => {
@@ -50,8 +64,8 @@ export default function OperationsPage() {
       const data = await api.catalogue.getAdminResources();
       setResources(data);
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to fetch resource inventory', {
-        title: 'Error loading resources',
+      toast.error(err?.message || "Failed to fetch resource inventory", {
+        title: "Error loading resources",
       });
     } finally {
       setLoading(false);
@@ -69,21 +83,21 @@ export default function OperationsPage() {
       if (resourceToEdit) {
         await api.catalogue.updateResource(resourceToEdit.id, payload);
         toast.success(`${payload.name} details saved successfully.`, {
-          title: 'Resource Updated',
+          title: "Resource Updated",
         });
         setResourceToEdit(null);
         setIsAddOpen(false);
       } else {
         await api.catalogue.createResource(payload);
         toast.success(`${payload.name} added to workspace directory.`, {
-          title: 'Resource Created',
+          title: "Resource Created",
         });
         setIsAddOpen(false);
       }
       await fetchResources();
     } catch (err: any) {
-      toast.error(err?.message || 'Could not save resource', {
-        title: 'Save Failed',
+      toast.error(err?.message || "Could not save resource", {
+        title: "Save Failed",
       });
     } finally {
       setSubmitting(false);
@@ -95,15 +109,15 @@ export default function OperationsPage() {
     try {
       await api.catalogue.updateResource(res.id, { isActive: !res.isActive });
       toast.info(
-        `${res.name} is now ${!res.isActive ? 'live and active' : 'offline/deactivated'}.`,
+        `${res.name} is now ${!res.isActive ? "live and active" : "offline/deactivated"}.`,
         {
-          title: res.isActive ? 'Resource Deactivated' : 'Resource Reactivated',
-        }
+          title: res.isActive ? "Resource Deactivated" : "Resource Reactivated",
+        },
       );
       await fetchResources();
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to update status', {
-        title: 'Status Update Failed',
+      toast.error(err?.message || "Failed to update status", {
+        title: "Status Update Failed",
       });
     }
   };
@@ -114,7 +128,7 @@ export default function OperationsPage() {
     try {
       await api.catalogue.deleteResource(res.id);
       toast.success(`${res.name} was successfully removed.`, {
-        title: 'Resource Deleted',
+        title: "Resource Deleted",
       });
       setResourceToDelete(null);
       if (resourceToEdit?.id === res.id) {
@@ -123,8 +137,8 @@ export default function OperationsPage() {
       }
       await fetchResources();
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to delete workspace resource', {
-        title: 'Delete Failed',
+      toast.error(err?.message || "Failed to delete workspace resource", {
+        title: "Delete Failed",
       });
     } finally {
       setSubmitting(false);
@@ -132,37 +146,49 @@ export default function OperationsPage() {
   };
 
   // Handle Add Pricing Plan
-  const handleAddPricingPlan = async (resourceId: string, plan: CreatePricingPlanDTO) => {
+  const handleAddPricingPlan = async (
+    resourceId: string,
+    plan: CreatePricingPlanDTO,
+  ) => {
     try {
       await api.catalogue.createPricingPlan(resourceId, plan);
-      toast.success(`Plan '${plan.planName}' added at ₦${plan.price.toLocaleString()}.`, {
-        title: 'Pricing Plan Added',
-      });
+      toast.success(
+        `Plan '${plan.planName}' added at ₦${plan.price.toLocaleString()}.`,
+        {
+          title: "Pricing Plan Added",
+        },
+      );
       const updated = await api.catalogue.getResourceById(resourceId);
       setPricingResource(updated);
       await fetchResources();
     } catch (err: any) {
-      toast.error(err?.message || 'Could not add pricing plan', {
-        title: 'Plan Creation Failed',
+      toast.error(err?.message || "Could not add pricing plan", {
+        title: "Plan Creation Failed",
       });
       throw err;
     }
   };
 
   // Handle Update / Edit Pricing Plan
-  const handleUpdatePricingPlan = async (planId: string, plan: UpdatePricingPlanDTO) => {
+  const handleUpdatePricingPlan = async (
+    planId: string,
+    plan: UpdatePricingPlanDTO,
+  ) => {
     if (!pricingResource) return;
     try {
       await api.catalogue.updatePricingPlan(planId, plan);
-      toast.success(`Pricing plan updated to ₦${Number(plan.price || 0).toLocaleString()}.`, {
-        title: 'Pricing Plan Updated',
-      });
+      toast.success(
+        `Pricing plan updated to ₦${Number(plan.price || 0).toLocaleString()}.`,
+        {
+          title: "Pricing Plan Updated",
+        },
+      );
       const updated = await api.catalogue.getResourceById(pricingResource.id);
       setPricingResource(updated);
       await fetchResources();
     } catch (err: any) {
-      toast.error(err?.message || 'Could not update pricing plan', {
-        title: 'Update Failed',
+      toast.error(err?.message || "Could not update pricing plan", {
+        title: "Update Failed",
       });
       throw err;
     }
@@ -173,31 +199,36 @@ export default function OperationsPage() {
     if (!pricingResource) return;
     try {
       await api.catalogue.deletePricingPlan(planId);
-      toast.info('Pricing plan removed successfully.', { title: 'Plan Removed' });
+      toast.info("Pricing plan removed successfully.", {
+        title: "Plan Removed",
+      });
       const updated = await api.catalogue.getResourceById(pricingResource.id);
       setPricingResource(updated);
       await fetchResources();
     } catch (err: any) {
-      toast.error(err?.message || 'Could not delete pricing plan', {
-        title: 'Delete Failed',
+      toast.error(err?.message || "Could not delete pricing plan", {
+        title: "Delete Failed",
       });
       throw err;
     }
   };
 
   // Handle Add Blackout Window
-  const handleAddBlackout = async (resourceId: string, blackout: CreateBlackoutDTO) => {
+  const handleAddBlackout = async (
+    resourceId: string,
+    blackout: CreateBlackoutDTO,
+  ) => {
     try {
       await api.catalogue.createBlackout(resourceId, blackout);
-      toast.success('Maintenance schedule created and space blocked.', {
-        title: 'Blackout Scheduled',
+      toast.success("Maintenance schedule created and space blocked.", {
+        title: "Blackout Scheduled",
       });
       const updated = await api.catalogue.getResourceById(resourceId);
       setBlackoutResource(updated);
       await fetchResources();
     } catch (err: any) {
-      toast.error(err?.message || 'Could not schedule blackout', {
-        title: 'Blackout Failed',
+      toast.error(err?.message || "Could not schedule blackout", {
+        title: "Blackout Failed",
       });
     }
   };
@@ -207,32 +238,35 @@ export default function OperationsPage() {
     if (!blackoutResource) return;
     try {
       await api.catalogue.deleteBlackout(blackoutId);
-      toast.info('Maintenance blackout removed. Space is operational.', {
-        title: 'Blackout Removed',
+      toast.info("Maintenance blackout removed. Space is operational.", {
+        title: "Blackout Removed",
       });
       const updated = await api.catalogue.getResourceById(blackoutResource.id);
       setBlackoutResource(updated);
       await fetchResources();
     } catch (err: any) {
-      toast.error(err?.message || 'Could not remove blackout schedule', {
-        title: 'Delete Failed',
+      toast.error(err?.message || "Could not remove blackout schedule", {
+        title: "Delete Failed",
       });
     }
   };
 
   // Handle Update Operating Schedules
-  const handleUpdateSchedules = async (resourceId: string, schedules: UpsertScheduleDTO[]) => {
+  const handleUpdateSchedules = async (
+    resourceId: string,
+    schedules: UpsertScheduleDTO[],
+  ) => {
     try {
       await api.catalogue.updateSchedules(resourceId, schedules);
-      toast.success('Operating hours and availability updated successfully.', {
-        title: 'Schedule Updated',
+      toast.success("Operating hours and availability updated successfully.", {
+        title: "Schedule Updated",
       });
       const updated = await api.catalogue.getResourceById(resourceId);
       setScheduleResource(updated);
       await fetchResources();
     } catch (err: any) {
-      toast.error(err?.message || 'Could not save operating schedule', {
-        title: 'Schedule Update Failed',
+      toast.error(err?.message || "Could not save operating schedule", {
+        title: "Schedule Update Failed",
       });
       throw err;
     }
@@ -243,20 +277,23 @@ export default function OperationsPage() {
     const now = new Date();
     return resources.filter((res) => {
       // Category filter
-      if (selectedCategory !== 'ALL' && res.category !== selectedCategory) {
+      if (selectedCategory !== "ALL" && res.category !== selectedCategory) {
         return false;
       }
 
       // Status filter
-      if (selectedStatus === 'ACTIVE') {
+      if (selectedStatus === "ACTIVE") {
         return res.isActive;
       }
-      if (selectedStatus === 'OFFLINE') {
+      if (selectedStatus === "OFFLINE") {
         return !res.isActive;
       }
-      if (selectedStatus === 'MAINTENANCE') {
+      if (selectedStatus === "MAINTENANCE") {
         const hasBlackout = (res.blackouts || []).some(
-          (b) => b.isActive && new Date(b.startDate) <= now && new Date(b.endDate) >= now
+          (b) =>
+            b.isActive &&
+            new Date(b.startDate) <= now &&
+            new Date(b.endDate) >= now,
         );
         return hasBlackout;
       }
@@ -265,7 +302,8 @@ export default function OperationsPage() {
     });
   }, [resources, selectedCategory, selectedStatus]);
 
-  const hasActiveFilters = selectedCategory !== 'ALL' || selectedStatus !== 'ALL';
+  const hasActiveFilters =
+    selectedCategory !== "ALL" || selectedStatus !== "ALL";
 
   return (
     <div className="w-full">
@@ -284,12 +322,12 @@ export default function OperationsPage() {
             onClick={() => setFilterModalOpen(true)}
             className={`border px-4 py-2 rounded-lg flex items-center gap-2 font-bold text-xs transition-colors shadow-2xs cursor-pointer ${
               hasActiveFilters
-                ? 'bg-[#23055c]/10 border-[#23055c] text-[#23055c]'
-                : 'bg-white border-slate-300 text-slate-800 hover:bg-slate-50'
+                ? "bg-[#23055c]/10 border-[#23055c] text-[#23055c]"
+                : "bg-white border-slate-300 text-slate-800 hover:bg-slate-50"
             }`}
           >
             <Filter className="h-3.5 w-3.5" />
-            Filter {hasActiveFilters && '• Active'}
+            Filter {hasActiveFilters && "• Active"}
           </button>
           <button
             onClick={() => {
@@ -312,16 +350,19 @@ export default function OperationsPage() {
       {/* Directory Section Header */}
       <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <h2 className="font-bold text-lg text-slate-900 tracking-tight">Directory</h2>
+          <h2 className="font-bold text-lg text-slate-900 tracking-tight">
+            Directory
+          </h2>
           <span className="text-xs text-slate-400 font-medium">
-            ({filteredResources.length} {filteredResources.length === 1 ? 'space' : 'spaces'})
+            ({filteredResources.length}{" "}
+            {filteredResources.length === 1 ? "space" : "spaces"})
           </span>
 
           {hasActiveFilters && (
             <button
               onClick={() => {
-                setSelectedCategory('ALL');
-                setSelectedStatus('ALL');
+                setSelectedCategory("ALL");
+                setSelectedStatus("ALL");
               }}
               className="text-[11px] font-bold text-[#23055c] hover:underline ml-2 cursor-pointer"
             >
@@ -333,21 +374,21 @@ export default function OperationsPage() {
         {/* View Toggles (Grid / List) */}
         <div className="flex items-center bg-slate-200/80 rounded-lg p-1 w-fit">
           <button
-            onClick={() => setViewMode('grid')}
+            onClick={() => setViewMode("grid")}
             className={`px-3 py-1 rounded text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-              viewMode === 'grid'
-                ? 'bg-white text-slate-900 shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
+              viewMode === "grid"
+                ? "bg-white text-slate-900 shadow-xs"
+                : "text-slate-600 hover:text-slate-900"
             }`}
           >
             <LayoutGrid className="h-3.5 w-3.5" /> Grid
           </button>
           <button
-            onClick={() => setViewMode('list')}
+            onClick={() => setViewMode("list")}
             className={`px-3 py-1 rounded text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-              viewMode === 'list'
-                ? 'bg-white text-slate-900 shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
+              viewMode === "list"
+                ? "bg-white text-slate-900 shadow-xs"
+                : "text-slate-600 hover:text-slate-900"
             }`}
           >
             <List className="h-3.5 w-3.5" /> List
@@ -374,19 +415,23 @@ export default function OperationsPage() {
         </div>
       ) : filteredResources.length === 0 ? (
         <div className="bg-white border border-[#EBE7F5] rounded-xl p-12 text-center text-slate-500">
-          <p className="font-semibold text-base text-slate-700">No resources match your filter</p>
-          <p className="text-xs text-slate-400 mt-1">Try resetting your category or status filters.</p>
+          <p className="font-semibold text-base text-slate-700">
+            No resources match your filter
+          </p>
+          <p className="text-xs text-slate-400 mt-1">
+            Try resetting your category or status filters.
+          </p>
           <button
             onClick={() => {
-              setSelectedCategory('ALL');
-              setSelectedStatus('ALL');
+              setSelectedCategory("ALL");
+              setSelectedStatus("ALL");
             }}
             className="mt-4 px-4 py-2 text-xs font-bold text-[#23055c] bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors cursor-pointer"
           >
             Reset Filters
           </button>
         </div>
-      ) : viewMode === 'grid' ? (
+      ) : viewMode === "grid" ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
           {filteredResources.map((res) => (
             <ResourceCard

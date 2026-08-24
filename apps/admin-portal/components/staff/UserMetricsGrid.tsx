@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { ShieldAlert, Radio, Mail, TrendingUp } from 'lucide-react';
+import React from "react";
+import { ShieldAlert, Radio, Mail, TrendingUp } from "lucide-react";
 
 interface UserMetricsGridProps {
   totalAdmins: number;
@@ -47,7 +47,9 @@ export const UserMetricsGrid: React.FC<UserMetricsGridProps> = ({
           </div>
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200">
             <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-            <span className="text-[10px] font-bold text-emerald-700 uppercase">Live</span>
+            <span className="text-[10px] font-bold text-emerald-700 uppercase">
+              Live
+            </span>
           </div>
         </div>
         <div>

@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import { Modal, Button, Input } from '@daih/ui';
+import React, { useState, useEffect } from "react";
+import { Modal, Button, Input } from "@daih/ui";
 import {
   FacilityResource,
   ResourceCategory,
@@ -10,28 +10,47 @@ import {
   UpdatePricingPlanDTO,
   CreateBlackoutDTO,
   UpsertScheduleDTO,
-} from '@daih/types';
-import { Trash2, Plus, CalendarOff, Tag, Wrench, Image as ImageIcon, Pencil, Check, X, Loader2, Clock, Sparkles } from 'lucide-react';
+} from "@daih/types";
+import {
+  Trash2,
+  Plus,
+  CalendarOff,
+  Tag,
+  Wrench,
+  Image as ImageIcon,
+  Pencil,
+  Check,
+  X,
+  Loader2,
+  Clock,
+  Sparkles,
+} from "lucide-react";
 
 const CATEGORIES: { label: string; value: ResourceCategory }[] = [
-  { label: 'Flex Desk', value: ResourceCategory.FLEX_DESK },
-  { label: 'Dedicated Desk', value: ResourceCategory.DEDICATED_DESK },
-  { label: 'Private Office / Mini Conference', value: ResourceCategory.OFFICE_SUITE },
-  { label: 'Training / Meeting Room', value: ResourceCategory.TRAINING_ROOM },
-  { label: 'Rooftop Lounge', value: ResourceCategory.ROOFTOP_LOUNGE },
-  { label: 'Studio', value: ResourceCategory.STUDIO },
+  { label: "Flex Desk", value: ResourceCategory.FLEX_DESK },
+  { label: "Dedicated Desk", value: ResourceCategory.DEDICATED_DESK },
+  {
+    label: "Private Office / Mini Conference",
+    value: ResourceCategory.OFFICE_SUITE,
+  },
+  { label: "Training / Meeting Room", value: ResourceCategory.TRAINING_ROOM },
+  { label: "Rooftop Lounge", value: ResourceCategory.ROOFTOP_LOUNGE },
+  { label: "Studio", value: ResourceCategory.STUDIO },
 ];
 
 const IMAGE_PRESETS = [
-  { label: 'Flex Desk (Open Plan)', url: '/images/search/2.jpg' },
-  { label: 'Dedicated Desk (Workstation)', url: '/images/search/1.jpg' },
-  { label: 'Private Office (Executive)', url: '/images/search/3.jpg' },
-  { label: 'Training / Meeting Room', url: '/images/search/5.jpg' },
-  { label: 'Rooftop Lounge & Terrace', url: '/images/search/6.jpg' },
-  { label: 'Studio & Production', url: '/images/search/4.jpg' },
-  { label: 'Podcast Studio Suite', url: '/images/misc/space-type-podcast.jpg' },
-  { label: 'Photo & Video Studio', url: '/images/misc/space-type-photo.jpg' },
-  { label: 'Streaming Broadcast Hub', url: '/images/misc/space-type-streaming.jpg' },
+  { label: "Flex Desk (Open Plan)", url: "/images/search/2.jpg" },
+  { label: "Dedicated Desk (Workstation)", url: "/images/search/1.jpg" },
+  { label: "Private Office (Executive)", url: "/images/search/3.jpg" },
+  { label: "Training / Meeting Room", url: "/images/search/5.jpg" },
+  { label: "Rooftop Lounge & Terrace", url: "/images/search/6.jpg" },
+  { label: "Studio & Production", url: "/images/search/4.jpg" },
+  { label: "Podcast Studio Suite", url: "/images/misc/space-type-podcast.jpg" },
+  { label: "Photo & Video Studio", url: "/images/misc/space-type-photo.jpg" },
+  {
+    label: "Streaming Broadcast Hub",
+    url: "/images/misc/space-type-streaming.jpg",
+  },
 ];
 
 interface AddEditResourceModalProps {
@@ -52,54 +71,70 @@ export function AddEditResourceModal({
   submitting,
 }: AddEditResourceModalProps) {
   const [formData, setFormData] = useState<CreateResourceDTO>({
-    name: '',
-    slug: '',
+    name: "",
+    slug: "",
     category: ResourceCategory.FLEX_DESK,
-    description: '',
+    description: "",
     capacity: 1,
-    location: '',
-    amenities: ['High-Speed Internet/Wi-Fi', '24/7 Power supply', 'Water (Hot/Cold)'],
-    imageUrl: '/images/search/2.jpg',
+    location: "",
+    amenities: [
+      "High-Speed Internet/Wi-Fi",
+      "24/7 Power supply",
+      "Water (Hot/Cold)",
+    ],
+    imageUrl: "/images/search/2.jpg",
     isPopular: false,
     isActive: true,
   });
 
-  const [amenitiesInput, setAmenitiesInput] = useState('');
+  const [amenitiesInput, setAmenitiesInput] = useState("");
 
   // Synchronize form values whenever modal opens or resourceToEdit changes
   useEffect(() => {
     if (isOpen) {
       if (resourceToEdit) {
         // Prefill full details on edit
-        const defaultCategory = (resourceToEdit.category as ResourceCategory) || ResourceCategory.FLEX_DESK;
+        const defaultCategory =
+          (resourceToEdit.category as ResourceCategory) ||
+          ResourceCategory.FLEX_DESK;
         setFormData({
-          name: resourceToEdit.name || '',
-          slug: resourceToEdit.slug || '',
+          name: resourceToEdit.name || "",
+          slug: resourceToEdit.slug || "",
           category: defaultCategory,
-          description: resourceToEdit.description || '',
+          description: resourceToEdit.description || "",
           capacity: resourceToEdit.capacity || 1,
-          location: resourceToEdit.location || '',
-          amenities: resourceToEdit.amenities || ['High-Speed Internet/Wi-Fi', '24/7 Power supply', 'Water (Hot/Cold)'],
-          imageUrl: resourceToEdit.imageUrl || '/images/search/2.jpg',
+          location: resourceToEdit.location || "",
+          amenities: resourceToEdit.amenities || [
+            "High-Speed Internet/Wi-Fi",
+            "24/7 Power supply",
+            "Water (Hot/Cold)",
+          ],
+          imageUrl: resourceToEdit.imageUrl || "/images/search/2.jpg",
           isPopular: Boolean(resourceToEdit.isPopular),
           isActive: resourceToEdit.isActive !== false,
         });
-        setAmenitiesInput((resourceToEdit.amenities || []).join(', '));
+        setAmenitiesInput((resourceToEdit.amenities || []).join(", "));
       } else {
         // Reset to clean blank form on add
         setFormData({
-          name: '',
-          slug: '',
+          name: "",
+          slug: "",
           category: ResourceCategory.FLEX_DESK,
-          description: '',
+          description: "",
           capacity: 1,
-          location: '',
-          amenities: ['High-Speed Internet/Wi-Fi', '24/7 Power supply', 'Water (Hot/Cold)'],
-          imageUrl: '/images/search/2.jpg',
+          location: "",
+          amenities: [
+            "High-Speed Internet/Wi-Fi",
+            "24/7 Power supply",
+            "Water (Hot/Cold)",
+          ],
+          imageUrl: "/images/search/2.jpg",
           isPopular: false,
           isActive: true,
         });
-        setAmenitiesInput('High-Speed Internet/Wi-Fi, 24/7 Power supply, Water (Hot/Cold)');
+        setAmenitiesInput(
+          "High-Speed Internet/Wi-Fi, 24/7 Power supply, Water (Hot/Cold)",
+        );
       }
     }
   }, [isOpen, resourceToEdit]);
@@ -109,7 +144,7 @@ export function AddEditResourceModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const parsedAmenities = amenitiesInput
-      .split(',')
+      .split(",")
       .map((a) => a.trim())
       .filter(Boolean);
 
@@ -125,12 +160,18 @@ export function AddEditResourceModal({
       isOpen={isOpen}
       onClose={onClose}
       className="max-w-2xl"
-      title={resourceToEdit ? `Edit Details: ${resourceToEdit.name}` : 'Create New Workspace Resource'}
+      title={
+        resourceToEdit
+          ? `Edit Details: ${resourceToEdit.name}`
+          : "Create New Workspace Resource"
+      }
     >
       <form onSubmit={handleSubmit} className="space-y-4 text-xs">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className="font-semibold text-slate-700 block mb-1">Resource Name *</label>
+            <label className="font-semibold text-slate-700 block mb-1">
+              Resource Name *
+            </label>
             <Input
               required
               value={formData.name}
@@ -138,8 +179,8 @@ export function AddEditResourceModal({
                 const name = e.target.value;
                 const autoSlug = name
                   .toLowerCase()
-                  .replace(/[^a-z0-9]+/g, '-')
-                  .replace(/(^-|-$)/g, '');
+                  .replace(/[^a-z0-9]+/g, "-")
+                  .replace(/(^-|-$)/g, "");
                 setFormData((prev) => ({
                   ...prev,
                   name,
@@ -151,11 +192,15 @@ export function AddEditResourceModal({
           </div>
 
           <div>
-            <label className="font-semibold text-slate-700 block mb-1">URL Slug *</label>
+            <label className="font-semibold text-slate-700 block mb-1">
+              URL Slug *
+            </label>
             <Input
               required
               value={formData.slug}
-              onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, slug: e.target.value })
+              }
               placeholder="e.g. flex-desk"
             />
           </div>
@@ -163,11 +208,18 @@ export function AddEditResourceModal({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className="font-semibold text-slate-700 block mb-1">Category *</label>
+            <label className="font-semibold text-slate-700 block mb-1">
+              Category *
+            </label>
             <select
               className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs bg-white text-slate-900"
               value={formData.category}
-              onChange={(e) => setFormData({ ...formData, category: e.target.value as ResourceCategory })}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  category: e.target.value as ResourceCategory,
+                })
+              }
             >
               {CATEGORIES.map((c) => (
                 <option key={c.value} value={c.value}>
@@ -178,23 +230,31 @@ export function AddEditResourceModal({
           </div>
 
           <div>
-            <label className="font-semibold text-slate-700 block mb-1">Total Capacity (Persons) *</label>
+            <label className="font-semibold text-slate-700 block mb-1">
+              Total Capacity (Persons) *
+            </label>
             <Input
               type="number"
               required
               min={1}
               value={formData.capacity}
-              onChange={(e) => setFormData({ ...formData, capacity: Number(e.target.value) })}
+              onChange={(e) =>
+                setFormData({ ...formData, capacity: Number(e.target.value) })
+              }
             />
           </div>
         </div>
 
         <div>
-          <label className="font-semibold text-slate-700 block mb-1">Physical Location *</label>
+          <label className="font-semibold text-slate-700 block mb-1">
+            Physical Location *
+          </label>
           <Input
             required
             value={formData.location}
-            onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+            onChange={(e) =>
+              setFormData({ ...formData, location: e.target.value })
+            }
             placeholder="e.g. Ground Floor, Innovation Lounge"
           />
         </div>
@@ -208,7 +268,9 @@ export function AddEditResourceModal({
             <select
               className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs bg-white text-slate-900"
               value={formData.imageUrl}
-              onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, imageUrl: e.target.value })
+              }
             >
               {IMAGE_PRESETS.map((p) => (
                 <option key={p.url} value={p.url}>
@@ -217,8 +279,10 @@ export function AddEditResourceModal({
               ))}
             </select>
             <Input
-              value={formData.imageUrl || ''}
-              onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
+              value={formData.imageUrl || ""}
+              onChange={(e) =>
+                setFormData({ ...formData, imageUrl: e.target.value })
+              }
               placeholder="Or enter custom image URL"
             />
           </div>
@@ -229,7 +293,7 @@ export function AddEditResourceModal({
                 alt="Preview"
                 className="w-full h-full object-cover"
                 onError={(e) => {
-                  (e.target as HTMLImageElement).src = '/images/search/2.jpg';
+                  (e.target as HTMLImageElement).src = "/images/search/2.jpg";
                 }}
               />
             </div>
@@ -237,19 +301,25 @@ export function AddEditResourceModal({
         </div>
 
         <div>
-          <label className="font-semibold text-slate-700 block mb-1">Description *</label>
+          <label className="font-semibold text-slate-700 block mb-1">
+            Description *
+          </label>
           <textarea
             required
             rows={3}
             className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs bg-white text-slate-900"
             value={formData.description}
-            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            onChange={(e) =>
+              setFormData({ ...formData, description: e.target.value })
+            }
             placeholder="Detailed description of features and layout..."
           />
         </div>
 
         <div>
-          <label className="font-semibold text-slate-700 block mb-1">Amenities (comma-separated)</label>
+          <label className="font-semibold text-slate-700 block mb-1">
+            Amenities (comma-separated)
+          </label>
           <Input
             value={amenitiesInput}
             onChange={(e) => setAmenitiesInput(e.target.value)}
@@ -262,20 +332,28 @@ export function AddEditResourceModal({
             <input
               type="checkbox"
               checked={formData.isActive}
-              onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+              onChange={(e) =>
+                setFormData({ ...formData, isActive: e.target.checked })
+              }
               className="rounded border-slate-300 text-[#23055c]"
             />
-            <span className="text-slate-700 font-medium">Active (Visible in catalogue)</span>
+            <span className="text-slate-700 font-medium">
+              Active (Visible in catalogue)
+            </span>
           </label>
 
           <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"
               checked={formData.isPopular}
-              onChange={(e) => setFormData({ ...formData, isPopular: e.target.checked })}
+              onChange={(e) =>
+                setFormData({ ...formData, isPopular: e.target.checked })
+              }
               className="rounded border-slate-300 text-[#23055c]"
             />
-            <span className="text-slate-700 font-medium">Featured / Popular Badge</span>
+            <span className="text-slate-700 font-medium">
+              Featured / Popular Badge
+            </span>
           </label>
         </div>
 
@@ -302,7 +380,7 @@ export function AddEditResourceModal({
               isLoading={submitting}
               className="bg-[#23055c] hover:bg-[#392271] text-white"
             >
-              {resourceToEdit ? 'Save Changes' : 'Create Workspace'}
+              {resourceToEdit ? "Save Changes" : "Create Workspace"}
             </Button>
           </div>
         </div>
@@ -326,14 +404,16 @@ export function PricingManagementModal({
   onDeletePlan,
 }: PricingManagementModalProps) {
   const [newPlan, setNewPlan] = useState<CreatePricingPlanDTO>({
-    planName: '',
+    planName: "",
     price: 0,
-    currency: 'NGN',
+    currency: "NGN",
     durationDays: 1,
     isPopular: false,
     isActive: true,
   });
-  const [durationType, setDurationType] = useState<'days' | 'hours' | 'months'>('days');
+  const [durationType, setDurationType] = useState<"days" | "hours" | "months">(
+    "days",
+  );
   const [durationValue, setDurationValue] = useState<number>(1);
   const [submitting, setSubmitting] = useState(false);
 
@@ -343,13 +423,13 @@ export function PricingManagementModal({
     planName: string;
     price: number;
     isPopular: boolean;
-    durationType: 'days' | 'hours' | 'months';
+    durationType: "days" | "hours" | "months";
     durationValue: number;
   }>({
-    planName: '',
+    planName: "",
     price: 0,
     isPopular: false,
-    durationType: 'days',
+    durationType: "days",
     durationValue: 1,
   });
   const [updatingPlan, setUpdatingPlan] = useState(false);
@@ -358,21 +438,21 @@ export function PricingManagementModal({
 
   const handleStartEdit = (plan: any) => {
     setEditingPlanId(plan.id);
-    let dType: 'days' | 'hours' | 'months' = 'days';
+    let dType: "days" | "hours" | "months" = "days";
     let dVal = 1;
     if (plan.durationHours) {
-      dType = 'hours';
+      dType = "hours";
       dVal = plan.durationHours;
     } else if (plan.durationMonths) {
-      dType = 'months';
+      dType = "months";
       dVal = plan.durationMonths;
     } else if (plan.durationDays) {
-      dType = 'days';
+      dType = "days";
       dVal = plan.durationDays;
     }
 
     setEditFormData({
-      planName: plan.planName || '',
+      planName: plan.planName || "",
       price: Number(plan.price) || 0,
       isPopular: Boolean(plan.isPopular),
       durationType: dType,
@@ -386,7 +466,12 @@ export function PricingManagementModal({
 
   const handleSaveEdit = async (planId: string) => {
     if (!onUpdatePlan) return;
-    if (!editFormData.planName.trim() || !editFormData.price || Number(editFormData.price) <= 0) return;
+    if (
+      !editFormData.planName.trim() ||
+      !editFormData.price ||
+      Number(editFormData.price) <= 0
+    )
+      return;
 
     setUpdatingPlan(true);
     try {
@@ -394,9 +479,18 @@ export function PricingManagementModal({
         planName: editFormData.planName.trim(),
         price: Number(editFormData.price),
         isPopular: Boolean(editFormData.isPopular),
-        durationDays: editFormData.durationType === 'days' ? Number(editFormData.durationValue) || 1 : undefined,
-        durationHours: editFormData.durationType === 'hours' ? Number(editFormData.durationValue) || 1 : undefined,
-        durationMonths: editFormData.durationType === 'months' ? Number(editFormData.durationValue) || 1 : undefined,
+        durationDays:
+          editFormData.durationType === "days"
+            ? Number(editFormData.durationValue) || 1
+            : undefined,
+        durationHours:
+          editFormData.durationType === "hours"
+            ? Number(editFormData.durationValue) || 1
+            : undefined,
+        durationMonths:
+          editFormData.durationType === "months"
+            ? Number(editFormData.durationValue) || 1
+            : undefined,
       };
       await onUpdatePlan(planId, payload);
       setEditingPlanId(null);
@@ -416,17 +510,26 @@ export function PricingManagementModal({
     const payload: CreatePricingPlanDTO = {
       planName: newPlan.planName.trim(),
       price: Number(newPlan.price),
-      currency: 'NGN',
+      currency: "NGN",
       isPopular: Boolean(newPlan.isPopular),
       isActive: true,
-      durationDays: durationType === 'days' ? Number(durationValue) || 1 : undefined,
-      durationHours: durationType === 'hours' ? Number(durationValue) || 1 : undefined,
-      durationMonths: durationType === 'months' ? Number(durationValue) || 1 : undefined,
+      durationDays:
+        durationType === "days" ? Number(durationValue) || 1 : undefined,
+      durationHours:
+        durationType === "hours" ? Number(durationValue) || 1 : undefined,
+      durationMonths:
+        durationType === "months" ? Number(durationValue) || 1 : undefined,
     };
 
     try {
       await onAddPlan(resource.id, payload);
-      setNewPlan({ planName: '', price: 0, currency: 'NGN', isPopular: false, isActive: true });
+      setNewPlan({
+        planName: "",
+        price: 0,
+        currency: "NGN",
+        isPopular: false,
+        isActive: true,
+      });
       setDurationValue(1);
     } catch {
       // Error handled by parent toast
@@ -461,7 +564,8 @@ export function PricingManagementModal({
                 <tbody className="divide-y divide-slate-100">
                   {resource.pricing.map((plan) => {
                     const isEditing = editingPlanId === plan.id;
-                    const currencySymbol = plan.currency === 'NGN' ? '₦' : plan.currency || '₦';
+                    const currencySymbol =
+                      plan.currency === "NGN" ? "₦" : plan.currency || "₦";
 
                     if (isEditing) {
                       return (
@@ -470,7 +574,12 @@ export function PricingManagementModal({
                             <input
                               type="text"
                               value={editFormData.planName}
-                              onChange={(e) => setEditFormData({ ...editFormData, planName: e.target.value })}
+                              onChange={(e) =>
+                                setEditFormData({
+                                  ...editFormData,
+                                  planName: e.target.value,
+                                })
+                              }
                               className="w-full px-2 py-1 border border-purple-300 rounded text-xs bg-white text-slate-900 font-bold"
                               placeholder="Plan name"
                             />
@@ -478,7 +587,12 @@ export function PricingManagementModal({
                               <input
                                 type="checkbox"
                                 checked={editFormData.isPopular}
-                                onChange={(e) => setEditFormData({ ...editFormData, isPopular: e.target.checked })}
+                                onChange={(e) =>
+                                  setEditFormData({
+                                    ...editFormData,
+                                    isPopular: e.target.checked,
+                                  })
+                                }
                                 className="rounded text-[#23055c] scale-90"
                               />
                               Popular
@@ -490,12 +604,22 @@ export function PricingManagementModal({
                                 type="number"
                                 min={1}
                                 value={editFormData.durationValue}
-                                onChange={(e) => setEditFormData({ ...editFormData, durationValue: Number(e.target.value) })}
+                                onChange={(e) =>
+                                  setEditFormData({
+                                    ...editFormData,
+                                    durationValue: Number(e.target.value),
+                                  })
+                                }
                                 className="w-14 px-1.5 py-1 border border-purple-300 rounded text-xs bg-white text-slate-900 text-center"
                               />
                               <select
                                 value={editFormData.durationType}
-                                onChange={(e) => setEditFormData({ ...editFormData, durationType: e.target.value as any })}
+                                onChange={(e) =>
+                                  setEditFormData({
+                                    ...editFormData,
+                                    durationType: e.target.value as any,
+                                  })
+                                }
                                 className="px-1.5 py-1 border border-purple-300 rounded text-[11px] bg-white text-slate-900"
                               >
                                 <option value="days">Days</option>
@@ -506,12 +630,19 @@ export function PricingManagementModal({
                           </td>
                           <td className="p-2.5 text-right">
                             <div className="flex items-center justify-end gap-1">
-                              <span className="font-bold text-slate-600 text-xs">₦</span>
+                              <span className="font-bold text-slate-600 text-xs">
+                                ₦
+                              </span>
                               <input
                                 type="number"
                                 min={100}
-                                value={editFormData.price || ''}
-                                onChange={(e) => setEditFormData({ ...editFormData, price: Number(e.target.value) })}
+                                value={editFormData.price || ""}
+                                onChange={(e) =>
+                                  setEditFormData({
+                                    ...editFormData,
+                                    price: Number(e.target.value),
+                                  })
+                                }
                                 className="w-24 px-2 py-1 border border-purple-300 rounded text-xs bg-white text-slate-900 font-bold text-right"
                                 placeholder="Price"
                               />
@@ -525,7 +656,11 @@ export function PricingManagementModal({
                                 className="px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] inline-flex items-center gap-1 shadow-xs cursor-pointer transition-colors"
                                 title="Save changes"
                               >
-                                {updatingPlan ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+                                {updatingPlan ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <Check className="h-3 w-3" />
+                                )}
                                 Save
                               </button>
                               <button
@@ -543,7 +678,10 @@ export function PricingManagementModal({
                     }
 
                     return (
-                      <tr key={plan.id} className="hover:bg-slate-50/80 transition-colors">
+                      <tr
+                        key={plan.id}
+                        className="hover:bg-slate-50/80 transition-colors"
+                      >
                         <td className="p-2.5 font-bold text-slate-900">
                           {plan.planName}
                           {plan.isPopular && (
@@ -553,12 +691,19 @@ export function PricingManagementModal({
                           )}
                         </td>
                         <td className="p-2.5 text-slate-600 font-medium">
-                          {plan.durationHours ? `${plan.durationHours} Hour(s)` : ''}
-                          {plan.durationDays ? `${plan.durationDays} Day(s)` : ''}
-                          {plan.durationMonths ? `${plan.durationMonths} Month(s)` : ''}
+                          {plan.durationHours
+                            ? `${plan.durationHours} Hour(s)`
+                            : ""}
+                          {plan.durationDays
+                            ? `${plan.durationDays} Day(s)`
+                            : ""}
+                          {plan.durationMonths
+                            ? `${plan.durationMonths} Month(s)`
+                            : ""}
                         </td>
                         <td className="p-2.5 text-right font-extrabold text-[#23055c]">
-                          {currencySymbol}{Number(plan.price).toLocaleString()}
+                          {currencySymbol}
+                          {Number(plan.price).toLocaleString()}
                         </td>
                         <td className="p-2.5 text-right whitespace-nowrap">
                           <div className="flex items-center justify-end gap-1">
@@ -591,28 +736,39 @@ export function PricingManagementModal({
           )}
         </div>
 
-        <form onSubmit={handleAdd} className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+        <form
+          onSubmit={handleAdd}
+          className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3"
+        >
           <h4 className="font-bold text-slate-800">Add New Pricing Tier</h4>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="font-semibold text-slate-700 block mb-1">Plan Name *</label>
+              <label className="font-semibold text-slate-700 block mb-1">
+                Plan Name *
+              </label>
               <Input
                 required
                 value={newPlan.planName}
-                onChange={(e) => setNewPlan({ ...newPlan, planName: e.target.value })}
+                onChange={(e) =>
+                  setNewPlan({ ...newPlan, planName: e.target.value })
+                }
                 placeholder="e.g. Daily Pass, Monthly Dedicated, Hourly Rate"
               />
             </div>
 
             <div>
-              <label className="font-semibold text-slate-700 block mb-1">Price (₦ NGN) *</label>
+              <label className="font-semibold text-slate-700 block mb-1">
+                Price (₦ NGN) *
+              </label>
               <Input
                 type="number"
                 required
                 min={100}
-                value={newPlan.price || ''}
-                onChange={(e) => setNewPlan({ ...newPlan, price: Number(e.target.value) })}
+                value={newPlan.price || ""}
+                onChange={(e) =>
+                  setNewPlan({ ...newPlan, price: Number(e.target.value) })
+                }
                 placeholder="e.g. 4000"
               />
             </div>
@@ -620,7 +776,9 @@ export function PricingManagementModal({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="font-semibold text-slate-700 block mb-1">Duration Type *</label>
+              <label className="font-semibold text-slate-700 block mb-1">
+                Duration Type *
+              </label>
               <select
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs bg-white text-slate-900"
                 value={durationType}
@@ -633,7 +791,9 @@ export function PricingManagementModal({
             </div>
 
             <div>
-              <label className="font-semibold text-slate-700 block mb-1">Duration Units *</label>
+              <label className="font-semibold text-slate-700 block mb-1">
+                Duration Units *
+              </label>
               <Input
                 type="number"
                 required
@@ -649,10 +809,14 @@ export function PricingManagementModal({
               <input
                 type="checkbox"
                 checked={newPlan.isPopular}
-                onChange={(e) => setNewPlan({ ...newPlan, isPopular: e.target.checked })}
+                onChange={(e) =>
+                  setNewPlan({ ...newPlan, isPopular: e.target.checked })
+                }
                 className="rounded border-slate-300 text-[#23055c]"
               />
-              <span className="text-slate-700 font-medium">Highlight / Recommended Plan</span>
+              <span className="text-slate-700 font-medium">
+                Highlight / Recommended Plan
+              </span>
             </label>
 
             <Button
@@ -673,7 +837,10 @@ export function PricingManagementModal({
 interface BlackoutManagementModalProps {
   resource: FacilityResource | null;
   onClose: () => void;
-  onAddBlackout: (resourceId: string, blackout: CreateBlackoutDTO) => Promise<void>;
+  onAddBlackout: (
+    resourceId: string,
+    blackout: CreateBlackoutDTO,
+  ) => Promise<void>;
   onDeleteBlackout: (blackoutId: string) => Promise<void>;
 }
 
@@ -684,9 +851,9 @@ export function BlackoutManagementModal({
   onDeleteBlackout,
 }: BlackoutManagementModalProps) {
   const [newBlackout, setNewBlackout] = useState<CreateBlackoutDTO>({
-    startDate: '',
-    endDate: '',
-    reason: '',
+    startDate: "",
+    endDate: "",
+    reason: "",
     isActive: true,
   });
   const [submitting, setSubmitting] = useState(false);
@@ -703,18 +870,28 @@ export function BlackoutManagementModal({
         reason: newBlackout.reason,
         isActive: true,
       });
-      setNewBlackout({ startDate: '', endDate: '', reason: '', isActive: true });
+      setNewBlackout({
+        startDate: "",
+        endDate: "",
+        reason: "",
+        isActive: true,
+      });
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <Modal isOpen={true} onClose={onClose} title={`Maintenance & Blackouts: ${resource.name}`}>
+    <Modal
+      isOpen={true}
+      onClose={onClose}
+      title={`Maintenance & Blackouts: ${resource.name}`}
+    >
       <div className="space-y-6 text-xs">
         <div>
           <h4 className="font-bold text-slate-800 mb-2 flex items-center gap-1.5">
-            <Wrench className="h-4 w-4 text-amber-600" /> Active Blackout Windows
+            <Wrench className="h-4 w-4 text-amber-600" /> Active Blackout
+            Windows
           </h4>
           {resource.blackouts && resource.blackouts.length > 0 ? (
             <div className="border border-slate-200 rounded-lg overflow-hidden">
@@ -729,9 +906,12 @@ export function BlackoutManagementModal({
                 <tbody className="divide-y divide-slate-100">
                   {resource.blackouts.map((b) => (
                     <tr key={b.id}>
-                      <td className="p-2.5 font-bold text-slate-900">{b.reason}</td>
+                      <td className="p-2.5 font-bold text-slate-900">
+                        {b.reason}
+                      </td>
                       <td className="p-2.5 text-slate-600 font-mono text-[11px]">
-                        {new Date(b.startDate).toLocaleDateString()} – {new Date(b.endDate).toLocaleDateString()}
+                        {new Date(b.startDate).toLocaleDateString()} –{" "}
+                        {new Date(b.endDate).toLocaleDateString()}
                       </td>
                       <td className="p-2.5 text-right">
                         <button
@@ -754,37 +934,54 @@ export function BlackoutManagementModal({
           )}
         </div>
 
-        <form onSubmit={handleAdd} className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
-          <h4 className="font-bold text-slate-800">Schedule New Maintenance Window</h4>
+        <form
+          onSubmit={handleAdd}
+          className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3"
+        >
+          <h4 className="font-bold text-slate-800">
+            Schedule New Maintenance Window
+          </h4>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="font-semibold text-slate-700 block mb-1">Start Date *</label>
+              <label className="font-semibold text-slate-700 block mb-1">
+                Start Date *
+              </label>
               <Input
                 type="date"
                 required
                 value={newBlackout.startDate}
-                onChange={(e) => setNewBlackout({ ...newBlackout, startDate: e.target.value })}
+                onChange={(e) =>
+                  setNewBlackout({ ...newBlackout, startDate: e.target.value })
+                }
               />
             </div>
 
             <div>
-              <label className="font-semibold text-slate-700 block mb-1">End Date *</label>
+              <label className="font-semibold text-slate-700 block mb-1">
+                End Date *
+              </label>
               <Input
                 type="date"
                 required
                 value={newBlackout.endDate}
-                onChange={(e) => setNewBlackout({ ...newBlackout, endDate: e.target.value })}
+                onChange={(e) =>
+                  setNewBlackout({ ...newBlackout, endDate: e.target.value })
+                }
               />
             </div>
           </div>
 
           <div>
-            <label className="font-semibold text-slate-700 block mb-1">Reason / Note *</label>
+            <label className="font-semibold text-slate-700 block mb-1">
+              Reason / Note *
+            </label>
             <Input
               required
               value={newBlackout.reason}
-              onChange={(e) => setNewBlackout({ ...newBlackout, reason: e.target.value })}
+              onChange={(e) =>
+                setNewBlackout({ ...newBlackout, reason: e.target.value })
+              }
               placeholder="e.g. A/V Equipment repair / Acoustic soundproofing upgrade"
             />
           </div>
@@ -828,7 +1025,9 @@ export function ResourceFilterModal({
     <Modal isOpen={isOpen} onClose={onClose} title="Filter Workspace Directory">
       <div className="space-y-4 text-xs">
         <div>
-          <label className="font-semibold text-slate-700 block mb-1.5">Workspace Category</label>
+          <label className="font-semibold text-slate-700 block mb-1.5">
+            Workspace Category
+          </label>
           <select
             className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs bg-white text-slate-900"
             value={selectedCategory}
@@ -844,7 +1043,9 @@ export function ResourceFilterModal({
         </div>
 
         <div>
-          <label className="font-semibold text-slate-700 block mb-1.5">Operational Status</label>
+          <label className="font-semibold text-slate-700 block mb-1.5">
+            Operational Status
+          </label>
           <select
             className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs bg-white text-slate-900"
             value={selectedStatus}
@@ -861,8 +1062,8 @@ export function ResourceFilterModal({
           <Button
             variant="outline"
             onClick={() => {
-              onSelectCategory('ALL');
-              onSelectStatus('ALL');
+              onSelectCategory("ALL");
+              onSelectStatus("ALL");
               onClose();
             }}
           >
@@ -904,18 +1105,28 @@ export function DeleteResourceModal({
         <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3 text-red-800">
           <Trash2 className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
           <div>
-            <h4 className="font-bold text-sm text-red-900 mb-1">Confirm Resource Deletion</h4>
+            <h4 className="font-bold text-sm text-red-900 mb-1">
+              Confirm Resource Deletion
+            </h4>
             <p className="text-red-700">
-              Are you sure you want to delete <strong>{resource.name}</strong> (<span className="font-mono">{resource.slug}</span>)?
+              Are you sure you want to delete <strong>{resource.name}</strong> (
+              <span className="font-mono">{resource.slug}</span>)?
             </p>
             <p className="text-red-600 mt-1.5 text-[11px] leading-relaxed">
-              This action will remove the workspace from the live member booking catalogue. Any associated pricing tiers and schedules will also be removed.
+              This action will remove the workspace from the live member booking
+              catalogue. Any associated pricing tiers and schedules will also be
+              removed.
             </p>
           </div>
         </div>
 
         <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
-          <Button variant="outline" type="button" onClick={onClose} disabled={submitting}>
+          <Button
+            variant="outline"
+            type="button"
+            onClick={onClose}
+            disabled={submitting}
+          >
             Cancel
           </Button>
           <Button
@@ -934,13 +1145,13 @@ export function DeleteResourceModal({
 }
 
 const DAYS_OF_WEEK = [
-  { index: 1, name: 'Monday', short: 'Mon' },
-  { index: 2, name: 'Tuesday', short: 'Tue' },
-  { index: 3, name: 'Wednesday', short: 'Wed' },
-  { index: 4, name: 'Thursday', short: 'Thu' },
-  { index: 5, name: 'Friday', short: 'Fri' },
-  { index: 6, name: 'Saturday', short: 'Sat' },
-  { index: 0, name: 'Sunday', short: 'Sun' },
+  { index: 1, name: "Monday", short: "Mon" },
+  { index: 2, name: "Tuesday", short: "Tue" },
+  { index: 3, name: "Wednesday", short: "Wed" },
+  { index: 4, name: "Thursday", short: "Thu" },
+  { index: 5, name: "Friday", short: "Fri" },
+  { index: 6, name: "Saturday", short: "Sat" },
+  { index: 0, name: "Sunday", short: "Sun" },
 ];
 
 export interface ScheduleManagementModalProps {
@@ -956,19 +1167,23 @@ export function ScheduleManagementModal({
 }: ScheduleManagementModalProps) {
   const [schedules, setSchedules] = useState<UpsertScheduleDTO[]>([]);
   const [submitting, setSubmitting] = useState(false);
-  const [activePreset, setActivePreset] = useState<'standard' | '24-7' | 'weekdays' | null>(null);
+  const [activePreset, setActivePreset] = useState<
+    "standard" | "24-7" | "weekdays" | null
+  >(null);
 
   useEffect(() => {
     if (!resource) return;
 
     // Pre-populate with existing schedule if present, otherwise default business hours
     const initial: UpsertScheduleDTO[] = DAYS_OF_WEEK.map((day) => {
-      const existing = (resource.schedules || []).find((s) => s.dayOfWeek === day.index);
+      const existing = (resource.schedules || []).find(
+        (s) => s.dayOfWeek === day.index,
+      );
       if (existing) {
         return {
           dayOfWeek: day.index,
-          openTime: existing.openTime || '08:00',
-          closeTime: existing.closeTime || '20:00',
+          openTime: existing.openTime || "08:00",
+          closeTime: existing.closeTime || "20:00",
           is24Hours: Boolean(existing.is24Hours),
           isClosed: Boolean(existing.isClosed),
         };
@@ -976,12 +1191,30 @@ export function ScheduleManagementModal({
 
       // Default presets: Mon-Fri 08:00-20:00, Sat 09:00-17:00, Sun Closed
       if (day.index === 0) {
-        return { dayOfWeek: 0, openTime: '00:00', closeTime: '00:00', is24Hours: false, isClosed: true };
+        return {
+          dayOfWeek: 0,
+          openTime: "00:00",
+          closeTime: "00:00",
+          is24Hours: false,
+          isClosed: true,
+        };
       }
       if (day.index === 6) {
-        return { dayOfWeek: 6, openTime: '09:00', closeTime: '17:00', is24Hours: false, isClosed: false };
+        return {
+          dayOfWeek: 6,
+          openTime: "09:00",
+          closeTime: "17:00",
+          is24Hours: false,
+          isClosed: false,
+        };
       }
-      return { dayOfWeek: day.index, openTime: '08:00', closeTime: '20:00', is24Hours: false, isClosed: false };
+      return {
+        dayOfWeek: day.index,
+        openTime: "08:00",
+        closeTime: "20:00",
+        is24Hours: false,
+        isClosed: false,
+      };
     });
 
     setSchedules(initial);
@@ -989,41 +1222,76 @@ export function ScheduleManagementModal({
 
   if (!resource) return null;
 
-  const handleUpdateDay = (dayIndex: number, patch: Partial<UpsertScheduleDTO>) => {
+  const handleUpdateDay = (
+    dayIndex: number,
+    patch: Partial<UpsertScheduleDTO>,
+  ) => {
     setActivePreset(null); // Clear preset highlight on manual edit
     setSchedules((prev) =>
-      prev.map((s) => (s.dayOfWeek === dayIndex ? { ...s, ...patch } : s))
+      prev.map((s) => (s.dayOfWeek === dayIndex ? { ...s, ...patch } : s)),
     );
   };
 
-  const handleApplyPreset = (preset: 'standard' | '24-7' | 'weekdays') => {
+  const handleApplyPreset = (preset: "standard" | "24-7" | "weekdays") => {
     setActivePreset(preset);
-    if (preset === 'standard') {
+    if (preset === "standard") {
       setSchedules(
         DAYS_OF_WEEK.map((day) => {
-          if (day.index === 0) return { dayOfWeek: 0, openTime: '00:00', closeTime: '00:00', is24Hours: false, isClosed: true };
-          if (day.index === 6) return { dayOfWeek: 6, openTime: '09:00', closeTime: '17:00', is24Hours: false, isClosed: false };
-          return { dayOfWeek: day.index, openTime: '08:00', closeTime: '20:00', is24Hours: false, isClosed: false };
-        })
+          if (day.index === 0)
+            return {
+              dayOfWeek: 0,
+              openTime: "00:00",
+              closeTime: "00:00",
+              is24Hours: false,
+              isClosed: true,
+            };
+          if (day.index === 6)
+            return {
+              dayOfWeek: 6,
+              openTime: "09:00",
+              closeTime: "17:00",
+              is24Hours: false,
+              isClosed: false,
+            };
+          return {
+            dayOfWeek: day.index,
+            openTime: "08:00",
+            closeTime: "20:00",
+            is24Hours: false,
+            isClosed: false,
+          };
+        }),
       );
-    } else if (preset === '24-7') {
+    } else if (preset === "24-7") {
       setSchedules(
         DAYS_OF_WEEK.map((day) => ({
           dayOfWeek: day.index,
-          openTime: '00:00',
-          closeTime: '23:59',
+          openTime: "00:00",
+          closeTime: "23:59",
           is24Hours: true,
           isClosed: false,
-        }))
+        })),
       );
-    } else if (preset === 'weekdays') {
+    } else if (preset === "weekdays") {
       setSchedules(
         DAYS_OF_WEEK.map((day) => {
           if (day.index === 0 || day.index === 6) {
-            return { dayOfWeek: day.index, openTime: '00:00', closeTime: '00:00', is24Hours: false, isClosed: true };
+            return {
+              dayOfWeek: day.index,
+              openTime: "00:00",
+              closeTime: "00:00",
+              is24Hours: false,
+              isClosed: true,
+            };
           }
-          return { dayOfWeek: day.index, openTime: '08:00', closeTime: '18:00', is24Hours: false, isClosed: false };
-        })
+          return {
+            dayOfWeek: day.index,
+            openTime: "08:00",
+            closeTime: "18:00",
+            is24Hours: false,
+            isClosed: false,
+          };
+        }),
       );
     }
   };
@@ -1058,33 +1326,33 @@ export function ScheduleManagementModal({
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              onClick={() => handleApplyPreset('standard')}
+              onClick={() => handleApplyPreset("standard")}
               className={`px-2.5 py-1 rounded-md border font-semibold text-[11px] transition-colors cursor-pointer shadow-2xs ${
-                activePreset === 'standard'
-                  ? 'bg-indigo-50 border-indigo-300 text-indigo-700'
-                  : 'bg-white border-slate-300 hover:bg-slate-100 text-slate-700'
+                activePreset === "standard"
+                  ? "bg-indigo-50 border-indigo-300 text-indigo-700"
+                  : "bg-white border-slate-300 hover:bg-slate-100 text-slate-700"
               }`}
             >
               Standard (Mon-Sat)
             </button>
             <button
               type="button"
-              onClick={() => handleApplyPreset('24-7')}
+              onClick={() => handleApplyPreset("24-7")}
               className={`px-2.5 py-1 rounded-md border font-semibold text-[11px] transition-colors cursor-pointer shadow-2xs ${
-                activePreset === '24-7'
-                  ? 'bg-indigo-50 border-indigo-300 text-indigo-700'
-                  : 'bg-white border-slate-300 hover:bg-slate-100 text-slate-700'
+                activePreset === "24-7"
+                  ? "bg-indigo-50 border-indigo-300 text-indigo-700"
+                  : "bg-white border-slate-300 hover:bg-slate-100 text-slate-700"
               }`}
             >
               24/7 Unrestricted
             </button>
             <button
               type="button"
-              onClick={() => handleApplyPreset('weekdays')}
+              onClick={() => handleApplyPreset("weekdays")}
               className={`px-2.5 py-1 rounded-md border font-semibold text-[11px] transition-colors cursor-pointer shadow-2xs ${
-                activePreset === 'weekdays'
-                  ? 'bg-indigo-50 border-indigo-300 text-indigo-700'
-                  : 'bg-white border-slate-300 hover:bg-slate-100 text-slate-700'
+                activePreset === "weekdays"
+                  ? "bg-indigo-50 border-indigo-300 text-indigo-700"
+                  : "bg-white border-slate-300 hover:bg-slate-100 text-slate-700"
               }`}
             >
               Weekdays Only
@@ -1106,10 +1374,12 @@ export function ScheduleManagementModal({
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white">
                 {DAYS_OF_WEEK.map((day) => {
-                  const current = schedules.find((s) => s.dayOfWeek === day.index) || {
+                  const current = schedules.find(
+                    (s) => s.dayOfWeek === day.index,
+                  ) || {
                     dayOfWeek: day.index,
-                    openTime: '08:00',
-                    closeTime: '20:00',
+                    openTime: "08:00",
+                    closeTime: "20:00",
                     is24Hours: false,
                     isClosed: false,
                   };
@@ -1118,7 +1388,7 @@ export function ScheduleManagementModal({
                     <tr
                       key={day.index}
                       className={`hover:bg-slate-50/70 transition-colors ${
-                        current.isClosed ? 'bg-slate-50/40 text-slate-400' : ''
+                        current.isClosed ? "bg-slate-50/40 text-slate-400" : ""
                       }`}
                     >
                       <td className="p-3 font-bold text-slate-800">
@@ -1126,10 +1396,10 @@ export function ScheduleManagementModal({
                           <span
                             className={`w-2 h-2 rounded-full ${
                               current.isClosed
-                                ? 'bg-slate-300'
+                                ? "bg-slate-300"
                                 : current.is24Hours
-                                ? 'bg-indigo-500'
-                                : 'bg-emerald-500'
+                                  ? "bg-indigo-500"
+                                  : "bg-emerald-500"
                             }`}
                           />
                           <span>{day.name}</span>
@@ -1138,7 +1408,9 @@ export function ScheduleManagementModal({
 
                       <td className="p-3">
                         {current.isClosed ? (
-                          <span className="text-slate-400 font-medium italic">Closed all day</span>
+                          <span className="text-slate-400 font-medium italic">
+                            Closed all day
+                          </span>
                         ) : current.is24Hours ? (
                           <span className="text-indigo-700 font-bold bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-200/60 inline-flex items-center gap-1">
                             <Sparkles className="h-3 w-3" /> Open 24 Hours
@@ -1149,16 +1421,22 @@ export function ScheduleManagementModal({
                               type="time"
                               value={current.openTime}
                               onChange={(e) =>
-                                handleUpdateDay(day.index, { openTime: e.target.value })
+                                handleUpdateDay(day.index, {
+                                  openTime: e.target.value,
+                                })
                               }
                               className="px-2 py-1 border border-slate-300 rounded-md text-xs bg-white text-slate-900 font-mono font-medium focus:ring-1 focus:ring-purple-500 focus:outline-none"
                             />
-                            <span className="text-slate-400 font-medium">to</span>
+                            <span className="text-slate-400 font-medium">
+                              to
+                            </span>
                             <input
                               type="time"
                               value={current.closeTime}
                               onChange={(e) =>
-                                handleUpdateDay(day.index, { closeTime: e.target.value })
+                                handleUpdateDay(day.index, {
+                                  closeTime: e.target.value,
+                                })
                               }
                               className="px-2 py-1 border border-slate-300 rounded-md text-xs bg-white text-slate-900 font-mono font-medium focus:ring-1 focus:ring-purple-500 focus:outline-none"
                             />
@@ -1174,7 +1452,9 @@ export function ScheduleManagementModal({
                           onChange={(e) =>
                             handleUpdateDay(day.index, {
                               is24Hours: e.target.checked,
-                              isClosed: e.target.checked ? false : current.isClosed,
+                              isClosed: e.target.checked
+                                ? false
+                                : current.isClosed,
                             })
                           }
                           className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer disabled:opacity-30"
@@ -1188,7 +1468,9 @@ export function ScheduleManagementModal({
                           onChange={(e) =>
                             handleUpdateDay(day.index, {
                               isClosed: e.target.checked,
-                              is24Hours: e.target.checked ? false : current.is24Hours,
+                              is24Hours: e.target.checked
+                                ? false
+                                : current.is24Hours,
                             })
                           }
                           className="h-4 w-4 rounded border-slate-300 text-rose-600 focus:ring-rose-500 cursor-pointer"
@@ -1208,7 +1490,12 @@ export function ScheduleManagementModal({
             Bookings are only permitted during active scheduled operating hours.
           </p>
           <div className="flex items-center gap-2">
-            <Button variant="outline" type="button" onClick={onClose} disabled={submitting}>
+            <Button
+              variant="outline"
+              type="button"
+              onClick={onClose}
+              disabled={submitting}
+            >
               Cancel
             </Button>
             <Button

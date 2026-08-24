@@ -1,5 +1,5 @@
-import argon2 from 'argon2';
-import crypto from 'crypto';
+import argon2 from "argon2";
+import crypto from "crypto";
 
 export class PasswordService {
   /**
@@ -29,14 +29,14 @@ export class PasswordService {
    * Generate an unguessable random token (e.g. 64-char hex string)
    */
   generateSecureToken(bytes = 32): string {
-    return crypto.randomBytes(bytes).toString('hex');
+    return crypto.randomBytes(bytes).toString("hex");
   }
 
   /**
    * Hash a raw token with SHA-256 for secure database storage
    */
   hashToken(token: string): string {
-    return crypto.createHash('sha256').update(token).digest('hex');
+    return crypto.createHash("sha256").update(token).digest("hex");
   }
 }
 

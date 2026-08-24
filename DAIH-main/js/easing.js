@@ -1,4 +1,4 @@
-(jQuery.easing.jswing = jQuery.easing.swing),
+((jQuery.easing.jswing = jQuery.easing.swing),
   jQuery.extend(jQuery.easing, {
     def: "easeOutQuad",
     swing: function (a, b, c, d, e) {
@@ -67,10 +67,10 @@
       return 0 == b
         ? c
         : b == e
-        ? c + d
-        : (b /= e / 2) < 1
-        ? (d / 2) * Math.pow(2, 10 * (b - 1)) + c
-        : (d / 2) * (-Math.pow(2, -10 * --b) + 2) + c;
+          ? c + d
+          : (b /= e / 2) < 1
+            ? (d / 2) * Math.pow(2, 10 * (b - 1)) + c
+            : (d / 2) * (-Math.pow(2, -10 * --b) + 2) + c;
     },
     easeInCirc: function (a, b, c, d, e) {
       return -d * (Math.sqrt(1 - (b /= e) * b) - 1) + c;
@@ -142,7 +142,8 @@
     },
     easeInBack: function (a, b, c, d, e, f) {
       return (
-        void 0 == f && (f = 1.70158), d * (b /= e) * b * ((f + 1) * b - f) + c
+        void 0 == f && (f = 1.70158),
+        d * (b /= e) * b * ((f + 1) * b - f) + c
       );
     },
     easeOutBack: function (a, b, c, d, e, f) {
@@ -166,10 +167,10 @@
       return (b /= e) < 1 / 2.75
         ? d * (7.5625 * b * b) + c
         : b < 2 / 2.75
-        ? d * (7.5625 * (b -= 1.5 / 2.75) * b + 0.75) + c
-        : b < 2.5 / 2.75
-        ? d * (7.5625 * (b -= 2.25 / 2.75) * b + 0.9375) + c
-        : d * (7.5625 * (b -= 2.625 / 2.75) * b + 0.984375) + c;
+          ? d * (7.5625 * (b -= 1.5 / 2.75) * b + 0.75) + c
+          : b < 2.5 / 2.75
+            ? d * (7.5625 * (b -= 2.25 / 2.75) * b + 0.9375) + c
+            : d * (7.5625 * (b -= 2.625 / 2.75) * b + 0.984375) + c;
     },
     easeInOutBounce: function (a, b, c, d, e) {
       return b < e / 2
@@ -178,4 +179,4 @@
             0.5 * d +
             c;
     },
-  });
+  }));

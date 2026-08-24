@@ -1,21 +1,29 @@
-﻿'use client';
+﻿"use client";
 
-import React from 'react';
-import Link from 'next/link';
-import { Users, Wifi, Mic, Maximize2, ArrowRight, Layers, Sparkles } from 'lucide-react';
+import React from "react";
+import Link from "next/link";
+import {
+  Users,
+  Wifi,
+  Mic,
+  Maximize2,
+  ArrowRight,
+  Layers,
+  Sparkles,
+} from "lucide-react";
 
 export interface SpaceItem {
   id?: string;
   name: string;
   slug: string;
-  category: 'Private Office' | 'Meeting Room' | 'Hot Desk' | 'Studio' | string;
+  category: "Private Office" | "Meeting Room" | "Hot Desk" | "Studio" | string;
   categoryBadge: string;
   price: string;
   unit: string;
   description: string;
   capacityText: string;
   specText: string;
-  specType: 'area' | 'wifi' | 'audio' | 'slots';
+  specType: "area" | "wifi" | "audio" | "slots";
   imageUrl: string;
 }
 
@@ -26,13 +34,13 @@ interface SpaceCardProps {
 export const SpaceCard: React.FC<SpaceCardProps> = ({ space }) => {
   const getSpecIcon = () => {
     switch (space.specType) {
-      case 'wifi':
+      case "wifi":
         return <Wifi className="w-4 h-4 text-slate-500" />;
-      case 'audio':
+      case "audio":
         return <Mic className="w-4 h-4 text-slate-500" />;
-      case 'slots':
+      case "slots":
         return <Layers className="w-4 h-4 text-slate-500" />;
-      case 'area':
+      case "area":
       default:
         return <Maximize2 className="w-4 h-4 text-slate-500" />;
     }
@@ -59,10 +67,14 @@ export const SpaceCard: React.FC<SpaceCardProps> = ({ space }) => {
       <div className="p-5 flex flex-col flex-1">
         {/* Title & Price */}
         <div className="flex justify-between items-start mb-2 gap-2">
-          <h3 className="text-lg font-bold text-[#23055c] tracking-tight">{space.name}</h3>
+          <h3 className="text-lg font-bold text-[#23055c] tracking-tight">
+            {space.name}
+          </h3>
           <p className="text-xs font-bold text-[#23055c] bg-[#e9ddff] px-2 py-1 rounded shrink-0">
             {space.price}
-            <span className="text-[10px] text-slate-500 font-normal ml-0.5">{space.unit}</span>
+            <span className="text-[10px] text-slate-500 font-normal ml-0.5">
+              {space.unit}
+            </span>
           </p>
         </div>
 
@@ -95,4 +107,3 @@ export const SpaceCard: React.FC<SpaceCardProps> = ({ space }) => {
     </div>
   );
 };
-

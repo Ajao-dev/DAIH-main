@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import React from 'react';
+import React from "react";
 
 interface FinancialOverviewCardProps {
   totalPaid?: string;
@@ -8,8 +8,8 @@ interface FinancialOverviewCardProps {
 }
 
 export const FinancialOverviewCard: React.FC<FinancialOverviewCardProps> = ({
-  totalPaid = '₦45,000.00',
-  label = 'Total Invoices Paid',
+  totalPaid = "₦45,000.00",
+  label = "Total Invoices Paid",
 }) => {
   return (
     <div className="bg-white border border-purple-100 rounded-2xl shadow-sm p-6 space-y-2">

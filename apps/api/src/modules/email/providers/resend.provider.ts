@@ -1,9 +1,13 @@
-import { Resend } from 'resend';
-import { IEmailProvider, SendEmailOptions, SendEmailResult } from '../email.interface.js';
-import { config } from '../../../config/env.js';
+import { Resend } from "resend";
+import {
+  IEmailProvider,
+  SendEmailOptions,
+  SendEmailResult,
+} from "../email.interface.js";
+import { config } from "../../../config/env.js";
 
 export class ResendEmailProvider implements IEmailProvider {
-  readonly name = 'Resend';
+  readonly name = "Resend";
   private client?: Resend;
 
   constructor() {
@@ -17,7 +21,7 @@ export class ResendEmailProvider implements IEmailProvider {
       return {
         success: false,
         provider: this.name,
-        error: 'Resend API key not configured',
+        error: "Resend API key not configured",
       };
     }
 
@@ -27,8 +31,8 @@ export class ResendEmailProvider implements IEmailProvider {
 
     try {
       const toAddresses = Array.isArray(options.to)
-        ? options.to.map((t) => (typeof t === 'string' ? t : t.email))
-        : [typeof options.to === 'string' ? options.to : options.to.email];
+        ? options.to.map((t) => (typeof t === "string" ? t : t.email))
+        : [typeof options.to === "string" ? options.to : options.to.email];
 
       const fromAddress = options.from || config.email.resendFromEmail;
 
@@ -58,7 +62,7 @@ export class ResendEmailProvider implements IEmailProvider {
       return {
         success: false,
         provider: this.name,
-        error: err?.message || 'Unknown error occurred in Resend provider',
+        error: err?.message || "Unknown error occurred in Resend provider",
       };
     }
   }

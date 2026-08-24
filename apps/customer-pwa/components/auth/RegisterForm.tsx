@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import Link from 'next/link';
-import { useAuth } from '@daih/api-client';
-import { useToast } from '@daih/ui';
+import React, { useState } from "react";
+import Link from "next/link";
+import { useAuth } from "@daih/api-client";
+import { useToast } from "@daih/ui";
 import {
   User,
   Phone,
@@ -12,7 +12,7 @@ import {
   KeyRound,
   AlertCircle,
   Loader2,
-} from 'lucide-react';
+} from "lucide-react";
 
 interface RegisterFormProps {
   onSuccess: (email: string) => void;
@@ -23,12 +23,12 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
   const toast = useToast();
 
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    phone: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
+    firstName: "",
+    lastName: "",
+    phone: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
     termsAgreed: false,
     privacyAgreed: false,
   });
@@ -40,57 +40,68 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
     const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value,
+      [name]: type === "checkbox" ? checked : value,
     }));
   };
 
   const validateForm = (): boolean => {
     if (!formData.firstName.trim()) {
-      toast.warning('Please enter your first name.', { title: 'First Name Required' });
+      toast.warning("Please enter your first name.", {
+        title: "First Name Required",
+      });
       return false;
     }
 
     if (!formData.lastName.trim()) {
-      toast.warning('Please enter your last name.', { title: 'Last Name Required' });
+      toast.warning("Please enter your last name.", {
+        title: "Last Name Required",
+      });
       return false;
     }
 
     if (!formData.email.trim()) {
-      toast.warning('Please enter your email address.', { title: 'Email Required' });
+      toast.warning("Please enter your email address.", {
+        title: "Email Required",
+      });
       return false;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email.trim())) {
-      toast.warning('Please enter a valid email address (e.g. name@company.com).', {
-        title: 'Invalid Email Format',
-      });
+      toast.warning(
+        "Please enter a valid email address (e.g. name@company.com).",
+        {
+          title: "Invalid Email Format",
+        },
+      );
       return false;
     }
 
     if (!formData.password) {
-      toast.warning('Please create a password for your account.', { title: 'Password Required' });
+      toast.warning("Please create a password for your account.", {
+        title: "Password Required",
+      });
       return false;
     }
 
     if (formData.password.length < 8) {
-      toast.warning('Password must be at least 8 characters long.', {
-        title: 'Weak Password',
+      toast.warning("Password must be at least 8 characters long.", {
+        title: "Weak Password",
       });
       return false;
     }
 
     if (formData.password !== formData.confirmPassword) {
-      toast.error('The passwords you entered do not match. Please verify.', {
-        title: 'Password Mismatch',
+      toast.error("The passwords you entered do not match. Please verify.", {
+        title: "Password Mismatch",
       });
       return false;
     }
 
     if (!formData.termsAgreed || !formData.privacyAgreed) {
       toast.warning(
-        'Please check both the Terms of Service and Privacy Policy boxes to proceed.',
-        { title: 'Agreement Required' }
+        "Please check both the Terms of Service and Privacy Policy boxes to proceed.",
+        { title: "Agreement Required" },
       );
       return false;
     }
@@ -115,20 +126,22 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
         email: formData.email.trim().toLowerCase(),
         phoneNumber: formData.phone.trim() || undefined,
         password: formData.password,
-        policyVersion: '1.0-2026',
+        policyVersion: "1.0-2026",
         consented: Boolean(formData.termsAgreed && formData.privacyAgreed),
       });
 
       toast.success(
         `Account created! A verification link was sent to ${formData.email.trim().toLowerCase()}.`,
-        { title: 'Welcome to DAIH' }
+        { title: "Welcome to DAIH" },
       );
 
       onSuccess(formData.email.trim().toLowerCase());
     } catch (err: any) {
-      const msg = err?.message || 'Registration failed. Please check your details and try again.';
+      const msg =
+        err?.message ||
+        "Registration failed. Please check your details and try again.";
       setErrorMessage(msg);
-      toast.error(msg, { title: 'Registration Failed' });
+      toast.error(msg, { title: "Registration Failed" });
     } finally {
       setIsLoading(false);
     }
@@ -157,7 +170,10 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
         {/* First Name & Last Name */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1.5">
-            <label className="block text-xs font-bold text-slate-700" htmlFor="firstName">
+            <label
+              className="block text-xs font-bold text-slate-700"
+              htmlFor="firstName"
+            >
               First Name
             </label>
             <div className="relative">
@@ -178,7 +194,10 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
           </div>
 
           <div className="space-y-1.5">
-            <label className="block text-xs font-bold text-slate-700" htmlFor="lastName">
+            <label
+              className="block text-xs font-bold text-slate-700"
+              htmlFor="lastName"
+            >
               Last Name
             </label>
             <div className="relative">
@@ -201,7 +220,10 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
 
         {/* Phone Number */}
         <div className="space-y-1.5">
-          <label className="block text-xs font-bold text-slate-700" htmlFor="phone">
+          <label
+            className="block text-xs font-bold text-slate-700"
+            htmlFor="phone"
+          >
             Phone Number
           </label>
           <div className="relative">
@@ -223,7 +245,10 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
 
         {/* Email Address */}
         <div className="space-y-1.5">
-          <label className="block text-xs font-bold text-slate-700" htmlFor="email">
+          <label
+            className="block text-xs font-bold text-slate-700"
+            htmlFor="email"
+          >
             Email Address
           </label>
           <div className="relative">
@@ -246,7 +271,10 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
         {/* Password & Confirm Password */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1.5">
-            <label className="block text-xs font-bold text-slate-700" htmlFor="password">
+            <label
+              className="block text-xs font-bold text-slate-700"
+              htmlFor="password"
+            >
               Password
             </label>
             <div className="relative">
@@ -268,7 +296,10 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
           </div>
 
           <div className="space-y-1.5">
-            <label className="block text-xs font-bold text-slate-700" htmlFor="confirmPassword">
+            <label
+              className="block text-xs font-bold text-slate-700"
+              htmlFor="confirmPassword"
+            >
               Confirm Password
             </label>
             <div className="relative">
@@ -300,9 +331,15 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
               onChange={handleChange}
               className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#23055c] focus:ring-[#23055c] cursor-pointer"
             />
-            <label htmlFor="termsAgreed" className="ml-2.5 text-xs text-slate-600 leading-normal cursor-pointer">
-              I agree to the{' '}
-              <Link href="/terms" className="text-[#23055c] hover:underline font-semibold">
+            <label
+              htmlFor="termsAgreed"
+              className="ml-2.5 text-xs text-slate-600 leading-normal cursor-pointer"
+            >
+              I agree to the{" "}
+              <Link
+                href="/terms"
+                className="text-[#23055c] hover:underline font-semibold"
+              >
                 Terms of Service
               </Link>
               .
@@ -318,9 +355,15 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
               onChange={handleChange}
               className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#23055c] focus:ring-[#23055c] cursor-pointer"
             />
-            <label htmlFor="privacyAgreed" className="ml-2.5 text-xs text-slate-600 leading-normal cursor-pointer">
-              I consent to the{' '}
-              <Link href="/privacy" className="text-[#23055c] hover:underline font-semibold">
+            <label
+              htmlFor="privacyAgreed"
+              className="ml-2.5 text-xs text-slate-600 leading-normal cursor-pointer"
+            >
+              I consent to the{" "}
+              <Link
+                href="/privacy"
+                className="text-[#23055c] hover:underline font-semibold"
+              >
                 Privacy Policy & NDPR Compliance
               </Link>
               .
@@ -341,7 +384,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
                 Creating Account...
               </>
             ) : (
-              'Create Account'
+              "Create Account"
             )}
           </button>
         </div>

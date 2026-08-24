@@ -1,13 +1,21 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import Link from 'next/link';
-import { Mail, KeyRound, ArrowLeft, ArrowRight, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
-import { api } from '@daih/api-client';
-import { useToast } from '@daih/ui';
+import React, { useState } from "react";
+import Link from "next/link";
+import {
+  Mail,
+  KeyRound,
+  ArrowLeft,
+  ArrowRight,
+  Loader2,
+  CheckCircle2,
+  AlertCircle,
+} from "lucide-react";
+import { api } from "@daih/api-client";
+import { useToast } from "@daih/ui";
 
 export const ForgotPasswordCard: React.FC = () => {
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -15,15 +23,20 @@ export const ForgotPasswordCard: React.FC = () => {
 
   const validateForm = (): boolean => {
     if (!email.trim()) {
-      toast.warning('Please enter your email address.', { title: 'Email Required' });
+      toast.warning("Please enter your email address.", {
+        title: "Email Required",
+      });
       return false;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email.trim())) {
-      toast.warning('Please enter a valid email address (e.g. name@company.com).', {
-        title: 'Invalid Email Format',
-      });
+      toast.warning(
+        "Please enter a valid email address (e.g. name@company.com).",
+        {
+          title: "Invalid Email Format",
+        },
+      );
       return false;
     }
 
@@ -41,13 +54,17 @@ export const ForgotPasswordCard: React.FC = () => {
     try {
       await api.auth.requestPasswordReset(email.trim().toLowerCase());
       setIsSubmitted(true);
-      toast.success(`Password reset instructions sent to ${email.trim().toLowerCase()}`, {
-        title: 'Instructions Sent',
-      });
+      toast.success(
+        `Password reset instructions sent to ${email.trim().toLowerCase()}`,
+        {
+          title: "Instructions Sent",
+        },
+      );
     } catch (err: any) {
-      const msg = err?.message || 'Failed to request password reset. Please try again.';
+      const msg =
+        err?.message || "Failed to request password reset. Please try again.";
       setErrorMessage(msg);
-      toast.error(msg, { title: 'Reset Request Failed' });
+      toast.error(msg, { title: "Reset Request Failed" });
     } finally {
       setIsLoading(false);
     }
@@ -79,12 +96,15 @@ export const ForgotPasswordCard: React.FC = () => {
                 Check Your Inbox
               </h2>
               <p className="text-sm text-slate-600 leading-relaxed">
-                If an account exists with <strong className="text-slate-900 break-all">{email}</strong>, we have dispatched instructions to reset your password.
+                If an account exists with{" "}
+                <strong className="text-slate-900 break-all">{email}</strong>,
+                we have dispatched instructions to reset your password.
               </p>
             </div>
 
             <p className="text-xs text-slate-500 max-w-xs mx-auto leading-relaxed">
-              Please check your spam or junk folder if you do not see the email within a few minutes.
+              Please check your spam or junk folder if you do not see the email
+              within a few minutes.
             </p>
 
             <div className="pt-2 flex flex-col gap-3">
@@ -92,7 +112,7 @@ export const ForgotPasswordCard: React.FC = () => {
                 type="button"
                 onClick={() => {
                   setIsSubmitted(false);
-                  setEmail('');
+                  setEmail("");
                 }}
                 className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition"
               >
@@ -121,7 +141,8 @@ export const ForgotPasswordCard: React.FC = () => {
                 Forgot Password?
               </h2>
               <p className="text-sm text-slate-500 leading-relaxed">
-                Enter your registered email address to receive a secure password reset link.
+                Enter your registered email address to receive a secure password
+                reset link.
               </p>
             </div>
 
@@ -137,7 +158,10 @@ export const ForgotPasswordCard: React.FC = () => {
             <form noValidate onSubmit={handleSubmit} className="space-y-5">
               {/* Email Input */}
               <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-slate-700" htmlFor="email">
+                <label
+                  className="block text-xs font-bold text-slate-700"
+                  htmlFor="email"
+                >
                   Email Address
                 </label>
                 <div className="relative">

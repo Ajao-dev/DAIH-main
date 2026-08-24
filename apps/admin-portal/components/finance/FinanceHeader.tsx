@@ -1,10 +1,16 @@
-'use client';
+"use client";
 
-import React, { useState, useRef, useEffect } from 'react';
-import { Calendar as CalendarIcon, ChevronDown, Download, Check } from 'lucide-react';
-import { useToast } from '@daih/ui';
+import React, { useState, useRef, useEffect } from "react";
+import {
+  Calendar as CalendarIcon,
+  ChevronDown,
+  Download,
+  Check,
+} from "lucide-react";
+import { useToast } from "@daih/ui";
 
-export type DateRangeOption = 'Today' | 'Last 7 Days' | 'Last 30 Days' | 'This Quarter' | 'Year to Date';
+export type DateRangeOption =
+  "Today" | "Last 7 Days" | "Last 30 Days" | "This Quarter" | "Year to Date";
 
 interface FinanceHeaderProps {
   selectedRange: DateRangeOption;
@@ -22,29 +28,34 @@ export const FinanceHeader: React.FC<FinanceHeaderProps> = ({
   const toast = useToast();
 
   const ranges: DateRangeOption[] = [
-    'Today',
-    'Last 7 Days',
-    'Last 30 Days',
-    'This Quarter',
-    'Year to Date',
+    "Today",
+    "Last 7 Days",
+    "Last 30 Days",
+    "This Quarter",
+    "Year to Date",
   ];
 
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
         setDropdownOpen(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const handleExport = () => {
     if (onExportLedger) {
       onExportLedger();
     } else {
-      toast.success('Financial ledger CSV export started...', { title: 'Export Initiated' });
+      toast.success("Financial ledger CSV export started...", {
+        title: "Export Initiated",
+      });
     }
   };
 
@@ -72,7 +83,9 @@ export const FinanceHeader: React.FC<FinanceHeaderProps> = ({
               <CalendarIcon className="w-4 h-4 text-slate-400" />
               {selectedRange}
             </span>
-            <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
+            <ChevronDown
+              className={`w-4 h-4 text-slate-400 transition-transform ${dropdownOpen ? "rotate-180" : ""}`}
+            />
           </button>
 
           {dropdownOpen && (
@@ -86,12 +99,14 @@ export const FinanceHeader: React.FC<FinanceHeaderProps> = ({
                   }}
                   className={`w-full text-left px-4 py-2 text-xs flex items-center justify-between transition-colors cursor-pointer ${
                     selectedRange === range
-                      ? 'bg-purple-50 text-[#23055c] font-bold'
-                      : 'text-slate-700 hover:bg-slate-50'
+                      ? "bg-purple-50 text-[#23055c] font-bold"
+                      : "text-slate-700 hover:bg-slate-50"
                   }`}
                 >
                   <span>{range}</span>
-                  {selectedRange === range && <Check className="w-3.5 h-3.5 text-[#23055c]" />}
+                  {selectedRange === range && (
+                    <Check className="w-3.5 h-3.5 text-[#23055c]" />
+                  )}
                 </button>
               ))}
             </div>

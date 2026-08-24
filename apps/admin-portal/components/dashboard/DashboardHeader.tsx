@@ -1,13 +1,15 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import { Download, Plus } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import { Download, Plus } from "lucide-react";
 
 interface DashboardHeaderProps {
   onOpenWalkInModal?: () => void;
 }
 
-export const DashboardHeader: React.FC<DashboardHeaderProps> = ({ onOpenWalkInModal }) => {
+export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
+  onOpenWalkInModal,
+}) => {
   const [downloading, setDownloading] = useState(false);
 
   const handleDownload = () => {
@@ -18,22 +20,23 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({ onOpenWalkInMo
         [
           JSON.stringify(
             {
-              report: 'DAIH Workspace Operations Pulse',
+              report: "DAIH Workspace Operations Pulse",
               timestamp: new Date().toISOString(),
-              totalRevenueMtd: '$45,280',
+              totalRevenueMtd: "$45,280",
               activeBookings: 142,
-              occupancy: '78%',
+              occupancy: "78%",
               newMembersWtd: 24,
-              systemHealth: 'Core API: 99.9% Uptime, Stripe: Operational, Doors: 2 Offline',
+              systemHealth:
+                "Core API: 99.9% Uptime, Stripe: Operational, Doors: 2 Offline",
             },
             null,
-            2
+            2,
           ),
         ],
-        { type: 'application/json' }
+        { type: "application/json" },
       );
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = url;
       a.download = `daih-operations-telemetry-${new Date().toISOString().slice(0, 10)}.json`;
       a.click();
@@ -76,7 +79,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({ onOpenWalkInMo
           className="bg-surface-container-lowest border border-accent-soft p-2 rounded-DEFAULT text-on-surface-variant hover:bg-surface-container transition-colors shadow-xs cursor-pointer flex items-center justify-center"
         >
           <span className="material-symbols-outlined text-[20px]">
-            {downloading ? 'hourglass_top' : 'download'}
+            {downloading ? "hourglass_top" : "download"}
           </span>
         </button>
       </div>

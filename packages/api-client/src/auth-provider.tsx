@@ -1,8 +1,14 @@
-'use client';
+"use client";
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { UserProfile } from '@daih/types';
-import { api, DaihApiClient } from './client';
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+} from "react";
+import { UserProfile } from "@daih/types";
+import { api, DaihApiClient } from "./client";
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -12,8 +18,8 @@ interface AuthContextType {
   login: (credentials: {
     email: string;
     password: string;
-    portal?: 'customer' | 'admin' | string;
-    audience?: 'CUSTOMER' | 'ADMIN' | string;
+    portal?: "customer" | "admin" | string;
+    audience?: "CUSTOMER" | "ADMIN" | string;
   }) => Promise<UserProfile>;
   register: (payload: {
     email: string;
@@ -38,9 +44,9 @@ export function AuthProvider({
   apiClient?: DaihApiClient;
 }) {
   const [user, setUser] = useState<UserProfile | null>(() => {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== "undefined") {
       try {
-        const cached = localStorage.getItem('daih_user_profile');
+        const cached = localStorage.getItem("daih_user_profile");
         if (cached) return JSON.parse(cached);
       } catch {}
     }
@@ -48,16 +54,18 @@ export function AuthProvider({
   });
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const inFlightRefreshRef = React.useRef<Promise<UserProfile | null> | null>(null);
+  const inFlightRefreshRef = React.useRef<Promise<UserProfile | null> | null>(
+    null,
+  );
 
   const updateUserState = useCallback((newUser: UserProfile | null) => {
     setUser(newUser);
-    if (typeof window !== 'undefined') {
+    if (typeof window !== "undefined") {
       try {
         if (newUser) {
-          localStorage.setItem('daih_user_profile', JSON.stringify(newUser));
+          localStorage.setItem("daih_user_profile", JSON.stringify(newUser));
         } else {
-          localStorage.removeItem('daih_user_profile');
+          localStorage.removeItem("daih_user_profile");
         }
       } catch {}
     }
@@ -67,8 +75,11 @@ export function AuthProvider({
     apiClient.setOnSessionExpired(() => {
       updateUserState(null);
       setAccessToken(null);
-      if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
-        window.location.href = '/login';
+      if (
+        typeof window !== "undefined" &&
+        !window.location.pathname.includes("/login")
+      ) {
+        window.location.href = "/login";
       }
     });
   }, [apiClient, updateUserState]);
@@ -131,8 +142,8 @@ export function AuthProvider({
   const login = async (credentials: {
     email: string;
     password: string;
-    portal?: 'customer' | 'admin' | string;
-    audience?: 'CUSTOMER' | 'ADMIN' | string;
+    portal?: "customer" | "admin" | string;
+    audience?: "CUSTOMER" | "ADMIN" | string;
   }): Promise<UserProfile> => {
     setIsLoading(true);
     try {
@@ -195,7 +206,7 @@ export function AuthProvider({
 export function useAuth() {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 }

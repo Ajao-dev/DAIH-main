@@ -1,49 +1,60 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { api } from '@daih/api-client';
-import { FacilityResource } from '@daih/types';
-import { Loader2 } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import Link from "next/link";
+import { api } from "@daih/api-client";
+import { FacilityResource } from "@daih/types";
+import { Loader2 } from "lucide-react";
 
 function getWorkspaceImage(slug: string, imageUrl?: string | null): string {
-  if (imageUrl && (imageUrl.startsWith('http') || imageUrl.startsWith('/images/'))) {
+  if (
+    imageUrl &&
+    (imageUrl.startsWith("http") || imageUrl.startsWith("/images/"))
+  ) {
     return imageUrl;
   }
-  const s = (slug || '').toLowerCase();
-  if (s.includes('studio') || s.includes('audio') || s.includes('stream')) return '/images/search/4.jpg';
-  if (s.includes('rooftop')) return '/images/search/6.jpg';
-  if (s.includes('training') || s.includes('meeting')) return '/images/search/5.jpg';
-  if (s.includes('office') || s.includes('private')) return '/images/search/3.jpg';
-  if (s.includes('dedicated')) return '/images/search/1.jpg';
-  return '/images/search/2.jpg';
+  const s = (slug || "").toLowerCase();
+  if (s.includes("studio") || s.includes("audio") || s.includes("stream"))
+    return "/images/search/4.jpg";
+  if (s.includes("rooftop")) return "/images/search/6.jpg";
+  if (s.includes("training") || s.includes("meeting"))
+    return "/images/search/5.jpg";
+  if (s.includes("office") || s.includes("private"))
+    return "/images/search/3.jpg";
+  if (s.includes("dedicated")) return "/images/search/1.jpg";
+  return "/images/search/2.jpg";
 }
 
 function formatResourcePrice(resource: FacilityResource): string {
   if (resource.pricing && resource.pricing.length > 0) {
     const activePlans = resource.pricing.filter((p) => p.isActive !== false);
-    const sorted = [...activePlans].sort((a, b) => Number(a.price) - Number(b.price));
+    const sorted = [...activePlans].sort(
+      (a, b) => Number(a.price) - Number(b.price),
+    );
     const first = sorted[0] || resource.pricing[0];
     const unit = first.durationMonths
       ? first.durationMonths === 1
-        ? '/ Month'
+        ? "/ Month"
         : `/${first.durationMonths} Months`
       : first.durationDays
-      ? first.durationDays === 1
-        ? '/ Day'
-        : `/${first.durationDays} Days`
-      : first.durationHours
-      ? first.durationHours === 1
-        ? '/ Hour'
-        : `/${first.durationHours} Hours`
-      : '';
+        ? first.durationDays === 1
+          ? "/ Day"
+          : `/${first.durationDays} Days`
+        : first.durationHours
+          ? first.durationHours === 1
+            ? "/ Hour"
+            : `/${first.durationHours} Hours`
+          : "";
     return `₦${Number(first.price).toLocaleString()} ${unit}`.trim();
   }
 
-  if (resource.dailyRate) return `₦${Number(resource.dailyRate).toLocaleString()} / Day`;
-  if (resource.monthlyRate) return `₦${Number(resource.monthlyRate).toLocaleString()} / Month`;
-  if (resource.hourlyRate) return `₦${Number(resource.hourlyRate).toLocaleString()} / Hour`;
-  return 'Contact Us';
+  if (resource.dailyRate)
+    return `₦${Number(resource.dailyRate).toLocaleString()} / Day`;
+  if (resource.monthlyRate)
+    return `₦${Number(resource.monthlyRate).toLocaleString()} / Month`;
+  if (resource.hourlyRate)
+    return `₦${Number(resource.hourlyRate).toLocaleString()} / Hour`;
+  return "Contact Us";
 }
 
 export default function OurPlansPage() {
@@ -64,7 +75,10 @@ export default function OurPlansPage() {
         }
       })
       .catch((err) => {
-        setError(err?.message || 'Failed to fetch active workspace resources from database.');
+        setError(
+          err?.message ||
+            "Failed to fetch active workspace resources from database.",
+        );
       })
       .finally(() => {
         setLoading(false);
@@ -77,7 +91,10 @@ export default function OurPlansPage() {
       <section
         id="subheader"
         className="text-light"
-        style={{ backgroundImage: 'url(/images/background/subheader-2.jpg)', backgroundPosition: 'top' }}
+        style={{
+          backgroundImage: "url(/images/background/subheader-2.jpg)",
+          backgroundPosition: "top",
+        }}
       >
         <div className="center-y relative text-center">
           <div className="container">
@@ -97,9 +114,14 @@ export default function OurPlansPage() {
           {loading ? (
             <div className="py-24 text-center">
               <div className="d-flex justify-content-center align-items-center mb-3">
-                <Loader2 className="animate-spin text-primary" style={{ width: '40px', height: '40px' }} />
+                <Loader2
+                  className="animate-spin text-primary"
+                  style={{ width: "40px", height: "40px" }}
+                />
               </div>
-              <p className="text-muted">Fetching live workspace plans directly from database...</p>
+              <p className="text-muted">
+                Fetching live workspace plans directly from database...
+              </p>
             </div>
           ) : error ? (
             <div className="alert alert-warning text-center my-4">
@@ -114,23 +136,29 @@ export default function OurPlansPage() {
               </div>
 
               {resources.map((resource) => {
-                const imageSrc = getWorkspaceImage(resource.slug, resource.imageUrl);
+                const imageSrc = getWorkspaceImage(
+                  resource.slug,
+                  resource.imageUrl,
+                );
                 const priceText = formatResourcePrice(resource);
                 const href = `/${resource.slug}`;
 
                 return (
-                  <div key={resource.id || resource.slug} className="col-lg-4 col-md-6 mb30 d-flex">
+                  <div
+                    key={resource.id || resource.slug}
+                    className="col-lg-4 col-md-6 mb30 d-flex"
+                  >
                     <Link
                       href={href}
                       className="de-card s2 w-100 d-flex flex-column justify-content-between"
-                      style={{ textDecoration: 'none' }}
+                      style={{ textDecoration: "none" }}
                     >
                       <div className="de-image flex-shrink-0">
                         <img
                           src={imageSrc}
                           className="img-fluid w-100"
                           alt={resource.name}
-                          style={{ height: '220px', objectFit: 'cover' }}
+                          style={{ height: "220px", objectFit: "cover" }}
                         />
                       </div>
                       <div className="text d-flex flex-column flex-grow-1 p-4">
@@ -152,16 +180,21 @@ export default function OurPlansPage() {
                         </ul>
                         <div
                           className="d-price mt-auto"
-                          style={{ background: 'transparent', padding: '10px 0 0 0' }}
+                          style={{
+                            background: "transparent",
+                            padding: "10px 0 0 0",
+                          }}
                         >
-                          <div style={{ color: '#717171', fontSize: '13px' }}>Starting from</div>
+                          <div style={{ color: "#717171", fontSize: "13px" }}>
+                            Starting from
+                          </div>
                           <span
                             style={{
-                              color: 'rgb(64, 64, 64)',
+                              color: "rgb(64, 64, 64)",
                               fontWeight: 800,
-                              fontSize: '18px',
-                              display: 'inline-block',
-                              marginTop: '2px',
+                              fontSize: "18px",
+                              display: "inline-block",
+                              marginTop: "2px",
                             }}
                           >
                             {priceText}
