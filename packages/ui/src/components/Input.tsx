@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { cn } from '../utils/cn';
+import React from "react";
+import { cn } from "../utils/cn";
 
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
@@ -11,7 +11,8 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
 
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ className, label, error, helperText, id, ...props }, ref) => {
-    const inputId = id || (label ? label.toLowerCase().replace(/\s+/g, '-') : undefined);
+    const inputId =
+      id || (label ? label.toLowerCase().replace(/\s+/g, "-") : undefined);
 
     return (
       <div className="w-full">
@@ -27,9 +28,9 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           id={inputId}
           ref={ref}
           className={cn(
-            'w-full px-3.5 py-2 rounded-lg border border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 text-sm shadow-sm transition duration-200 focus:outline-none focus:ring-2 focus:ring-[#1f3a68] focus:border-transparent disabled:bg-slate-50 disabled:cursor-not-allowed',
-            error && 'border-rose-500 focus:ring-rose-500',
-            className
+            "w-full px-3.5 py-2 rounded-lg border border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 text-sm shadow-sm transition duration-200 focus:outline-none focus:ring-2 focus:ring-[#1f3a68] focus:border-transparent disabled:bg-slate-50 disabled:cursor-not-allowed",
+            error && "border-rose-500 focus:ring-rose-500",
+            className,
           )}
           {...props}
         />
@@ -40,7 +41,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
         ) : null}
       </div>
     );
-  }
+  },
 );
 
-Input.displayName = 'Input';
+Input.displayName = "Input";

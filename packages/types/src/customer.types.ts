@@ -8,7 +8,7 @@ export interface CustomerRecord {
   phone?: string;
   avatarUrl?: string;
   tier: string;
-  status: 'Active' | 'Pending' | 'Inactive';
+  status: "Active" | "Pending" | "Inactive";
   lastVisit: string;
   joinedDate: string;
   totalBookings: number;

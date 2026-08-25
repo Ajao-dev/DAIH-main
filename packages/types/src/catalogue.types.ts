@@ -1,5 +1,5 @@
-import { ResourceCategory } from './booking.types';
-import { UserRole } from './roles.types';
+import { ResourceCategory } from "./booking.types";
+import { UserRole } from "./roles.types";
 
 export interface ResourcePricingPlan {
   id: string;

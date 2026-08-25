@@ -41,6 +41,7 @@ daih-platform/
 ## 3. Quickstart & Local Setup
 
 ### 1. Clone & Install Dependencies
+
 ```bash
 git clone <repo-url>
 cd DAIH-main
@@ -48,17 +49,21 @@ pnpm install
 ```
 
 ### 2. Configure Environment Variables
+
 Copy `.env.example` to `.env`:
+
 ```bash
 cp .env.example .env
 ```
 
 ### 3. Start Local Infrastructure (Postgres, Redis, MinIO)
+
 ```bash
 docker compose -f infra/docker/docker-compose.yml up -d
 ```
 
 ### 4. Initialize Database & Seed
+
 ```bash
 pnpm --filter @daih/api prisma:generate
 pnpm --filter @daih/api prisma:migrate
@@ -66,6 +71,7 @@ pnpm --filter @daih/api exec tsx src/scripts/seed-super-admin.ts
 ```
 
 ### 5. Run Development Servers
+
 ```bash
 # Run all apps in parallel
 pnpm dev
@@ -92,6 +98,7 @@ pnpm --filter @daih/reception-app dev # Reception App (Port 3002)
 ## 5. Security & RBAC Model
 
 The platform enforces strict Role-Based Access Control (RBAC):
+
 - **Roles:** `CUSTOMER`, `RECEPTION_OFFICER`, `SECURITY_OFFICER`, `OPERATIONS_ADMIN`, `FINANCE_OFFICER`, `MANAGEMENT_VIEWER`, `SUPER_ADMIN`.
 - **Authentication:** Short-lived JWT access tokens (`15m`) + HttpOnly refresh cookies (`/api/v1/identity/refresh`) with refresh token rotation and reuse detection.
 - **Client IDs:** Deterministic sequential format per year, e.g. `DAIH-2026-000001`.

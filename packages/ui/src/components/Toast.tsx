@@ -1,16 +1,16 @@
-'use client';
+"use client";
 
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback } from "react";
 import {
   CheckCircle2,
   AlertCircle,
   AlertTriangle,
   Info,
   X,
-} from 'lucide-react';
-import { cn } from '../utils/cn';
+} from "lucide-react";
+import { cn } from "../utils/cn";
 
-export type ToastType = 'success' | 'error' | 'warning' | 'info';
+export type ToastType = "success" | "error" | "warning" | "info";
 
 export interface ToastOptions {
   title?: string;
@@ -47,7 +47,9 @@ const noopToastContext: ToastContextValue = {
 
 const ToastContext = createContext<ToastContextValue>(noopToastContext);
 
-export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
 
   const dismiss = useCallback((id: string) => {
@@ -75,24 +77,27 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }, duration);
       }
     },
-    [dismiss]
+    [dismiss],
   );
 
   const success = useCallback(
-    (message: string, options?: ToastOptions) => show('success', message, options),
-    [show]
+    (message: string, options?: ToastOptions) =>
+      show("success", message, options),
+    [show],
   );
   const error = useCallback(
-    (message: string, options?: ToastOptions) => show('error', message, options),
-    [show]
+    (message: string, options?: ToastOptions) =>
+      show("error", message, options),
+    [show],
   );
   const warning = useCallback(
-    (message: string, options?: ToastOptions) => show('warning', message, options),
-    [show]
+    (message: string, options?: ToastOptions) =>
+      show("warning", message, options),
+    [show],
   );
   const info = useCallback(
-    (message: string, options?: ToastOptions) => show('info', message, options),
-    [show]
+    (message: string, options?: ToastOptions) => show("info", message, options),
+    [show],
   );
 
   return (
@@ -117,26 +122,30 @@ const toastIcons = {
   info: Info,
 };
 
-const toastStyles: Record<ToastType, { container: string; icon: string; title: string }> = {
+const toastStyles: Record<
+  ToastType,
+  { container: string; icon: string; title: string }
+> = {
   success: {
-    container: 'bg-white border-emerald-200 text-slate-800 shadow-emerald-500/10',
-    icon: 'text-emerald-600 bg-emerald-50 border-emerald-100',
-    title: 'text-emerald-900',
+    container:
+      "bg-white border-emerald-200 text-slate-800 shadow-emerald-500/10",
+    icon: "text-emerald-600 bg-emerald-50 border-emerald-100",
+    title: "text-emerald-900",
   },
   error: {
-    container: 'bg-white border-rose-200 text-slate-800 shadow-rose-500/10',
-    icon: 'text-rose-600 bg-rose-50 border-rose-100',
-    title: 'text-rose-900',
+    container: "bg-white border-rose-200 text-slate-800 shadow-rose-500/10",
+    icon: "text-rose-600 bg-rose-50 border-rose-100",
+    title: "text-rose-900",
   },
   warning: {
-    container: 'bg-white border-amber-200 text-slate-800 shadow-amber-500/10',
-    icon: 'text-amber-600 bg-amber-50 border-amber-100',
-    title: 'text-amber-900',
+    container: "bg-white border-amber-200 text-slate-800 shadow-amber-500/10",
+    icon: "text-amber-600 bg-amber-50 border-amber-100",
+    title: "text-amber-900",
   },
   info: {
-    container: 'bg-white border-purple-200 text-slate-800 shadow-purple-500/10',
-    icon: 'text-[#23055c] bg-purple-50 border-purple-100',
-    title: 'text-[#23055c]',
+    container: "bg-white border-purple-200 text-slate-800 shadow-purple-500/10",
+    icon: "text-[#23055c] bg-purple-50 border-purple-100",
+    title: "text-[#23055c]",
   },
 };
 
@@ -160,14 +169,14 @@ const ToastContainer: React.FC<{
             key={toast.id}
             role="alert"
             className={cn(
-              'pointer-events-auto flex items-start gap-3 p-4 rounded-xl border shadow-xl backdrop-blur-md transition-all duration-300 transform translate-y-0 opacity-100 animate-in fade-in slide-in-from-top-3',
-              style.container
+              "pointer-events-auto flex items-start gap-3 p-4 rounded-xl border shadow-xl backdrop-blur-md transition-all duration-300 transform translate-y-0 opacity-100 animate-in fade-in slide-in-from-top-3",
+              style.container,
             )}
           >
             <div
               className={cn(
-                'w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border mt-0.5',
-                style.icon
+                "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border mt-0.5",
+                style.icon,
               )}
             >
               <Icon className="w-4 h-4" />
@@ -175,7 +184,12 @@ const ToastContainer: React.FC<{
 
             <div className="flex-1 min-w-0 pr-2">
               {toast.title && (
-                <h4 className={cn('text-xs font-bold leading-tight mb-0.5', style.title)}>
+                <h4
+                  className={cn(
+                    "text-xs font-bold leading-tight mb-0.5",
+                    style.title,
+                  )}
+                >
                   {toast.title}
                 </h4>
               )}

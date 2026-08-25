@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import React, { useEffect } from 'react';
-import { cn } from '../utils/cn';
-import { X } from 'lucide-react';
+import React, { useEffect } from "react";
+import { cn } from "../utils/cn";
+import { X } from "lucide-react";
 
 export interface ModalProps {
   isOpen: boolean;
@@ -21,15 +21,15 @@ export const Modal: React.FC<ModalProps> = ({
 }) => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) onClose();
+      if (e.key === "Escape" && isOpen) onClose();
     };
     if (isOpen) {
-      document.body.style.overflow = 'hidden';
-      window.addEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = "hidden";
+      window.addEventListener("keydown", handleKeyDown);
     }
     return () => {
-      document.body.style.overflow = 'unset';
-      window.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = "unset";
+      window.removeEventListener("keydown", handleKeyDown);
     };
   }, [isOpen, onClose]);
 
@@ -43,8 +43,8 @@ export const Modal: React.FC<ModalProps> = ({
       />
       <div
         className={cn(
-          'relative w-full max-w-lg max-h-[90vh] flex flex-col rounded-2xl bg-white shadow-2xl transition-all z-10 overflow-hidden',
-          className
+          "relative w-full max-w-lg max-h-[90vh] flex flex-col rounded-2xl bg-white shadow-2xl transition-all z-10 overflow-hidden",
+          className,
         )}
       >
         <div className="flex items-center justify-between p-6 pb-4 border-b border-slate-100 shrink-0 bg-white">
