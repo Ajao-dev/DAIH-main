@@ -118,52 +118,6 @@ section {
   letter-spacing: -0.5px;
 }
 
-/* Optional: dark overlay feel if background image is bright */
-#subheader:before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.35);
-  pointer-events: none;
-}
-#subheader .container,
-#subheader .row,
-#subheader .col-md-12 {
-  position: relative;
-  z-index: 2;
-}
-
-/* ----------------------------
-   Header / navigation polish
------------------------------ */
-header.transparent {
-  background: transparent !important;
-}
-header.smaller.scroll-light {
-  background: rgba(254, 251, 254, 0.92) !important;
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-}
-
-#mainmenu ul {
-  border-radius: 999px;
-  height: auto;
-  overflow: visible;
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: var(--shadow-sm);
-}
-
-#mainmenu > li > a {
-  padding: 18px 16px;
-  font-weight: 700;
-}
-
-#mainmenu li ul {
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: var(--shadow-md);
-}
-
 /* ----------------------------
    Ã¢â‚¬Å“Spaces AvailableÃ¢â‚¬Â grid improvements
 ----------------------------- */

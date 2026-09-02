@@ -18,7 +18,9 @@ import {
   CreateHoldSchema,
   CancelBookingSchema,
   AdminOverrideBookingSchema,
+  AdminNoShowRescheduleSchema,
   BookingFilterSchema,
+  AnalyticsFilterSchema,
 } from "./booking.schema.js";
 
 export const bookingRouter = Router();
@@ -44,6 +46,35 @@ const overrideGuard = [
   requirePermission(Permission.BOOKINGS_OVERRIDE),
 ];
 
+const viewReportsGuard = [
+  authenticate,
+  requireAnyPermission([Permission.REPORTS_VIEW, Permission.REPORTS_EXPORT]),
+];
+
+const dashboardSummaryGuard = [
+  authenticate,
+  requireAnyPermission([
+    Permission.BOOKINGS_READ_ALL,
+    Permission.BOOKINGS_MANAGE,
+    Permission.REPORTS_VIEW,
+  ]),
+];
+
+// Consolidated Admin Operations Dashboard Summary
+bookingRouter.get(
+  "/admin/dashboard-summary",
+  ...dashboardSummaryGuard,
+  bookingController.getDashboardSummary,
+);
+
+// Consolidated Admin Analytics Reports Summary (Restricted to Management, Finance, Ops Admin, Super Admin)
+bookingRouter.get(
+  "/admin/analytics-summary",
+  ...viewReportsGuard,
+  validateQuery(AnalyticsFilterSchema),
+  bookingController.getAnalyticsSummary,
+);
+
 // List all bookings for Admin Console (accessible by all staff with BOOKINGS_READ_ALL)
 bookingRouter.get(
   "/admin",
@@ -51,6 +82,7 @@ bookingRouter.get(
   validateQuery(BookingFilterSchema),
   bookingController.getAdminBookings,
 );
+
 bookingRouter.get(
   "/admin/all",
   ...readBookingsGuard,
@@ -72,6 +104,15 @@ bookingRouter.post(
   ...manageGuard,
   validateParams(BookingIdParamSchema),
   bookingController.adminReleaseHold,
+);
+
+// Discretionary reschedule for NO_SHOW booking (Operations Admin / Super Admin)
+bookingRouter.post(
+  "/admin/:id/reschedule-noshow",
+  ...manageGuard,
+  validateParams(BookingIdParamSchema),
+  validateBody(AdminNoShowRescheduleSchema),
+  bookingController.rescheduleNoShow,
 );
 
 // ==========================================
@@ -124,10 +165,10 @@ bookingRouter.post(
   bookingController.cancelBooking,
 );
 
-// Confirm booking (upon payment verification)
+// Confirm booking (Operations staff only; customers confirm through verified payment webhook)
 bookingRouter.post(
   "/:id/confirm",
-  authenticate,
+  ...manageGuard,
   validateParams(BookingIdParamSchema),
   bookingController.confirmBooking,
 );

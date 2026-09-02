@@ -21,6 +21,7 @@ import {
   ScheduleManagementModal,
   ResourceFilterModal,
   DeleteResourceModal,
+  UpdateResourceImageModal,
 } from "../../components/operations/ResourceModals";
 import {
   Plus,
@@ -46,6 +47,9 @@ export default function OperationsPage() {
   // Modal states
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [resourceToEdit, setResourceToEdit] = useState<FacilityResource | null>(
+    null,
+  );
+  const [imageResource, setImageResource] = useState<FacilityResource | null>(
     null,
   );
   const [pricingResource, setPricingResource] =
@@ -101,6 +105,26 @@ export default function OperationsPage() {
       });
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // Handle Quick Photo Update
+  const handleUpdateResourceImage = async (
+    resourceId: string,
+    imageUrl: string,
+  ) => {
+    try {
+      await api.catalogue.updateResource(resourceId, { imageUrl });
+      toast.success("Workspace photo updated and saved successfully.", {
+        title: "Photo Updated",
+      });
+      setImageResource(null);
+      await fetchResources();
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to update workspace photo", {
+        title: "Photo Update Failed",
+      });
+      throw err;
     }
   };
 
@@ -446,6 +470,7 @@ export default function OperationsPage() {
               onManageSchedules={(r) => setScheduleResource(r)}
               onToggleActive={(r) => handleToggleActive(r)}
               onDelete={(r) => setResourceToDelete(r)}
+              onUpdateImage={(r) => setImageResource(r)}
             />
           ))}
         </div>
@@ -461,6 +486,7 @@ export default function OperationsPage() {
           onManageSchedules={(r) => setScheduleResource(r)}
           onToggleActive={(r) => handleToggleActive(r)}
           onDelete={(r) => setResourceToDelete(r)}
+          onUpdateImage={(r) => setImageResource(r)}
         />
       )}
 
@@ -479,6 +505,14 @@ export default function OperationsPage() {
           setResourceToDelete(r);
         }}
         submitting={submitting}
+      />
+
+      {/* Quick Update Resource Photo Modal */}
+      <UpdateResourceImageModal
+        isOpen={Boolean(imageResource)}
+        resource={imageResource}
+        onClose={() => setImageResource(null)}
+        onSaveImage={handleUpdateResourceImage}
       />
 
       {/* Delete Resource Confirmation Modal */}

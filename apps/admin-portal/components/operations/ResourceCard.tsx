@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { FacilityResource } from "@daih/types";
+import { resolveResourceImageUrl } from "../../lib/image-utils";
 import {
   MoreVertical,
   Edit2,
@@ -15,6 +16,7 @@ import {
   Sparkles,
   Trash2,
   Clock,
+  Camera,
 } from "lucide-react";
 
 interface ResourceCardProps {
@@ -25,6 +27,7 @@ interface ResourceCardProps {
   onManageSchedules?: (resource: FacilityResource) => void;
   onToggleActive: (resource: FacilityResource) => void;
   onDelete: (resource: FacilityResource) => void;
+  onUpdateImage?: (resource: FacilityResource) => void;
 }
 
 export function ResourceCard({
@@ -35,6 +38,7 @@ export function ResourceCard({
   onManageSchedules,
   onToggleActive,
   onDelete,
+  onUpdateImage,
 }: ResourceCardProps) {
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -68,24 +72,12 @@ export function ResourceCard({
     priceDisplay = `${currency}${Number(mainPlan.price).toLocaleString()} / ${unit}`;
   }
 
-  // Fallback image selection based on category/slug
-  const imageSrc =
-    resource.imageUrl ||
-    (resource.category === "STUDIO" || resource.slug.includes("studio")
-      ? "/images/search/4.jpg"
-      : resource.category === "ROOFTOP_LOUNGE" ||
-          resource.slug.includes("rooftop")
-        ? "/images/search/6.jpg"
-        : resource.category === "TRAINING_ROOM" ||
-            resource.slug.includes("training")
-          ? "/images/search/5.jpg"
-          : resource.category === "OFFICE_SUITE" ||
-              resource.slug.includes("office")
-            ? "/images/search/3.jpg"
-            : resource.category === "DEDICATED_DESK" ||
-                resource.slug.includes("dedicated")
-              ? "/images/search/1.jpg"
-              : "/images/search/2.jpg");
+  // Resolve image source with robust uploads directory, presets, or CDN resolution
+  const imageSrc = resolveResourceImageUrl(
+    resource.imageUrl,
+    resource.category,
+    resource.slug,
+  );
 
   // Dynamic utilization calculation based on capacity and status
   const utilizationRate = resource.isActive
@@ -138,6 +130,19 @@ export function ResourceCard({
                     >
                       <Edit2 className="h-3.5 w-3.5" /> Edit Details
                     </button>
+                    {onUpdateImage && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setMenuOpen(false);
+                          onUpdateImage(resource);
+                        }}
+                        className="w-full text-left px-3 py-1.5 hover:bg-purple-50 flex items-center gap-2 text-[#23055c] font-semibold cursor-pointer"
+                      >
+                        <Camera className="h-3.5 w-3.5" /> Update Photo
+                      </button>
+                    )}
                     {onManageSchedules && (
                       <button
                         type="button"
@@ -191,13 +196,28 @@ export function ResourceCard({
     return (
       <div className="bg-white border border-[#ba1a1a]/30 rounded-xl overflow-hidden shadow-xs hover:shadow-md transition-all group flex flex-col relative">
         <div className="absolute left-0 top-0 w-1.5 h-full bg-[#ba1a1a] z-10"></div>
-        <div className="h-40 bg-slate-100 relative grayscale opacity-80 overflow-hidden">
+        <div className="h-40 bg-slate-100 relative grayscale opacity-80 overflow-hidden group/img">
           <img
             src={imageSrc}
             className="w-full h-full object-cover"
             alt={resource.name}
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = "/images/search/2.jpg";
+            }}
           />
-          <div className="absolute top-3 right-3">
+          {onUpdateImage && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onUpdateImage(resource);
+              }}
+              className="absolute inset-0 bg-black/50 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center gap-1.5 text-white text-xs font-bold backdrop-blur-2xs cursor-pointer z-10"
+            >
+              <Camera className="h-4 w-4" /> Change Photo
+            </button>
+          )}
+          <div className="absolute top-3 right-3 pointer-events-none z-10">
             <span className="bg-[#ffdad6] text-[#93000a] border border-[#ba1a1a]/20 text-[10px] font-extrabold px-2.5 py-1 rounded-md shadow-xs flex items-center gap-1">
               <Wrench className="h-3 w-3" /> Maintenance
             </span>
@@ -235,6 +255,19 @@ export function ResourceCard({
                     >
                       <Edit2 className="h-3.5 w-3.5" /> Edit Details
                     </button>
+                    {onUpdateImage && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setMenuOpen(false);
+                          onUpdateImage(resource);
+                        }}
+                        className="w-full text-left px-3 py-1.5 hover:bg-purple-50 flex items-center gap-2 text-[#23055c] font-semibold cursor-pointer"
+                      >
+                        <Camera className="h-3.5 w-3.5" /> Update Photo
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={(e) => {
@@ -359,13 +392,28 @@ export function ResourceCard({
   // Active / Available Standard Card
   return (
     <div className="bg-white border border-[#EBE7F5] rounded-xl overflow-hidden shadow-xs hover:shadow-md transition-all group flex flex-col">
-      <div className="h-40 bg-slate-100 relative overflow-hidden">
+      <div className="h-40 bg-slate-100 relative overflow-hidden group/img">
         <img
           src={imageSrc}
           className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-300"
           alt={resource.name}
+          onError={(e) => {
+            (e.target as HTMLImageElement).src = "/images/search/2.jpg";
+          }}
         />
-        <div className="absolute top-3 right-3 flex items-center gap-1.5">
+        {onUpdateImage && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onUpdateImage(resource);
+            }}
+            className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center gap-1.5 text-white text-xs font-bold backdrop-blur-2xs cursor-pointer z-10"
+          >
+            <Camera className="h-4 w-4" /> Change Photo
+          </button>
+        )}
+        <div className="absolute top-3 right-3 flex items-center gap-1.5 pointer-events-none z-10">
           {resource.isPopular && (
             <span className="bg-amber-100 text-amber-800 border border-amber-200/80 text-[10px] font-extrabold px-2 py-0.5 rounded-md shadow-xs flex items-center gap-1 backdrop-blur-xs">
               <Sparkles className="h-2.5 w-2.5" /> Featured
@@ -414,6 +462,19 @@ export function ResourceCard({
                     <Edit2 className="h-3.5 w-3.5 text-slate-500" /> Edit
                     Details
                   </button>
+                  {onUpdateImage && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setMenuOpen(false);
+                        onUpdateImage(resource);
+                      }}
+                      className="w-full text-left px-3 py-1.5 hover:bg-purple-50 flex items-center gap-2 text-[#23055c] font-semibold cursor-pointer"
+                    >
+                      <Camera className="h-3.5 w-3.5" /> Update Photo
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={(e) => {

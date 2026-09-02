@@ -20,8 +20,8 @@ export interface AdminUserRecord {
   role: UserRole;
   status: "ACTIVE" | "PENDING" | "DEACTIVATED";
   lastActive: string;
-  avatarUrl?: string;
-  phone?: string;
+  avatarUrl?: string | null;
+  phone?: string | null;
 }
 
 interface UserDirectoryTableProps {
@@ -81,7 +81,7 @@ export const UserDirectoryTable: React.FC<UserDirectoryTableProps> = ({
       case UserRole.SECURITY_OFFICER:
         return "Security";
       case UserRole.MANAGEMENT_VIEWER:
-        return "Management";
+        return "Management (CEO)";
       default:
         return role;
     }

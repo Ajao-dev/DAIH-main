@@ -1,153 +1,365 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
+import { PaymentTransaction, PaymentStatus } from "@daih/types";
+import { DateRangeOption } from "./FinanceHeader";
 
-export const RevenueTrendChart: React.FC = () => {
-  const [period, setPeriod] = useState<"Daily" | "Weekly">("Daily");
+interface RevenueTrendChartProps {
+  transactions?: PaymentTransaction[];
+  dateRange?: DateRangeOption;
+  loading?: boolean;
+}
 
-  const dailyPoints = [
-    { label: "Oct 1", value: "₦850k", x: 0, y: 80 },
-    { label: "Oct 8", value: "₦1.4m", x: 30, y: 50 },
-    { label: "Oct 15", value: "₦1.8m", x: 60, y: 30 },
-    { label: "Oct 22", value: "₦1.6m", x: 80, y: 45 },
-    { label: "Oct 29", value: "₦2.1m", x: 100, y: 20 },
-  ];
+export const RevenueTrendChart: React.FC<RevenueTrendChartProps> = ({
+  transactions = [],
+  dateRange = "Last 30 Days",
+  loading = false,
+}) => {
+  const [viewMode, setViewMode] = useState<"Trend" | "Cumulative">("Trend");
+  const [hoverIndex, setHoverIndex] = useState<number | null>(null);
 
-  const weeklyPoints = [
-    { label: "Wk 1", value: "₦6.2m", x: 0, y: 70 },
-    { label: "Wk 2", value: "₦9.8m", x: 33, y: 40 },
-    { label: "Wk 3", value: "₦11.4m", x: 66, y: 25 },
-    { label: "Wk 4", value: "₦14.5m", x: 100, y: 15 },
-  ];
+  // Helper to compute net revenue (Successful Gross - Refunded) in a date filter predicate
+  const computeNetRevenue = (
+    filterFn: (tx: PaymentTransaction) => boolean,
+  ): number => {
+    let gross = 0;
+    let refunded = 0;
 
-  const points = period === "Daily" ? dailyPoints : weeklyPoints;
+    transactions.forEach((t) => {
+      if (!filterFn(t)) return;
+
+      const amt = Number(t.amount || 0);
+      const isSuccess =
+        t.status === PaymentStatus.SUCCESSFUL ||
+        (t.status as any) === "SUCCESS";
+      const isRefund =
+        t.status === PaymentStatus.REFUNDED ||
+        t.status === PaymentStatus.PARTIALLY_REFUNDED ||
+        (t.status as any) === "REFUNDED";
+
+      if (isSuccess) gross += amt;
+      else if (isRefund) refunded += amt;
+    });
+
+    return Math.max(0, gross - refunded);
+  };
+
+  // Helper to format date as dd/MM (e.g. 24/08)
+  const formatDayMonth = (d: Date): string => {
+    const day = String(d.getDate()).padStart(2, "0");
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    return `${day}/${month}`;
+  };
+
+  // Generate dynamic intervals matching the selected date range
+  const chartPoints = useMemo(() => {
+    const now = new Date();
+    const points: Array<{
+      label: string;
+      shortDate: string;
+      dateKey: string;
+      amount: number;
+    }> = [];
+
+    if (dateRange === "Today") {
+      // Hourly intervals today
+      const hours = [8, 10, 12, 14, 16, 18, 20];
+      const todayDateStr = now.toISOString().split("T")[0];
+
+      hours.forEach((hour) => {
+        const hourLabel = `${hour > 12 ? hour - 12 : hour}:00 ${hour >= 12 ? "PM" : "AM"}`;
+        const shortDate = `${String(hour).padStart(2, "0")}:00`;
+        const netTotal = computeNetRevenue((t) => {
+          const txDate = new Date(t.createdAt);
+          return (
+            t.createdAt.startsWith(todayDateStr) &&
+            txDate.getHours() >= hour - 2 &&
+            txDate.getHours() <= hour
+          );
+        });
+
+        points.push({
+          label: hourLabel,
+          shortDate,
+          dateKey: `${todayDateStr}_${hour}`,
+          amount: netTotal,
+        });
+      });
+    } else if (dateRange === "Last 7 Days") {
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(now.getDate() - i);
+        const dateKey = d.toISOString().split("T")[0];
+        const label = d.toLocaleDateString("en-NG", {
+          weekday: "short",
+          day: "numeric",
+          month: "short",
+        });
+        const shortDate = formatDayMonth(d);
+
+        const netTotal = computeNetRevenue((t) =>
+          t.createdAt.startsWith(dateKey),
+        );
+        points.push({ label, shortDate, dateKey, amount: netTotal });
+      }
+    } else if (dateRange === "Last 30 Days") {
+      // 8 sample points across 30 days
+      const step = 4;
+      for (let i = 7; i >= 0; i--) {
+        const endD = new Date(now.getTime() - i * step * 24 * 60 * 60 * 1000);
+        const startD = new Date(endD.getTime() - step * 24 * 60 * 60 * 1000);
+        const label = endD.toLocaleDateString("en-NG", {
+          month: "short",
+          day: "numeric",
+        });
+        const shortDate = formatDayMonth(endD);
+
+        const netTotal = computeNetRevenue((t) => {
+          const txDate = new Date(t.createdAt);
+          return txDate >= startD && txDate <= endD;
+        });
+
+        points.push({ label, shortDate, dateKey: shortDate, amount: netTotal });
+      }
+    } else {
+      // Quarter or Year to Date
+      const count = 7;
+      const daysSpan = dateRange === "This Quarter" ? 90 : 180;
+      for (let i = count - 1; i >= 0; i--) {
+        const endD = new Date(
+          now.getTime() - ((i * daysSpan) / count) * 24 * 60 * 60 * 1000,
+        );
+        const startD = new Date(
+          endD.getTime() - (daysSpan / count) * 24 * 60 * 60 * 1000,
+        );
+        const label = endD.toLocaleDateString("en-NG", {
+          month: "short",
+          day: "numeric",
+        });
+        const shortDate = formatDayMonth(endD);
+
+        const netTotal = computeNetRevenue((t) => {
+          const txDate = new Date(t.createdAt);
+          return txDate >= startD && txDate <= endD;
+        });
+
+        points.push({ label, shortDate, dateKey: shortDate, amount: netTotal });
+      }
+    }
+
+    if (viewMode === "Cumulative") {
+      let runSum = 0;
+      return points.map((p) => {
+        runSum += p.amount;
+        return { ...p, amount: runSum };
+      });
+    }
+
+    return points;
+  }, [transactions, dateRange, viewMode]);
+
+  const maxAmount = useMemo(() => {
+    const highest = Math.max(...chartPoints.map((p) => p.amount), 0);
+    return highest > 0 ? highest * 1.3 : 100000;
+  }, [chartPoints]);
+
+  // Compute safely padded normalized coordinates (x: 4 to 96, y: 10 to 90)
+  const normalizedPoints = useMemo(() => {
+    return chartPoints.map((p, index) => {
+      const x =
+        chartPoints.length > 1
+          ? 4 + (index / (chartPoints.length - 1)) * 92
+          : 50;
+      const yRatio =
+        maxAmount > 0 ? Math.min(1, Math.max(0, p.amount / maxAmount)) : 0;
+      const y = 90 - yRatio * 80;
+      return {
+        ...p,
+        x,
+        y,
+        formattedAmount: `₦${p.amount.toLocaleString("en-NG", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })}`,
+      };
+    });
+  }, [chartPoints, maxAmount]);
+
+  // Construct clean, solid line path (straight line segments)
+  const solidLinePath = useMemo(() => {
+    if (normalizedPoints.length === 0) return "";
+    return normalizedPoints.reduce((acc, pt, i) => {
+      if (i === 0) return `M ${pt.x.toFixed(2)},${pt.y.toFixed(2)}`;
+      return `${acc} L ${pt.x.toFixed(2)},${pt.y.toFixed(2)}`;
+    }, "");
+  }, [normalizedPoints]);
+
+  const formatYAxis = (amt: number) => {
+    if (amt >= 1000000) return `₦${(amt / 1000000).toFixed(1)}M`;
+    if (amt >= 1000) return `₦${Math.round(amt / 1000)}k`;
+    return `₦${Math.round(amt)}`;
+  };
+
+  const hoveredPoint =
+    hoverIndex !== null ? normalizedPoints[hoverIndex] : null;
+
+  if (loading) {
+    return (
+      <div className="bg-white/80 backdrop-blur-md border border-[#EBE7F5] rounded-xl p-6 flex flex-col h-[420px] shadow-xs animate-pulse">
+        <div className="flex justify-between items-center mb-6">
+          <div className="h-5 w-32 bg-slate-200 rounded" />
+          <div className="h-7 w-28 bg-slate-200 rounded" />
+        </div>
+        <div className="flex-1 bg-slate-100 rounded-lg" />
+      </div>
+    );
+  }
 
   return (
-    <div className="bg-white/80 backdrop-blur-md border border-[#EBE7F5] rounded-xl p-6 flex flex-col h-[400px] shadow-xs">
-      {/* Header with Title and Period Toggle */}
-      <div className="flex justify-between items-center mb-6">
-        <h3 className="text-base font-bold text-slate-900">Revenue Trend</h3>
+    <div className="bg-white/80 backdrop-blur-md border border-[#EBE7F5] rounded-xl p-6 flex flex-col h-[420px] shadow-xs">
+      {/* Header with Title and View Mode Toggle */}
+      <div className="flex justify-between items-center mb-4">
+        <div>
+          <h3 className="text-base font-bold text-slate-900">
+            Total Net Revenue Trend
+          </h3>
+          <p className="text-xs text-slate-400">
+            {dateRange} · Net revenue trajectory (gross minus refunds)
+          </p>
+        </div>
         <div className="flex gap-1.5 bg-[#F8F9FA] p-1 rounded-lg border border-[#EBE7F5]">
           <button
-            onClick={() => setPeriod("Daily")}
+            onClick={() => setViewMode("Trend")}
             className={`px-3 py-1 rounded text-xs font-semibold transition-all cursor-pointer ${
-              period === "Daily"
+              viewMode === "Trend"
                 ? "bg-[#392271] text-white shadow-xs"
                 : "text-slate-600 hover:text-slate-900"
             }`}
           >
-            Daily
+            Interval Trend
           </button>
           <button
-            onClick={() => setPeriod("Weekly")}
+            onClick={() => setViewMode("Cumulative")}
             className={`px-3 py-1 rounded text-xs font-semibold transition-all cursor-pointer ${
-              period === "Weekly"
+              viewMode === "Cumulative"
                 ? "bg-[#392271] text-white shadow-xs"
                 : "text-slate-600 hover:text-slate-900"
             }`}
           >
-            Weekly
+            Cumulative
           </button>
         </div>
       </div>
 
-      {/* Interactive Chart Canvas */}
-      <div className="flex-1 relative w-full h-full border-b border-l border-[#EBE7F5] mt-4 ml-8 mr-2">
-        {/* Y Axis Labels */}
-        <div className="absolute -left-9 top-0 bottom-0 flex flex-col justify-between text-[11px] font-semibold text-slate-400 h-full pb-6">
-          <span>₦2.5M</span>
-          <span>₦2.0M</span>
-          <span>₦1.5M</span>
-          <span>₦1.0M</span>
-          <span>₦0</span>
-        </div>
+      {/* Main Chart Body: Left Y-Axis Units Column + Center Chart Box + Bottom X-Axis Dates */}
+      <div className="flex-1 flex flex-col min-h-0">
+        <div className="flex-1 flex items-stretch min-h-0">
+          {/* Left Y-Axis Units Column (Visible, Non-Clipped) */}
+          <div className="w-16 flex flex-col justify-between items-end pr-2 text-[11px] font-mono font-semibold text-slate-500 select-none pb-1">
+            <span>{formatYAxis(maxAmount)}</span>
+            <span>{formatYAxis(maxAmount * 0.75)}</span>
+            <span>{formatYAxis(maxAmount * 0.5)}</span>
+            <span>{formatYAxis(maxAmount * 0.25)}</span>
+            <span>₦0</span>
+          </div>
 
-        {/* Grid Lines */}
-        <div className="absolute inset-0 flex flex-col justify-between pointer-events-none pb-6">
-          <div className="w-full border-t border-slate-100 h-0"></div>
-          <div className="w-full border-t border-slate-100 h-0"></div>
-          <div className="w-full border-t border-slate-100 h-0"></div>
-          <div className="w-full border-t border-slate-100 h-0"></div>
-        </div>
+          {/* Chart SVG Box with Borders */}
+          <div
+            className="flex-1 relative h-full border-b border-l border-[#EBE7F5] overflow-hidden"
+            onMouseLeave={() => setHoverIndex(null)}
+          >
+            {/* Grid Horizontal Lines */}
+            <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
+              <div className="w-full border-t border-slate-100 h-0" />
+              <div className="w-full border-t border-slate-100 h-0" />
+              <div className="w-full border-t border-slate-100 h-0" />
+              <div className="w-full border-t border-slate-100 h-0" />
+            </div>
 
-        {/* SVG Area & Line Path */}
-        <svg
-          className="absolute inset-0 w-full h-[calc(100%-24px)] overflow-visible"
-          preserveAspectRatio="none"
-          viewBox="0 0 100 100"
-        >
-          <defs>
-            <linearGradient
-              id="revenueChartGrad"
-              x1="0%"
-              x2="0%"
-              y1="0%"
-              y2="100%"
+            {/* SVG Solid Graph Line */}
+            <svg
+              className="absolute inset-0 w-full h-full"
+              preserveAspectRatio="none"
+              viewBox="0 0 100 100"
             >
-              <stop offset="0%" stopColor="#392271" stopOpacity="0.25" />
-              <stop offset="100%" stopColor="#392271" stopOpacity="0.0" />
-            </linearGradient>
-          </defs>
+              {/* Solid Graph Line */}
+              {solidLinePath && (
+                <path
+                  d={solidLinePath}
+                  fill="none"
+                  stroke="#392271"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  vectorEffect="non-scaling-stroke"
+                />
+              )}
 
-          {/* Area Fill */}
-          <path
-            d="M0,80 C10,70 20,90 30,50 C40,10 50,40 60,30 C70,20 80,60 90,40 C95,30 100,20 100,20 L100,100 L0,100 Z"
-            fill="url(#revenueChartGrad)"
-          />
+              {/* Interactive vertical hover indicator line */}
+              {hoveredPoint && (
+                <>
+                  <line
+                    x1={hoveredPoint.x}
+                    y1={0}
+                    x2={hoveredPoint.x}
+                    y2={100}
+                    stroke="#392271"
+                    strokeWidth="1"
+                    strokeDasharray="3 3"
+                    opacity="0.6"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                  <circle
+                    cx={hoveredPoint.x}
+                    cy={hoveredPoint.y}
+                    r="4"
+                    fill="#392271"
+                    stroke="#ffffff"
+                    strokeWidth="2"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                </>
+              )}
+            </svg>
 
-          {/* Stroke Line */}
-          <path
-            d="M0,80 C10,70 20,90 30,50 C40,10 50,40 60,30 C70,20 80,60 90,40 C95,30 100,20 100,20"
-            fill="none"
-            stroke="#392271"
-            strokeWidth="2.5"
-            vectorEffect="non-scaling-stroke"
-          />
+            {/* Invisible vertical hover hit areas for smooth user interaction */}
+            <div className="absolute inset-0 flex h-full">
+              {normalizedPoints.map((pt, idx) => (
+                <div
+                  key={idx}
+                  className="flex-1 h-full cursor-crosshair"
+                  onMouseEnter={() => setHoverIndex(idx)}
+                />
+              ))}
+            </div>
 
-          {/* Data Points */}
-          <circle
-            cx="30"
-            cy="50"
-            fill="#ffffff"
-            r="4"
-            stroke="#392271"
-            strokeWidth="2.5"
-            vectorEffect="non-scaling-stroke"
-          />
-          <circle
-            cx="60"
-            cy="30"
-            fill="#ffffff"
-            r="4"
-            stroke="#392271"
-            strokeWidth="2.5"
-            vectorEffect="non-scaling-stroke"
-          />
-          <circle
-            cx="90"
-            cy="40"
-            fill="#ffffff"
-            r="4"
-            stroke="#392271"
-            strokeWidth="2.5"
-            vectorEffect="non-scaling-stroke"
-          />
-          <circle
-            cx="100"
-            cy="20"
-            fill="#ffffff"
-            r="4"
-            stroke="#392271"
-            strokeWidth="2.5"
-            vectorEffect="non-scaling-stroke"
-          />
-        </svg>
+            {/* Floating Tooltip */}
+            {hoveredPoint && (
+              <div
+                className="absolute bg-slate-900 text-white px-3 py-1.5 rounded-lg text-xs shadow-xl pointer-events-none z-30 transform -translate-x-1/2 -translate-y-full whitespace-nowrap"
+                style={{
+                  left: `${hoveredPoint.x}%`,
+                  top: `${(hoveredPoint.y / 100) * 180 + 10}px`,
+                }}
+              >
+                <p className="font-semibold text-slate-300 text-[10px]">
+                  {hoveredPoint.label} ({hoveredPoint.shortDate})
+                </p>
+                <p className="font-extrabold text-emerald-400 text-xs">
+                  {hoveredPoint.formattedAmount} (Net)
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
 
-        {/* X Axis Labels */}
-        <div className="absolute -bottom-6 left-0 w-full flex justify-between text-[11px] font-semibold text-slate-400">
-          {points.map((p) => (
-            <span key={p.label}>{p.label}</span>
-          ))}
+        {/* X-Axis Date Labels Row (Aligned under the chart box) */}
+        <div className="flex pl-16 pt-2 select-none">
+          <div className="flex-1 flex justify-between text-[11px] font-mono font-medium text-slate-500 px-1">
+            {normalizedPoints.map((p, idx) => (
+              <span key={idx}>{p.shortDate}</span>
+            ))}
+          </div>
         </div>
       </div>
     </div>

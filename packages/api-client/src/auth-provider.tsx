@@ -7,7 +7,7 @@ import React, {
   useState,
   useCallback,
 } from "react";
-import { UserProfile } from "@daih/types";
+import { UserProfile, LoginApiResponse } from "@daih/types";
 import { api, DaihApiClient } from "./client";
 
 interface AuthContextType {
@@ -20,7 +20,8 @@ interface AuthContextType {
     password: string;
     portal?: "customer" | "admin" | string;
     audience?: "CUSTOMER" | "ADMIN" | string;
-  }) => Promise<UserProfile>;
+  }) => Promise<LoginApiResponse>;
+  setSession: (token: string, user: UserProfile) => void;
   register: (payload: {
     email: string;
     password: string;
@@ -29,9 +30,11 @@ interface AuthContextType {
     phoneNumber?: string;
     policyVersion?: string;
     consented: boolean;
+    referralCode?: string;
   }) => Promise<{ user: UserProfile; verificationSent: boolean }>;
   logout: () => Promise<void>;
   refreshSession: () => Promise<UserProfile | null>;
+  updateUser: (user: UserProfile) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -139,19 +142,30 @@ export function AuthProvider({
     };
   }, [refreshSession]);
 
+  const setSession = useCallback(
+    (token: string, newUser: UserProfile) => {
+      setAccessToken(token);
+      updateUserState(newUser);
+      apiClient.setAccessToken(token);
+    },
+    [apiClient, updateUserState],
+  );
+
   const login = async (credentials: {
     email: string;
     password: string;
     portal?: "customer" | "admin" | string;
     audience?: "CUSTOMER" | "ADMIN" | string;
-  }): Promise<UserProfile> => {
+  }): Promise<LoginApiResponse> => {
     setIsLoading(true);
     try {
       const res = await apiClient.auth.login(credentials);
-      updateUserState(res.user);
-      const token = res.accessToken || (res as any).token || null;
-      setAccessToken(token);
-      return res.user;
+      if ("user" in res && "token" in res) {
+        updateUserState(res.user as UserProfile);
+        const token = (res as any).token || (res as any).accessToken || null;
+        setAccessToken(token);
+      }
+      return res;
     } finally {
       setIsLoading(false);
     }
@@ -165,6 +179,7 @@ export function AuthProvider({
     phoneNumber?: string;
     policyVersion?: string;
     consented: boolean;
+    referralCode?: string;
   }) => {
     setIsLoading(true);
     try {
@@ -193,9 +208,11 @@ export function AuthProvider({
         isLoading,
         isAuthenticated: !!user,
         login,
+        setSession,
         register,
         logout,
         refreshSession,
+        updateUser: updateUserState,
       }}
     >
       {children}

@@ -5,6 +5,7 @@ import { identityService } from "./identity.service.js";
 import { staffUserService } from "./staff-user.service.js";
 import { customerService } from "./customer.service.js";
 import { AuthRequest } from "../../middleware/auth.middleware.js";
+import { uploadAvatarSchema } from "./identity.schema.js";
 
 export class IdentityController {
   private setRefreshCookie(res: Response, rawRefreshToken: string): void {
@@ -53,20 +54,38 @@ export class IdentityController {
     try {
       const portalHeader = (req.headers["x-portal"] ||
         req.headers["x-client-portal"]) as string | undefined;
-      const { accessToken, rawRefreshToken, user } =
-        await identityService.login(req.body, {
-          ipAddress: req.ip,
-          userAgent: req.headers["user-agent"],
-          portal: req.body?.portal || req.body?.audience || portalHeader,
-        });
+      const result = await identityService.login(req.body, {
+        ipAddress: req.ip,
+        userAgent: req.headers["user-agent"],
+        portal: req.body?.portal || req.body?.audience || portalHeader,
+      });
 
-      this.setRefreshCookie(res, rawRefreshToken);
+      // Handle MFA setup requirement
+      if ("requiresMfaSetup" in result) {
+        res.json({
+          success: true,
+          data: result,
+        });
+        return;
+      }
+
+      // Handle MFA challenge requirement
+      if ("requiresMfa" in result) {
+        res.json({
+          success: true,
+          data: result,
+        });
+        return;
+      }
+
+      // Full login success for customers or non-MFA flow
+      this.setRefreshCookie(res, result.rawRefreshToken);
 
       res.json({
         success: true,
         data: {
-          token: accessToken,
-          user,
+          token: result.accessToken,
+          user: result.user,
         },
       });
     } catch (error) {
@@ -82,13 +101,12 @@ export class IdentityController {
     try {
       const rawRefreshToken =
         req.cookies?.[config.cookies.refreshCookieName] ||
-        req.body?.refreshToken ||
-        (req.headers["x-refresh-token"] as string);
+        (config.env === "test" ? req.body?.refreshToken : undefined);
 
       if (!rawRefreshToken) {
         res.status(401).json({
           code: "UNAUTHORIZED",
-          message: "Refresh token cookie is missing",
+          message: "Authentication refresh cookie is missing",
         });
         return;
       }
@@ -133,16 +151,21 @@ export class IdentityController {
       if (authHeader && authHeader.startsWith("Bearer ")) {
         const token = authHeader.split(" ")[1];
         try {
-          const payload = jwt.decode(token) as any;
+          // Cryptographically verify token signature before trusting sessionId to prevent unauthenticated DoS
+          const payload = jwt.verify(token, config.jwt.secret, {
+            algorithms: ["HS256"],
+          }) as any;
           if (payload && payload.sessionId) {
             sessionId = payload.sessionId;
           }
         } catch {
-          // ignore decode errors on logout
+          // Ignore invalid/expired token signatures on logout; proceed with refresh token revocation if present
         }
       }
 
-      await identityService.logout(rawRefreshToken, sessionId);
+      if (rawRefreshToken || sessionId) {
+        await identityService.logout(rawRefreshToken, sessionId);
+      }
       this.clearRefreshCookie(res);
 
       res.json({
@@ -160,7 +183,7 @@ export class IdentityController {
     next: NextFunction,
   ): Promise<void> => {
     try {
-      const token = (req.query.token as string) || (req.body?.token as string);
+      const token = (req.body?.token as string) || (req.query.token as string);
       const user = await identityService.verifyEmail(token);
 
       res.json({
@@ -171,6 +194,20 @@ export class IdentityController {
     } catch (error) {
       next(error);
     }
+  };
+
+  verifyEmailStatus = async (
+    req: Request,
+    res: Response,
+    _next: NextFunction,
+  ): Promise<void> => {
+    // Non-mutating status check for GET /verify-email to prevent scanner pre-fetching from burning tokens
+    const token = (req.query.token as string) || "";
+    res.json({
+      success: true,
+      message: "Please confirm email verification using the client interface.",
+      ready: Boolean(token && token.length > 0),
+    });
   };
 
   resendVerification = async (
@@ -216,6 +253,23 @@ export class IdentityController {
     }
   };
 
+  setupAccount = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const result = await identityService.setupAccount(
+        req.body.token,
+        req.body.password,
+      );
+      this.clearRefreshCookie(res);
+      res.json(result);
+    } catch (error) {
+      next(error);
+    }
+  };
+
   getProfile = async (
     req: AuthRequest,
     res: Response,
@@ -238,13 +292,135 @@ export class IdentityController {
     }
   };
 
+  updateProfile = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      if (!req.user) {
+        res
+          .status(401)
+          .json({ code: "UNAUTHORIZED", message: "Authentication required" });
+        return;
+      }
+      const user = await identityService.updateProfile(
+        req.user.id,
+        req.body,
+        req.ip,
+      );
+      res.json({
+        success: true,
+        data: user,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  changePassword = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      if (!req.user) {
+        res
+          .status(401)
+          .json({ code: "UNAUTHORIZED", message: "Authentication required" });
+        return;
+      }
+      const result = await identityService.changePassword(
+        req.user.id,
+        req.body,
+        req.ip,
+      );
+      res.json(result);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  uploadAvatar = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      if (!req.user) {
+        res
+          .status(401)
+          .json({ code: "UNAUTHORIZED", message: "Authentication required" });
+        return;
+      }
+
+      const validated = uploadAvatarSchema.parse(req.body);
+      let inputBuffer: Buffer;
+      let mimeType = validated.contentType || "image/jpeg";
+
+      if (validated.data.startsWith("data:")) {
+        const matches = validated.data.match(
+          /^data:([A-Za-z-+\/]+);base64,(.+)$/,
+        );
+        if (matches && matches.length === 3) {
+          mimeType = matches[1];
+          inputBuffer = Buffer.from(matches[2], "base64");
+        } else {
+          inputBuffer = Buffer.from(validated.data, "base64");
+        }
+      } else {
+        inputBuffer = Buffer.from(validated.data, "base64");
+      }
+
+      const result = await identityService.uploadAvatar(
+        req.user.id,
+        {
+          imageBuffer: inputBuffer,
+          fileName: validated.fileName,
+          mimeType,
+        },
+        req.protocol,
+        req.get("host"),
+        req.ip,
+      );
+
+      res.status(200).json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  deleteAvatar = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      if (!req.user) {
+        res
+          .status(401)
+          .json({ code: "UNAUTHORIZED", message: "Authentication required" });
+        return;
+      }
+
+      const result = await identityService.deleteAvatar(req.user.id, req.ip);
+
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  };
+
   createStaffUser = async (
     req: AuthRequest,
     res: Response,
     next: NextFunction,
   ): Promise<void> => {
     try {
-      const user = await staffUserService.createStaffUser(req.body);
+      const user = await staffUserService.createStaffUser(req.body, req.user);
       res.status(201).json({
         success: true,
         data: user,
@@ -265,6 +441,50 @@ export class IdentityController {
         success: true,
         data: users,
       });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  updateStaffUser = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const userId = String(req.params.userId);
+      const { role, firstName, lastName, phoneNumber, isVerified } = req.body;
+      const updater = req.user
+        ? { id: req.user.id, role: req.user.role as any }
+        : undefined;
+
+      const user = await staffUserService.updateStaffUser(
+        userId,
+        { role, firstName, lastName, phoneNumber, isVerified },
+        updater,
+      );
+
+      res.json({
+        success: true,
+        message: "Staff user updated successfully",
+        data: user,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  resendStaffSetupLink = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const result = await staffUserService.resendStaffSetupLink(
+        String(req.params.userId),
+        req.user,
+      );
+      res.json(result);
     } catch (error) {
       next(error);
     }
@@ -296,6 +516,157 @@ export class IdentityController {
       res.status(201).json({
         success: true,
         data: customer,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // ─── MFA Handlers ────────────────────────────────────────────────────────────
+
+  setupMfa = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const result = await identityService.setupMfa(
+        req.body.setupToken,
+        req.body.method,
+      );
+      res.json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  confirmMfaSetup = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const result = await identityService.confirmMfaSetup(
+        req.body.setupToken,
+        req.body.method,
+        req.body.code,
+        req.body.ephemeralSecret,
+        {
+          ipAddress: req.ip,
+          userAgent: req.headers["user-agent"],
+        },
+      );
+
+      this.setRefreshCookie(res, result.rawRefreshToken);
+
+      res.json({
+        success: true,
+        data: {
+          token: result.accessToken,
+          user: result.user,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  verifyMfaChallenge = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const result = await identityService.verifyMfaChallenge(
+        req.body.mfaChallengeToken,
+        req.body.code,
+        {
+          ipAddress: req.ip,
+          userAgent: req.headers["user-agent"],
+        },
+      );
+
+      this.setRefreshCookie(res, result.rawRefreshToken);
+
+      res.json({
+        success: true,
+        data: {
+          token: result.accessToken,
+          user: result.user,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  resendMfaOtp = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      await identityService.resendMfaOtp(req.body.mfaChallengeToken);
+      res.json({
+        success: true,
+        message: "A new verification code has been sent to your email",
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  disableUserMfa = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      await identityService.disableUserMfa(
+        String(req.params.userId),
+        req.user!.id,
+        req.ip,
+      );
+      res.json({
+        success: true,
+        message: "MFA has been successfully disabled for this user",
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getMyReferrals = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const result = await identityService.getMyReferrals(req.user!.id);
+      res.json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getCustomerReferrals = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const result = await customerService.getCustomerReferrals(
+        String(req.params.id),
+      );
+      res.json({
+        success: true,
+        data: result,
       });
     } catch (error) {
       next(error);

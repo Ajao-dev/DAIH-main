@@ -1,6 +1,7 @@
 import { OutboxEvent } from "@prisma/client";
 import { emailService } from "../../email/email.service.js";
 import { outboxService } from "../outbox.service.js";
+import { decryptSecret } from "../../../utils/crypto.js";
 
 export async function handleIdentityEmailEvents(
   event: OutboxEvent,
@@ -9,24 +10,28 @@ export async function handleIdentityEmailEvents(
 
   switch (event.eventType) {
     case "identity.email_verification_requested": {
-      if (payload.email && payload.rawToken) {
+      const rawToken = payload.encryptedToken
+        ? decryptSecret(payload.encryptedToken)
+        : payload.rawToken;
+
+      if (payload.email && rawToken) {
         const name = payload.firstName || "Member";
-        await emailService.sendVerificationEmail(
-          payload.email,
-          name,
-          payload.rawToken,
-        );
+        await emailService.sendVerificationEmail(payload.email, name, rawToken);
       }
       break;
     }
 
     case "identity.password_reset_requested": {
-      if (payload.email && payload.rawToken) {
+      const rawToken = payload.encryptedToken
+        ? decryptSecret(payload.encryptedToken)
+        : payload.rawToken;
+
+      if (payload.email && rawToken) {
         const name = payload.firstName || "Member";
         await emailService.sendPasswordResetEmail(
           payload.email,
           name,
-          payload.rawToken,
+          rawToken,
         );
       }
       break;
@@ -35,11 +40,12 @@ export async function handleIdentityEmailEvents(
     case "identity.staff_user_created": {
       if (payload.email) {
         const name = payload.firstName || "Staff Member";
+        const setupUrl = payload.setupUrl || "";
         await emailService.sendStaffWelcomeEmail(
           payload.email,
           name,
           payload.role,
-          payload.setupToken,
+          setupUrl,
         );
       }
       break;

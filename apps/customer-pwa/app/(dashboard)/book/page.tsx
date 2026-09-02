@@ -19,32 +19,10 @@ const CATEGORIES: CategoryOption[] = [
   { id: "Studio", label: "Creative Studios & Lounge" },
 ];
 
-// Helper to determine accurate local web images for workspace slugs
-function getWorkspaceImage(
-  slug: string,
-  backendImageUrl?: string | null,
-): string {
-  if (
-    backendImageUrl &&
-    (backendImageUrl.startsWith("http") ||
-      backendImageUrl.startsWith("/images/"))
-  ) {
-    return backendImageUrl;
-  }
-  const s = slug.toLowerCase();
-  if (s.includes("stream")) return "/images/misc/space-type-streaming.jpg";
-  if (s.includes("podcast") || s.includes("audio"))
-    return "/images/misc/space-type-podcast.jpg";
-  if (s.includes("photo")) return "/images/misc/space-type-photo.jpg";
-  if (s.includes("studio")) return "/images/search/4.jpg";
-  if (s.includes("rooftop")) return "/images/search/6.jpg";
-  if (s.includes("training") || s.includes("meeting"))
-    return "/images/search/5.jpg";
-  if (s.includes("office") || s.includes("conference"))
-    return "/images/search/3.jpg";
-  if (s.includes("dedicated")) return "/images/search/1.jpg";
-  return "/images/search/2.jpg";
-}
+import {
+  resolveResourceImageUrl,
+  getWorkspaceImage,
+} from "../../../lib/image-utils";
 
 // Helper to map category strings to filter chips
 function mapToCategoryGroup(
@@ -85,101 +63,8 @@ function mapToCategoryGroup(
   return "Hot Desk";
 }
 
-// Fallback seed list matching official rates
-const DEFAULT_CATALOGUE_FALLBACK: SpaceItem[] = [
-  {
-    id: "flex-desk",
-    name: "Flex Desk",
-    slug: "flex-desk",
-    category: "Hot Desk",
-    categoryBadge: "Hot Desk",
-    price: "₦4,000",
-    unit: "/day",
-    description:
-      "Dedicated workstation access with 24/7 power supply, high-speed Wi-Fi, ergonomic seating, and hot/cold water.",
-    capacityText: "Open Lounge",
-    specText: "Fibre WiFi",
-    specType: "wifi",
-    imageUrl: "/images/search/2.jpg",
-  },
-  {
-    id: "dedicated-desk",
-    name: "Dedicated Desk",
-    slug: "dedicated-desk",
-    category: "Hot Desk",
-    categoryBadge: "Dedicated Desk",
-    price: "₦68,000",
-    unit: "/mo",
-    description:
-      "Assigned personal workstation with lockable drawer, 24/7 power, daily access, and high-speed Wi-Fi.",
-    capacityText: "1 Person",
-    specText: "Personal Desk",
-    specType: "slots",
-    imageUrl: "/images/search/1.jpg",
-  },
-  {
-    id: "private-office",
-    name: "Private Office / Mini Conference",
-    slug: "private-office",
-    category: "Private Office",
-    categoryBadge: "Private Office",
-    price: "₦8,000",
-    unit: "/day",
-    description:
-      "Air-conditioned private space with presentation screen, 24/7 power, and comfortable seating for teams.",
-    capacityText: "Up to 6",
-    specText: "Screen / TV",
-    specType: "area",
-    imageUrl: "/images/search/3.jpg",
-  },
-  {
-    id: "training-room",
-    name: "Training / Meeting Room",
-    slug: "training-room",
-    category: "Meeting Room",
-    categoryBadge: "Meeting Room",
-    price: "₦25,000",
-    unit: "/hr",
-    description:
-      "Professional meeting & training space with flexible room setup, presentation screen/TV, and air-conditioning.",
-    capacityText: "Up to 30",
-    specText: "Presentation TV",
-    specType: "area",
-    imageUrl: "/images/search/5.jpg",
-  },
-  {
-    id: "rooftop-lounge",
-    name: "Rooftop Lounge",
-    slug: "rooftop-lounge",
-    category: "Studio",
-    categoryBadge: "Rooftop Lounge",
-    price: "₦35,000",
-    unit: "/hr",
-    description:
-      "Scenic open-air rooftop venue with ambient evening lighting, bar setup, and outdoor sound system.",
-    capacityText: "Up to 50",
-    specText: "Open Terrace",
-    specType: "area",
-    imageUrl: "/images/search/6.jpg",
-  },
-  {
-    id: "studio",
-    name: "Studio",
-    slug: "studio",
-    category: "Studio",
-    categoryBadge: "Studio",
-    price: "₦200,000",
-    unit: "/hr",
-    description:
-      "Fully equipped professional creative production studio with high-end audio/visual gear and acoustic treatment.",
-    capacityText: "Up to 10",
-    specText: "Pro Gear",
-    specType: "audio",
-    imageUrl: "/images/search/4.jpg",
-  },
-];
 export default function BookingDiscoveryPage() {
-  const [spaces, setSpaces] = useState<SpaceItem[]>(DEFAULT_CATALOGUE_FALLBACK);
+  const [spaces, setSpaces] = useState<SpaceItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [selectedCategory, setSelectedCategory] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -259,7 +144,7 @@ export default function BookingDiscoveryPage() {
               price: formattedPrice,
               unit: formattedUnit,
               description: r.description || "",
-              capacityText: `${r.capacity} Person${r.capacity > 1 ? "s" : ""}`,
+              capacityText: `${r.capacity} ${r.capacity === 1 ? "Person" : "Persons"}`,
               specText,
               specType,
               imageUrl: getWorkspaceImage(r.slug || "", r.imageUrl),
@@ -270,10 +155,8 @@ export default function BookingDiscoveryPage() {
         }
       })
       .catch((err) => {
-        console.warn(
-          "Could not load live catalogue, using cached spaces:",
-          err,
-        );
+        console.error("Could not load live catalogue:", err);
+        setSpaces([]);
       })
       .finally(() => {
         if (isMounted) setIsLoading(false);

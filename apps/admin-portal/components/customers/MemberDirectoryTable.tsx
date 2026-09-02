@@ -1,10 +1,11 @@
 "use client";
 
 import React from "react";
-import { Eye, ChevronLeft, ChevronRight, User } from "lucide-react";
+import { Eye, ChevronLeft, ChevronRight, User, Users } from "lucide-react";
 
 export interface MemberRecord {
   id: string; // Client ID, e.g. DAIH-2026-000042
+  userId?: string;
   name: string;
   email: string;
   phone?: string;
@@ -13,6 +14,9 @@ export interface MemberRecord {
   status: "Active" | "Pending" | "Inactive";
   lastVisit: string;
   joinedDate?: string;
+  referralCode?: string;
+  referralCount?: number;
+  activeReferralCount?: number;
 }
 
 export interface MemberDirectoryTableProps {
@@ -22,6 +26,7 @@ export interface MemberDirectoryTableProps {
   pageSize: number;
   onPageChange: (page: number) => void;
   onViewMember: (member: MemberRecord) => void;
+  onViewReferrals?: (member: MemberRecord) => void;
 }
 
 export const MemberDirectoryTable: React.FC<MemberDirectoryTableProps> = ({
@@ -31,6 +36,7 @@ export const MemberDirectoryTable: React.FC<MemberDirectoryTableProps> = ({
   pageSize,
   onPageChange,
   onViewMember,
+  onViewReferrals,
 }) => {
   const totalPages = Math.ceil(totalCount / pageSize) || 1;
   const startRecord = (currentPage - 1) * pageSize + 1;
@@ -77,6 +83,9 @@ export const MemberDirectoryTable: React.FC<MemberDirectoryTableProps> = ({
                 Status
               </th>
               <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                Referrals
+              </th>
+              <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">
                 Last Visit
               </th>
               <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">
@@ -87,7 +96,7 @@ export const MemberDirectoryTable: React.FC<MemberDirectoryTableProps> = ({
           <tbody className="divide-y divide-[#EBE7F5] text-xs text-slate-800">
             {members.length === 0 ? (
               <tr>
-                <td colSpan={6} className="p-10 text-center text-slate-400">
+                <td colSpan={7} className="p-10 text-center text-slate-400">
                   <User className="w-8 h-8 mx-auto mb-2 opacity-40" />
                   <p className="font-semibold text-sm">No members found</p>
                   <p className="text-xs text-slate-400 mt-0.5">
@@ -166,6 +175,31 @@ export const MemberDirectoryTable: React.FC<MemberDirectoryTableProps> = ({
                     )}
                   </td>
 
+                  {/* Referrals */}
+                  <td className="p-4">
+                    {(member.referralCount ?? 0) > 0 ? (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onViewReferrals?.(member);
+                        }}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-50 hover:bg-purple-100 text-[#23055c] border border-purple-200 font-semibold text-[11px] transition-colors cursor-pointer"
+                        title="View Referrals"
+                      >
+                        <Users className="w-3 h-3 text-[#23055c]" />
+                        <span>
+                          {member.referralCount} (
+                          {member.activeReferralCount ?? 0} active)
+                        </span>
+                      </button>
+                    ) : (
+                      <span className="text-slate-400 text-[11px] font-medium">
+                        0 referrals
+                      </span>
+                    )}
+                  </td>
+
                   {/* Last Visit */}
                   <td className="p-4 text-slate-600 font-medium text-[11px]">
                     {member.lastVisit}
@@ -173,13 +207,24 @@ export const MemberDirectoryTable: React.FC<MemberDirectoryTableProps> = ({
 
                   {/* Actions */}
                   <td className="p-4 text-right">
-                    <button
-                      onClick={() => onViewMember(member)}
-                      className="p-2 text-slate-500 hover:text-[#23055c] transition-colors rounded-lg hover:bg-purple-50 inline-flex items-center justify-center cursor-pointer"
-                      title="View Member Profile"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center justify-end gap-1">
+                      {onViewReferrals && (
+                        <button
+                          onClick={() => onViewReferrals(member)}
+                          className="p-2 text-slate-500 hover:text-[#23055c] transition-colors rounded-lg hover:bg-purple-50 inline-flex items-center justify-center cursor-pointer"
+                          title="View Referrals"
+                        >
+                          <Users className="w-4 h-4" />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => onViewMember(member)}
+                        className="p-2 text-slate-500 hover:text-[#23055c] transition-colors rounded-lg hover:bg-purple-50 inline-flex items-center justify-center cursor-pointer"
+                        title="View Member Profile"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))

@@ -1,116 +1,130 @@
-import { Router, Request, Response } from "express";
-import { authenticate, AuthRequest } from "../../middleware/auth.middleware.js";
+import { Router } from "express";
+import { authenticate } from "../../middleware/auth.middleware.js";
+import { requireRoles } from "../../middleware/rbac.middleware.js";
 import {
   validateParams,
   validateBody,
+  validateQuery,
 } from "../../middleware/validate.middleware.js";
-import { VerifyQrSchema, BookingIdParamSchema } from "./access.schema.js";
-import { bookingService } from "../booking/booking.service.js";
-import { BookingState } from "@daih/types";
+import {
+  VerifyQrSchema,
+  BookingIdParamSchema,
+  CheckInSchema,
+  CheckOutSchema,
+  AccessSearchQuerySchema,
+  TerminalActivityQuerySchema,
+} from "./access.schema.js";
+import { accessController } from "./access.controller.js";
+import { UserRole } from "@daih/types";
 
 export const accessRouter = Router();
 
+const STAFF_ACCESS_ROLES = [
+  UserRole.RECEPTION_OFFICER,
+  UserRole.SECURITY_OFFICER,
+  UserRole.OPERATIONS_ADMIN,
+  UserRole.SUPER_ADMIN,
+  UserRole.MANAGEMENT_VIEWER,
+];
+
+const SCANNER_OPERATOR_ROLES = [
+  UserRole.RECEPTION_OFFICER,
+  UserRole.SECURITY_OFFICER,
+  UserRole.OPERATIONS_ADMIN,
+  UserRole.SUPER_ADMIN,
+];
+
+/**
+ * GET /api/v1/access/qr/:bookingId
+ * Digital access pass for booking owner or authorized staff
+ */
 accessRouter.get(
   "/qr/:bookingId",
   authenticate,
   validateParams(BookingIdParamSchema),
-  async (req: AuthRequest, res: Response, next) => {
-    try {
-      const bookingId = String(req.params.bookingId);
-      const booking = await bookingService.getBookingById(bookingId);
-
-      if (!booking) {
-        res.status(404).json({
-          code: "BOOKING_NOT_FOUND",
-          message: `Booking '${bookingId}' was not found`,
-        });
-        return;
-      }
-
-      const isConfirmed = [
-        BookingState.CONFIRMED,
-        BookingState.ACTIVE,
-        BookingState.CHECKED_IN,
-        BookingState.COMPLETED,
-      ].includes(booking.state as BookingState);
-
-      if (!isConfirmed || !booking.qrToken) {
-        res.status(403).json({
-          code: "PAYMENT_REQUIRED",
-          message:
-            "QR code access pass is only generated after booking payment is confirmed",
-        });
-        return;
-      }
-
-      res.json({
-        success: true,
-        data: {
-          token: booking.qrToken,
-          bookingId: booking.id,
-          reference: booking.reference,
-          resourceName: booking.resourceName,
-          expiresAt: booking.endTime,
-        },
-      });
-    } catch (err) {
-      next(err);
-    }
-  },
+  accessController.getAccessPass.bind(accessController),
 );
 
+/**
+ * POST /api/v1/access/verify-qr
+ * Verify scanned QR token or reference string
+ */
 accessRouter.post(
   "/verify-qr",
   authenticate,
+  requireRoles(SCANNER_OPERATOR_ROLES),
   validateBody(VerifyQrSchema),
-  (req: AuthRequest, res: Response) => {
-    const { token } = req.body;
-
-    res.json({
-      success: true,
-      data: {
-        valid: true,
-        booking: {
-          id: "bk_sample_01",
-          reference: "DAIH-BK-88219",
-          customerName: "Tunde Adeleke",
-          resourceName: "Hot Desk - Dedicated Pod A",
-          startTime: new Date().toISOString(),
-          endTime: new Date(Date.now() + 86400000).toISOString(),
-        },
-      },
-    });
-  },
+  accessController.verifyPass.bind(accessController),
 );
 
+/**
+ * POST /api/v1/access/checkin/:bookingId
+ * Check in member at terminal
+ */
 accessRouter.post(
   "/checkin/:bookingId",
   authenticate,
+  requireRoles(SCANNER_OPERATOR_ROLES),
   validateParams(BookingIdParamSchema),
-  (req: AuthRequest, res: Response) => {
-    res.json({
-      success: true,
-      data: {
-        success: true,
-        action: "CHECKED_IN",
-        timestamp: new Date().toISOString(),
-      },
-    });
-  },
+  validateBody(CheckInSchema),
+  accessController.checkIn.bind(accessController),
 );
 
+/**
+ * POST /api/v1/access/checkout/:bookingId
+ * Check out member at terminal
+ */
 accessRouter.post(
   "/checkout/:bookingId",
   authenticate,
+  requireRoles(SCANNER_OPERATOR_ROLES),
   validateParams(BookingIdParamSchema),
-  (req: AuthRequest, res: Response) => {
-    res.json({
-      success: true,
-      data: {
-        success: true,
-        action: "CHECKED_OUT",
-        timestamp: new Date().toISOString(),
-      },
-    });
-  },
+  validateBody(CheckOutSchema),
+  accessController.checkOut.bind(accessController),
+);
+
+/**
+ * GET /api/v1/access/search
+ * Search bookings for manual check-in
+ */
+accessRouter.get(
+  "/search",
+  authenticate,
+  requireRoles(SCANNER_OPERATOR_ROLES),
+  validateQuery(AccessSearchQuerySchema),
+  accessController.searchBookings.bind(accessController),
+);
+
+/**
+ * GET /api/v1/access/activity
+ * Terminal shift activity feed
+ */
+accessRouter.get(
+  "/activity",
+  authenticate,
+  requireRoles(STAFF_ACCESS_ROLES),
+  validateQuery(TerminalActivityQuerySchema),
+  accessController.getTerminalActivity.bind(accessController),
+);
+
+/**
+ * GET /api/v1/access/occupancy
+ * Real-time workspace occupancy
+ */
+accessRouter.get(
+  "/occupancy",
+  authenticate,
+  requireRoles(STAFF_ACCESS_ROLES),
+  accessController.getLiveOccupancy.bind(accessController),
+);
+
+/**
+ * GET /api/v1/access/terminal-summary
+ * Single-roundtrip reception terminal telemetry (shift metrics, live occupancy & activity)
+ */
+accessRouter.get(
+  "/terminal-summary",
+  authenticate,
+  requireRoles(STAFF_ACCESS_ROLES),
+  accessController.getTerminalSummary.bind(accessController),
 );

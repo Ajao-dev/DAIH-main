@@ -97,9 +97,25 @@ export const UpsertSchedulesSchema = z.object({
   ),
 });
 
+export const UploadResourceImageSchema = z.object({
+  data: z.string().min(1, "Image data is required"),
+  fileName: z
+    .string()
+    .optional()
+    .transform((val) => (val ? sanitizeString(val) : undefined)),
+  contentType: z.string().optional(),
+  resourceId: z
+    .string()
+    .optional()
+    .transform((val) => (val ? sanitizeString(val) : undefined)),
+});
+
 export type CreateResourceInput = z.infer<typeof CreateResourceSchema>;
 export type UpdateResourceInput = z.infer<typeof UpdateResourceSchema>;
 export type CreatePricingPlanInput = z.infer<typeof CreatePricingPlanSchema>;
 export type UpdatePricingPlanInput = z.infer<typeof UpdatePricingPlanSchema>;
 export type CreateBlackoutInput = z.infer<typeof CreateBlackoutSchema>;
 export type UpsertSchedulesInput = z.infer<typeof UpsertSchedulesSchema>;
+export type UploadResourceImageInput = z.infer<
+  typeof UploadResourceImageSchema
+>;

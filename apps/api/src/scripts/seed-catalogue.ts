@@ -1,9 +1,5 @@
-import { PrismaClient, ResourceCategory } from "@prisma/client";
-import dotenv from "dotenv";
-
-dotenv.config();
-
-const prisma = new PrismaClient();
+import { ResourceCategory } from "@prisma/client";
+import { prisma } from "../db/client.js";
 
 interface SeedPricing {
   planName: string;

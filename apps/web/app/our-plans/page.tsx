@@ -6,24 +6,7 @@ import { api } from "@daih/api-client";
 import { FacilityResource } from "@daih/types";
 import { Loader2 } from "lucide-react";
 
-function getWorkspaceImage(slug: string, imageUrl?: string | null): string {
-  if (
-    imageUrl &&
-    (imageUrl.startsWith("http") || imageUrl.startsWith("/images/"))
-  ) {
-    return imageUrl;
-  }
-  const s = (slug || "").toLowerCase();
-  if (s.includes("studio") || s.includes("audio") || s.includes("stream"))
-    return "/images/search/4.jpg";
-  if (s.includes("rooftop")) return "/images/search/6.jpg";
-  if (s.includes("training") || s.includes("meeting"))
-    return "/images/search/5.jpg";
-  if (s.includes("office") || s.includes("private"))
-    return "/images/search/3.jpg";
-  if (s.includes("dedicated")) return "/images/search/1.jpg";
-  return "/images/search/2.jpg";
-}
+import { getWorkspaceImage } from "../../lib/image-utils";
 
 function formatResourcePrice(resource: FacilityResource): string {
   if (resource.pricing && resource.pricing.length > 0) {

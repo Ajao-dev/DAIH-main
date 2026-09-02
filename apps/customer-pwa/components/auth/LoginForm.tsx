@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth, api } from "@daih/api-client";
 import { useToast } from "@daih/ui";
 import { UserRole } from "@daih/types";
@@ -18,8 +18,15 @@ import {
 
 export const LoginForm: React.FC = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { login, logout } = useAuth();
   const toast = useToast();
+
+  const rawRedirect = searchParams?.get("redirectTo") || "";
+  const targetDestination =
+    rawRedirect && rawRedirect.startsWith("/") && !rawRedirect.startsWith("//")
+      ? rawRedirect
+      : "/dashboard";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -71,14 +78,23 @@ export const LoginForm: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const user = await login({
+      const res = await login({
         email: email.trim().toLowerCase(),
         password,
         portal: "customer",
       });
 
+      if ("requiresMfaSetup" in res || "requiresMfa" in res) {
+        await logout();
+        const msg =
+          "Access Restricted: Staff and Administrator accounts must use the Admin Portal.";
+        setErrorMessage(msg);
+        toast.error(msg, { title: "Staff Access Restricted" });
+        return;
+      }
+
       // Enforce Customer role access: block staff/admins from logging in as customers
-      if (user.role !== UserRole.CUSTOMER) {
+      if (res.user.role !== UserRole.CUSTOMER) {
         await logout();
         const msg =
           "Access Restricted: Staff and Administrator accounts cannot sign in through the Customer PWA. Please use the Admin Portal.";
@@ -87,10 +103,10 @@ export const LoginForm: React.FC = () => {
         return;
       }
 
-      toast.success("Welcome back! Redirecting to your dashboard...", {
+      toast.success("Welcome back! Redirecting...", {
         title: "Sign In Successful",
       });
-      router.push("/dashboard");
+      router.push(targetDestination);
     } catch (err: any) {
       const code = err?.code || "AUTH_ERROR";
       const msg =

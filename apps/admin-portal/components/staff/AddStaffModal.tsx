@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { UserRole } from "@daih/types";
-import { X, Send, Info, UserPlus, Mail, Key } from "lucide-react";
+import { X, Send, Info, UserPlus, ShieldCheck, Clock } from "lucide-react";
 
 export interface AddStaffModalProps {
   isOpen: boolean;
@@ -12,8 +12,6 @@ export interface AddStaffModalProps {
     email: string;
     phone?: string;
     role: UserRole;
-    onboardingMethod: "INVITE_EMAIL" | "DIRECT_CREDENTIAL";
-    tempPassword?: string;
   }) => Promise<void> | void;
 }
 
@@ -52,10 +50,10 @@ const ROLE_DESCRIPTIONS: Record<
       "Validates physical gate QR passes, monitors perimeter check-ins, and inspects verified entry badges.",
   },
   [UserRole.MANAGEMENT_VIEWER]: {
-    title: "Management Viewer",
-    department: "Board & Leadership",
+    title: "Management Viewer (CEO / Executive)",
+    department: "Board & Executive Leadership",
     preview:
-      "Read-only access to executive utilization dashboards, footfall metrics, density telemetry, and aggregated KPIs.",
+      "Read-only access to executive business performance, revenue telemetry, space occupancy, and approved audit reports.",
   },
   [UserRole.CUSTOMER]: {
     title: "Customer",
@@ -75,10 +73,6 @@ export const AddStaffModal: React.FC<AddStaffModalProps> = ({
   const [selectedRole, setSelectedRole] = useState<UserRole>(
     UserRole.OPERATIONS_ADMIN,
   );
-  const [onboardingMethod, setOnboardingMethod] = useState<
-    "INVITE_EMAIL" | "DIRECT_CREDENTIAL"
-  >("INVITE_EMAIL");
-  const [tempPassword, setTempPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -91,13 +85,6 @@ export const AddStaffModal: React.FC<AddStaffModalProps> = ({
       return;
     }
 
-    if (onboardingMethod === "DIRECT_CREDENTIAL") {
-      if (!tempPassword || tempPassword.length < 8) {
-        setError("Temporary password must be at least 8 characters long.");
-        return;
-      }
-    }
-
     setIsSubmitting(true);
     setError(null);
 
@@ -107,16 +94,11 @@ export const AddStaffModal: React.FC<AddStaffModalProps> = ({
         email: email.trim().toLowerCase(),
         phone: phone.trim() || undefined,
         role: selectedRole,
-        onboardingMethod,
-        tempPassword:
-          onboardingMethod === "DIRECT_CREDENTIAL" ? tempPassword : undefined,
       });
       setFullName("");
       setEmail("");
       setPhone("");
       setSelectedRole(UserRole.OPERATIONS_ADMIN);
-      setOnboardingMethod("INVITE_EMAIL");
-      setTempPassword("");
       onClose();
     } catch (err: any) {
       setError(err?.message || "Failed to onboard staff member");
@@ -155,7 +137,7 @@ export const AddStaffModal: React.FC<AddStaffModalProps> = ({
                 Onboard New Staff Member
               </h2>
               <p className="text-[11px] text-slate-500">
-                Provision admin credentials and assign operational duty
+                Grant admin access and assign operational role
               </p>
             </div>
           </div>
@@ -287,63 +269,15 @@ export const AddStaffModal: React.FC<AddStaffModalProps> = ({
               </p>
             </div>
 
-            {/* Onboarding Method */}
-            <div className="space-y-2 pt-1 border-t border-slate-100">
-              <label className="block text-xs font-bold text-slate-700">
-                Onboarding Method
-              </label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <label
-                  className={`p-3 border rounded-xl flex items-center gap-2.5 cursor-pointer text-xs ${
-                    onboardingMethod === "INVITE_EMAIL"
-                      ? "border-[#23055c] bg-purple-50/50 text-[#23055c] font-bold"
-                      : "border-[#EBE7F5] text-slate-700 hover:bg-[#F8F9FA]"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="method"
-                    checked={onboardingMethod === "INVITE_EMAIL"}
-                    onChange={() => setOnboardingMethod("INVITE_EMAIL")}
-                    className="w-3.5 h-3.5 text-[#23055c]"
-                  />
-                  <Mail className="w-4 h-4 text-[#23055c]" />
-                  <span>Send Email Invitation</span>
-                </label>
-
-                <label
-                  className={`p-3 border rounded-xl flex items-center gap-2.5 cursor-pointer text-xs ${
-                    onboardingMethod === "DIRECT_CREDENTIAL"
-                      ? "border-[#23055c] bg-purple-50/50 text-[#23055c] font-bold"
-                      : "border-[#EBE7F5] text-slate-700 hover:bg-[#F8F9FA]"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="method"
-                    checked={onboardingMethod === "DIRECT_CREDENTIAL"}
-                    onChange={() => setOnboardingMethod("DIRECT_CREDENTIAL")}
-                    className="w-3.5 h-3.5 text-[#23055c]"
-                  />
-                  <Key className="w-4 h-4 text-[#23055c]" />
-                  <span>Set Temporary Password</span>
-                </label>
+            {/* Security Notice */}
+            <div className="p-3.5 bg-amber-50/60 rounded-xl border border-amber-200/60 flex items-start gap-2.5">
+              <ShieldCheck className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+              <div className="text-[11px] text-amber-900 leading-relaxed">
+                <strong>Secure One-Time Setup:</strong> A time-limited setup
+                link (valid for 1 hour) will be sent to the staff member's
+                email. They will choose their own password upon clicking the
+                link.
               </div>
-
-              {onboardingMethod === "DIRECT_CREDENTIAL" && (
-                <div className="pt-2 animate-in fade-in duration-150">
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    Temporary Initial Password
-                  </label>
-                  <input
-                    type="password"
-                    placeholder="Enter temporary password"
-                    value={tempPassword}
-                    onChange={(e) => setTempPassword(e.target.value)}
-                    className="w-full px-4 py-2 bg-[#F8F9FA] border border-[#EBE7F5] rounded-xl text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-[#23055c]"
-                  />
-                </div>
-              )}
             </div>
           </div>
 
@@ -364,11 +298,7 @@ export const AddStaffModal: React.FC<AddStaffModalProps> = ({
             >
               <Send className="w-4 h-4" />
               <span>
-                {isSubmitting
-                  ? "Onboarding..."
-                  : onboardingMethod === "INVITE_EMAIL"
-                    ? "Send Onboarding Invite"
-                    : "Provision Staff Account"}
+                {isSubmitting ? "Creating Account..." : "Create Admin Account"}
               </span>
             </button>
           </div>

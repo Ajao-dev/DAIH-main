@@ -1,3 +1,7 @@
+import path from "node:path";
+import fs from "node:fs/promises";
+import crypto from "node:crypto";
+import sharp from "sharp";
 import {
   catalogueRepository,
   CatalogueRepository,
@@ -9,22 +13,49 @@ import {
   UpdatePricingPlanInput,
   CreateBlackoutInput,
   UpsertSchedulesInput,
+  UploadResourceImageInput,
 } from "./catalogue.schema.js";
 import { prisma } from "../../db/client.js";
+import { redis } from "../../config/redis.js";
 import { outboxService } from "../events/outbox.service.js";
 
 export class CatalogueService {
   constructor(private repo: CatalogueRepository = catalogueRepository) {}
 
+  private async invalidateCatalogueCache(): Promise<void> {
+    try {
+      const keys = await redis.keys("daih:catalogue:*");
+      if (keys.length > 0) {
+        await redis.del(...keys);
+      }
+    } catch {
+      // Non-blocking cache invalidation failure
+    }
+  }
+
   private formatResource(resource: any) {
     if (!resource) return null;
+
+    let dailyRate: number | undefined;
+    let hourlyRate: number | undefined;
+    let monthlyRate: number | undefined;
+
+    const pricing = (resource.pricing || []).map((p: any) => {
+      const priceNum = Number(p.price);
+      if (p.durationDays === 1 && dailyRate === undefined) dailyRate = priceNum;
+      if (p.durationHours === 1 && hourlyRate === undefined)
+        hourlyRate = priceNum;
+      if (p.durationMonths === 1 && monthlyRate === undefined)
+        monthlyRate = priceNum;
+      return {
+        ...p,
+        price: priceNum,
+      };
+    });
+
     return {
       ...resource,
-      pricing:
-        resource.pricing?.map((p: any) => ({
-          ...p,
-          price: Number(p.price),
-        })) || [],
+      pricing,
       blackouts:
         resource.blackouts?.map((b: any) => ({
           ...b,
@@ -36,34 +67,52 @@ export class CatalogueService {
             b.endDate instanceof Date ? b.endDate.toISOString() : b.endDate,
         })) || [],
       schedules: resource.schedules || [],
-      dailyRate: resource.pricing?.find((p: any) => p.durationDays === 1)?.price
-        ? Number(resource.pricing.find((p: any) => p.durationDays === 1).price)
-        : undefined,
-      hourlyRate: resource.pricing?.find((p: any) => p.durationHours === 1)
-        ?.price
-        ? Number(resource.pricing.find((p: any) => p.durationHours === 1).price)
-        : undefined,
-      monthlyRate: resource.pricing?.find((p: any) => p.durationMonths === 1)
-        ?.price
-        ? Number(
-            resource.pricing.find((p: any) => p.durationMonths === 1).price,
-          )
-        : undefined,
+      dailyRate,
+      hourlyRate,
+      monthlyRate,
     };
   }
 
   async getActiveResources() {
+    const cacheKey = "daih:catalogue:active_resources";
+    try {
+      const cached = await redis.get(cacheKey);
+      if (cached) {
+        return JSON.parse(cached);
+      }
+    } catch {}
+
     const resources = await this.repo.findActiveResources();
-    return resources.map((r) => this.formatResource(r));
+    const formatted = resources.map((r) => this.formatResource(r));
+
+    try {
+      await redis.setex(cacheKey, 120, JSON.stringify(formatted)); // 2 min TTL
+    } catch {}
+
+    return formatted;
   }
 
   async getResourceBySlug(slug: string) {
+    const cacheKey = `daih:catalogue:resource:${slug}`;
+    try {
+      const cached = await redis.get(cacheKey);
+      if (cached) {
+        return JSON.parse(cached);
+      }
+    } catch {}
+
     let resource = await this.repo.findResourceBySlug(slug);
     if (!resource) {
       resource = await this.repo.findResourceById(slug);
     }
     if (!resource) return null;
-    return this.formatResource(resource);
+    const formatted = this.formatResource(resource);
+
+    try {
+      await redis.setex(cacheKey, 120, JSON.stringify(formatted));
+    } catch {}
+
+    return formatted;
   }
 
   async getAdminResources() {
@@ -129,6 +178,9 @@ export class CatalogueService {
       },
     });
 
+    // Invalidate Redis catalogue cache
+    await this.invalidateCatalogueCache();
+
     return this.formatResource(resource);
   }
 
@@ -180,7 +232,177 @@ export class CatalogueService {
       payload: { resourceId: id, changes: input },
     });
 
+    // Invalidate Redis catalogue cache
+    await this.invalidateCatalogueCache();
+
     return this.formatResource(updated);
+  }
+
+  async uploadResourceImage(
+    input: UploadResourceImageInput,
+    actorUserId?: string,
+    ipAddress?: string,
+    reqProtocol?: string,
+    reqHost?: string,
+  ) {
+    let base64Data = input.data;
+    let mimeType = input.contentType || "image/jpeg";
+
+    // Parse data URI if present (e.g. data:image/png;base64,iVBORw0KGgo...)
+    const matches = base64Data.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+    if (matches && matches.length === 3) {
+      mimeType = matches[1];
+      base64Data = matches[2];
+    }
+
+    const allowedMimeTypes = [
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+      "image/avif",
+      "image/gif",
+      "image/svg+xml",
+    ];
+    if (!allowedMimeTypes.includes(mimeType.toLowerCase())) {
+      const error: any = new Error(
+        `Unsupported image format '${mimeType}'. Supported formats: JPEG, PNG, WebP, AVIF, GIF, SVG.`,
+      );
+      error.statusCode = 400;
+      error.code = "INVALID_IMAGE_FORMAT";
+      throw error;
+    }
+
+    const inputBuffer = Buffer.from(base64Data, "base64");
+    if (inputBuffer.length === 0) {
+      const error: any = new Error("Invalid image data: Buffer is empty");
+      error.statusCode = 400;
+      error.code = "INVALID_IMAGE_DATA";
+      throw error;
+    }
+
+    // Size limit check (max 15MB input)
+    if (inputBuffer.length > 15 * 1024 * 1024) {
+      const error: any = new Error(
+        "Image file size exceeds maximum limit of 15MB",
+      );
+      error.statusCode = 400;
+      error.code = "IMAGE_TOO_LARGE";
+      throw error;
+    }
+
+    const uploadLocations = [
+      path.join(process.cwd(), "uploads", "resources"),
+      path.resolve(__dirname, "..", "..", "..", "uploads", "resources"),
+    ];
+    for (const dir of uploadLocations) {
+      await fs.mkdir(dir, { recursive: true }).catch(() => {});
+    }
+    const resourcesDir = uploadLocations[0];
+
+    let finalBuffer: Buffer;
+    let ext = "webp";
+    let width: number | undefined;
+    let height: number | undefined;
+
+    if (mimeType.toLowerCase() === "image/svg+xml") {
+      finalBuffer = inputBuffer;
+      ext = "svg";
+    } else {
+      // Compress and optimize with sharp to WebP format
+      const sharpInstance = sharp(inputBuffer)
+        .rotate()
+        .resize({
+          width: 1920,
+          height: 1080,
+          fit: "inside",
+          withoutEnlargement: true,
+        })
+        .webp({
+          quality: 82,
+          effort: 4,
+          lossless: false,
+        });
+
+      const metadata = await sharpInstance.metadata();
+      width = metadata.width;
+      height = metadata.height;
+      finalBuffer = await sharpInstance.toBuffer();
+    }
+
+    const uniqueId = crypto.randomUUID().slice(0, 8);
+    const timestamp = Date.now();
+    const cleanPrefix = input.fileName
+      ? input.fileName
+          .replace(/\.[^/.]+$/, "")
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .slice(0, 30)
+      : "resource";
+    const filename = `${cleanPrefix}-${timestamp}-${uniqueId}.${ext}`;
+
+    for (const dir of uploadLocations) {
+      await fs.writeFile(path.join(dir, filename), finalBuffer).catch(() => {});
+    }
+
+    const relativeUrl = `/uploads/resources/${filename}`;
+    const host = reqHost || process.env.API_HOST || "localhost:4000";
+    const protocol =
+      reqProtocol || (host.includes("localhost") ? "http" : "https");
+    const fullUrl = `${protocol}://${host}${relativeUrl}`;
+
+    let updatedResource = null;
+    if (input.resourceId) {
+      const existing = await this.repo.findResourceById(input.resourceId);
+      if (existing) {
+        updatedResource = await this.repo.updateResource(input.resourceId, {
+          imageUrl: relativeUrl,
+        });
+
+        // Audit log
+        await prisma.auditLog.create({
+          data: {
+            userId: actorUserId,
+            action: "CATALOGUE_RESOURCE_IMAGE_UPDATED",
+            entityType: "FacilityResource",
+            entityId: input.resourceId,
+            metadata: {
+              previousImageUrl: existing.imageUrl,
+              newImageUrl: relativeUrl,
+              fileSize: finalBuffer.length,
+              format: ext,
+            },
+            ipAddress,
+          },
+        });
+
+        // Outbox event
+        await outboxService.recordEvent({
+          eventType: "catalogue.resource_image_updated",
+          aggregateType: "FacilityResource",
+          aggregateId: input.resourceId,
+          payload: {
+            resourceId: input.resourceId,
+            imageUrl: relativeUrl,
+          },
+        });
+
+        await this.invalidateCatalogueCache();
+      }
+    }
+
+    return {
+      url: relativeUrl,
+      fullUrl,
+      filename,
+      size: finalBuffer.length,
+      format: ext,
+      width,
+      height,
+      resourceId: input.resourceId,
+      resource: updatedResource
+        ? this.formatResource(updatedResource)
+        : undefined,
+    };
   }
 
   async deleteResource(id: string, actorUserId?: string, ipAddress?: string) {
@@ -205,6 +427,9 @@ export class CatalogueService {
         ipAddress,
       },
     });
+
+    // Invalidate Redis catalogue cache
+    await this.invalidateCatalogueCache();
 
     return this.formatResource(updated);
   }
@@ -248,6 +473,9 @@ export class CatalogueService {
       aggregateId: plan.id,
       payload: { resourceId, planId: plan.id, price: Number(plan.price) },
     });
+
+    // Invalidate Redis catalogue cache
+    await this.invalidateCatalogueCache();
 
     return {
       ...plan,
@@ -299,6 +527,9 @@ export class CatalogueService {
       },
     });
 
+    // Invalidate Redis catalogue cache
+    await this.invalidateCatalogueCache();
+
     return {
       ...updated,
       price: Number(updated.price),
@@ -331,6 +562,9 @@ export class CatalogueService {
         ipAddress,
       },
     });
+
+    // Invalidate Redis catalogue cache
+    await this.invalidateCatalogueCache();
 
     return {
       success: true,
@@ -375,6 +609,9 @@ export class CatalogueService {
       },
     });
 
+    // Invalidate Redis catalogue cache
+    await this.invalidateCatalogueCache();
+
     return blackout;
   }
 
@@ -395,6 +632,9 @@ export class CatalogueService {
         ipAddress,
       },
     });
+
+    // Invalidate Redis catalogue cache
+    await this.invalidateCatalogueCache();
 
     return { success: true, message: "Blackout schedule deleted successfully" };
   }
@@ -426,6 +666,9 @@ export class CatalogueService {
         ipAddress,
       },
     });
+
+    // Invalidate Redis catalogue cache
+    await this.invalidateCatalogueCache();
 
     return schedules;
   }

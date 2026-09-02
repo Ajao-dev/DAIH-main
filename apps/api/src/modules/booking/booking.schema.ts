@@ -110,8 +110,29 @@ export const BookingFilterSchema = z.object({
   startDate: z.string().optional(),
   endDate: z.string().optional(),
   page: z.coerce.number().int().positive().default(1),
-  limit: z.coerce.number().int().positive().max(100).default(20),
+  limit: z.coerce.number().int().positive().max(1000).default(20),
 });
+
+export const AdminNoShowRescheduleSchema = z
+  .object({
+    newStartTime: z
+      .string()
+      .datetime({ message: "Valid ISO newStartTime is required" }),
+    newEndTime: z
+      .string()
+      .datetime({ message: "Valid ISO newEndTime is required" }),
+    reason: z
+      .string()
+      .min(
+        10,
+        "Mandatory discretionary reason of at least 10 characters is required",
+      )
+      .transform(sanitizeString),
+  })
+  .refine((data) => new Date(data.newEndTime) > new Date(data.newStartTime), {
+    message: "newEndTime must be strictly after newStartTime",
+    path: ["newEndTime"],
+  });
 
 export type CheckAvailabilityInput = z.infer<typeof CheckAvailabilitySchema>;
 export type CalendarAvailabilityInput = z.infer<
@@ -122,4 +143,14 @@ export type CancelBookingInput = z.infer<typeof CancelBookingSchema>;
 export type AdminOverrideBookingInput = z.infer<
   typeof AdminOverrideBookingSchema
 >;
+export type AdminNoShowRescheduleInput = z.infer<
+  typeof AdminNoShowRescheduleSchema
+>;
 export type BookingFilterInput = z.infer<typeof BookingFilterSchema>;
+
+export const AnalyticsFilterSchema = z.object({
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+  preset: z.string().optional(),
+});
+export type AnalyticsFilterInput = z.infer<typeof AnalyticsFilterSchema>;

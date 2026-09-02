@@ -1,11 +1,14 @@
 import "./config/observability.js";
 import { app } from "./app.js";
-import { config } from "./config/env.js";
+import { config, validateProductionConfig } from "./config/env.js";
 import {
   safeLogger,
   sanitizeMessage,
   sanitizeStack,
 } from "./utils/sanitizer.js";
+
+// Validate production security configuration
+validateProductionConfig();
 
 // Catch unhandled promise rejections and uncaught exceptions with zero-leakage guarantee
 process.on("unhandledRejection", (reason: any) => {
@@ -34,9 +37,7 @@ const server = app.listen(config.port, () => {
     `DAIH Modular API running on http://localhost:${config.port}`,
   );
   safeLogger.info(`Health endpoint: http://localhost:${config.port}/health`);
-  safeLogger.info(
-    `Catalogue endpoint: http://localhost:${config.port}/api/v1/catalogue/resources`,
-  );
+  safeLogger.info(`Uploads endpoint: http://localhost:${config.port}/uploads`);
 });
 
 export default server;

@@ -3,17 +3,28 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X, Shield, ExternalLink } from "lucide-react";
+import {
+  Menu,
+  X,
+  Shield,
+  ExternalLink,
+  PanelLeftClose,
+  PanelLeftOpen,
+} from "lucide-react";
 import { useAuth } from "@daih/api-client";
 
 export interface AdminHeaderProps {
   isMobileOpen: boolean;
   onMobileToggle: () => void;
+  isCollapsed: boolean;
+  onToggleCollapse: () => void;
 }
 
 export const AdminHeader: React.FC<AdminHeaderProps> = ({
   isMobileOpen,
   onMobileToggle,
+  isCollapsed,
+  onToggleCollapse,
 }) => {
   const pathname = usePathname();
   const { user } = useAuth();
@@ -58,6 +69,19 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
             <X className="w-5 h-5" />
           ) : (
             <Menu className="w-5 h-5" />
+          )}
+        </button>
+
+        <button
+          onClick={onToggleCollapse}
+          className="hidden lg:flex items-center justify-center text-[#23055c] p-2 rounded-xl hover:bg-slate-100 transition-all border border-slate-200 cursor-pointer"
+          title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+          aria-label={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+        >
+          {isCollapsed ? (
+            <PanelLeftOpen className="w-4 h-4 text-[#23055c]" />
+          ) : (
+            <PanelLeftClose className="w-4 h-4 text-[#23055c]" />
           )}
         </button>
 

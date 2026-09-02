@@ -1,6 +1,7 @@
 import { Prisma, User, UserRole } from "@prisma/client";
 import { prisma } from "../../db/client.js";
 import { config } from "../../config/env.js";
+import { encryptSecret } from "../../utils/crypto.js";
 
 export interface CreateCustomerData {
   firstName: string;
@@ -12,6 +13,8 @@ export interface CreateCustomerData {
   policyVersion: string;
   rawVerificationToken: string;
   verificationTokenHash: string;
+  referralCode?: string;
+  referredById?: string;
 }
 
 export interface CreateStaffData {
@@ -44,6 +47,12 @@ export class IdentityRepository {
     });
   }
 
+  async findByReferralCode(referralCode: string): Promise<User | null> {
+    return prisma.user.findUnique({
+      where: { referralCode: referralCode.trim().toUpperCase() },
+    });
+  }
+
   /**
    * Atomically registers a customer, captures policy consent, stores verification token,
    * and records outbox domain events in a single database transaction.
@@ -66,6 +75,8 @@ export class IdentityRepository {
           clientId: data.clientId,
           role: UserRole.CUSTOMER,
           isVerified: false,
+          referralCode: data.referralCode,
+          referredById: data.referredById,
         },
       });
 
@@ -124,7 +135,7 @@ export class IdentityRepository {
             userId: user.id,
             email: user.email,
             firstName: user.firstName,
-            rawToken: data.rawVerificationToken,
+            encryptedToken: encryptSecret(data.rawVerificationToken),
           },
         },
       });
@@ -147,6 +158,7 @@ export class IdentityRepository {
         throw new Error("TOKEN_NOT_FOUND");
       }
 
+      // Strictly single-use token enforcement
       if (record.usedAt) {
         throw new Error("TOKEN_ALREADY_USED");
       }
@@ -224,7 +236,7 @@ export class IdentityRepository {
             userId,
             email,
             firstName,
-            rawToken,
+            encryptedToken: rawToken ? encryptSecret(rawToken) : undefined,
             requestedAt: new Date().toISOString(),
           },
         },
@@ -271,7 +283,7 @@ export class IdentityRepository {
             userId,
             email,
             firstName,
-            rawToken,
+            encryptedToken: rawToken ? encryptSecret(rawToken) : undefined,
             requestedAt: new Date().toISOString(),
           },
         },
@@ -285,7 +297,7 @@ export class IdentityRepository {
   async resetPasswordByTokenHash(
     tokenHash: string,
     newPasswordHash: string,
-  ): Promise<User> {
+  ): Promise<{ user: User; revokedSessionIds: string[] }> {
     return prisma.$transaction(async (tx) => {
       const record = await tx.passwordResetToken.findUnique({
         where: { tokenHash },
@@ -315,6 +327,13 @@ export class IdentityRepository {
         data: { passwordHash: newPasswordHash },
       });
 
+      // Find all active sessions to ensure cache eviction
+      const activeSessions = await tx.authSession.findMany({
+        where: { userId: record.userId, isRevoked: false },
+        select: { id: true },
+      });
+      const revokedSessionIds = activeSessions.map((s) => s.id);
+
       // Revoke all existing sessions for this user
       await tx.authSession.updateMany({
         where: { userId: record.userId, isRevoked: false },
@@ -334,15 +353,19 @@ export class IdentityRepository {
         },
       });
 
-      return updatedUser;
+      return { user: updatedUser, revokedSessionIds };
     });
   }
 
   /**
-   * Creates a staff user account
+   * Creates a staff user account and initial setup token
    */
   async createStaffUser(
-    data: CreateStaffData & { setupToken?: string },
+    data: CreateStaffData & {
+      tokenHash: string;
+      setupUrl: string;
+      tokenExpiresAt: Date;
+    },
   ): Promise<User> {
     return prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
@@ -352,9 +375,17 @@ export class IdentityRepository {
           lastName: data.lastName,
           phoneNumber: data.phoneNumber,
           role: data.role,
-          passwordHash: data.passwordHash,
+          passwordHash: null,
           clientId: data.clientId,
           isVerified: data.isVerified ?? true,
+        },
+      });
+
+      await tx.passwordResetToken.create({
+        data: {
+          userId: user.id,
+          tokenHash: data.tokenHash,
+          expiresAt: data.tokenExpiresAt,
         },
       });
 
@@ -369,7 +400,56 @@ export class IdentityRepository {
             firstName: user.firstName,
             role: user.role,
             clientId: user.clientId,
-            setupToken: data.setupToken,
+            setupUrl: data.setupUrl,
+          },
+        },
+      });
+
+      return user;
+    });
+  }
+
+  /**
+   * Generates a fresh setup token and dispatches a new welcome email for staff onboarding
+   */
+  async createStaffSetupToken(
+    userId: string,
+    tokenHash: string,
+    setupUrl: string,
+    tokenExpiresAt: Date,
+  ): Promise<User> {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new Error("USER_NOT_FOUND");
+    }
+
+    return prisma.$transaction(async (tx) => {
+      // Invalidate older unused reset/setup tokens
+      await tx.passwordResetToken.updateMany({
+        where: { userId, usedAt: null },
+        data: { usedAt: new Date() },
+      });
+
+      await tx.passwordResetToken.create({
+        data: {
+          userId,
+          tokenHash,
+          expiresAt: tokenExpiresAt,
+        },
+      });
+
+      await tx.outboxEvent.create({
+        data: {
+          eventType: "identity.staff_user_created",
+          aggregateType: "User",
+          aggregateId: user.id,
+          payload: {
+            userId: user.id,
+            email: user.email,
+            firstName: user.firstName,
+            role: user.role,
+            clientId: user.clientId,
+            setupUrl,
           },
         },
       });
@@ -389,6 +469,16 @@ export class IdentityRepository {
         },
       },
       orderBy: { createdAt: "desc" },
+    });
+  }
+
+  /**
+   * Updates user profile fields
+   */
+  async updateUser(id: string, data: Partial<User>): Promise<User> {
+    return prisma.user.update({
+      where: { id },
+      data,
     });
   }
 }

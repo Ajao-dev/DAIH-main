@@ -1,6 +1,9 @@
 import argon2 from "argon2";
 import crypto from "crypto";
 
+export const DUMMY_ARGON2_HASH =
+  "$argon2id$v=19$m=65536,t=3,p=4$ZHVtbXlzYWx0MTIzNDU2Nw$q9F47K3i0pXjJb9kG7wY1A0k5Z8m3n2vQ1Y5t7u9o3w";
+
 export class PasswordService {
   /**
    * Hash password using Argon2
@@ -23,6 +26,13 @@ export class PasswordService {
     } catch {
       return false;
     }
+  }
+
+  /**
+   * Pre-computed dummy hash for timing attack mitigation
+   */
+  getDummyHash(): string {
+    return DUMMY_ARGON2_HASH;
   }
 
   /**

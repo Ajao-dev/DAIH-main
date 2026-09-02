@@ -3,27 +3,10 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { api } from "@daih/api-client";
-import { FacilityResource } from "@daih/types";
-import { Loader2, CheckCircle2, MapPin, Users, ArrowRight } from "lucide-react";
-
-function getWorkspaceImage(slug: string, imageUrl?: string | null): string {
-  if (
-    imageUrl &&
-    (imageUrl.startsWith("http") || imageUrl.startsWith("/images/"))
-  ) {
-    return imageUrl;
-  }
-  const s = (slug || "").toLowerCase();
-  if (s.includes("studio") || s.includes("audio") || s.includes("stream"))
-    return "/images/search/4.jpg";
-  if (s.includes("rooftop")) return "/images/search/6.jpg";
-  if (s.includes("training") || s.includes("meeting"))
-    return "/images/search/5.jpg";
-  if (s.includes("office") || s.includes("private"))
-    return "/images/search/3.jpg";
-  if (s.includes("dedicated")) return "/images/search/1.jpg";
-  return "/images/search/2.jpg";
-}
+import { FacilityResource, ResourcePricingPlan } from "@daih/types";
+import { Loader2 } from "lucide-react";
+import { getWorkspaceImage } from "../lib/image-utils";
+import { getPortalBookingUrl } from "../lib/config";
 
 function getDurationLabel(plan: any): string {
   if (plan.durationMonths)
@@ -53,14 +36,14 @@ export const WorkspaceDetailView: React.FC<WorkspaceDetailViewProps> = ({
     setError(null);
     api.catalogue
       .getResourceBySlug(slug)
-      .then((data) => {
+      .then((data: FacilityResource) => {
         if (data) {
           setResource(data);
         } else {
           setError(`Workspace '${slug}' not found.`);
         }
       })
-      .catch((err) => {
+      .catch((err: any) => {
         setError(
           err?.message || "Failed to load workspace details from database.",
         );
@@ -108,7 +91,15 @@ export const WorkspaceDetailView: React.FC<WorkspaceDetailViewProps> = ({
   return (
     <>
       {/* Subheader */}
-      <section id="subheader" className="s2">
+      <section
+        id="subheader"
+        className="s2 bg-white"
+        style={{
+          backgroundColor: "#ffffff",
+          background: "#ffffff",
+          borderBottom: "1px solid #e2e8f0",
+        }}
+      >
         <div className="container">
           <div className="row">
             <div className="col-md-12">
@@ -123,7 +114,7 @@ export const WorkspaceDetailView: React.FC<WorkspaceDetailViewProps> = ({
                   <Link href={`/${resource.slug}`}>{resource.name}</Link>
                 </li>
               </ul>
-              <h2>{resource.name}</h2>
+              <h2 className="text-dark font-weight-bold">{resource.name}</h2>
             </div>
             <div className="clearfix"></div>
           </div>
@@ -136,25 +127,33 @@ export const WorkspaceDetailView: React.FC<WorkspaceDetailViewProps> = ({
           <div className="row">
             {/* Left Column: Image & Details */}
             <div className="col-lg-8">
-              <div
-                id="slider-carousel"
-                className="mb30 rounded overflow-hidden shadow-sm"
-              >
+              <div className="mb30 rounded overflow-hidden shadow-sm bg-light">
                 <img
                   src={imageSrc}
                   className="img-fluid w-100"
                   alt={resource.name}
-                  style={{ maxHeight: "440px", objectFit: "cover" }}
+                  style={{
+                    maxHeight: "440px",
+                    objectFit: "cover",
+                    display: "block",
+                  }}
+                  onError={(e) => {
+                    const target = e.currentTarget;
+                    const fallback = getWorkspaceImage(resource.slug, null);
+                    if (target.src !== fallback) {
+                      target.src = fallback;
+                    }
+                  }}
                 />
               </div>
 
               <div className="de-price mb-4 p-4 bg-light rounded border">
-                <h5 className="mb-2 text-primary font-weight-bold">
-                  Live Pricing Tiers (From Database):
+                <h5 className="mb-2 text-dark font-weight-bold">
+                  Live Pricing
                 </h5>
                 {resource.pricing && resource.pricing.length > 0 ? (
                   <ul className="price-list list-unstyled mb-0">
-                    {resource.pricing.map((plan) => (
+                    {resource.pricing.map((plan: ResourcePricingPlan) => (
                       <li
                         key={plan.id}
                         className="d-flex justify-content-between align-items-center py-2 border-bottom"
@@ -167,7 +166,7 @@ export const WorkspaceDetailView: React.FC<WorkspaceDetailViewProps> = ({
                             </span>
                           )}
                         </span>
-                        <span className="h5 text-primary mb-0 font-weight-bold">
+                        <span className="h5 text-dark mb-0 font-weight-bold">
                           ₦{Number(plan.price).toLocaleString()}{" "}
                           <span className="small text-muted font-weight-normal">
                             {getDurationLabel(plan)}
@@ -190,14 +189,14 @@ export const WorkspaceDetailView: React.FC<WorkspaceDetailViewProps> = ({
 
               <div className="d-flex flex-wrap gap-4 text-muted mb-4 py-2 border-top border-bottom">
                 <div className="mr-4">
-                  <i className="fa fa-map-marker text-primary mr-1"></i>
-                  <strong>Location:</strong>{" "}
+                  <i className="fa fa-map-marker text-dark mr-1"></i>{" "}
                   {resource.location || "DAIH Campus, Redemption City"}
                 </div>
                 <div>
-                  <i className="fa fa-users text-primary mr-1"></i>
-                  <strong>Capacity:</strong> Up to {resource.capacity || 1}{" "}
-                  Persons
+                  <i className="fa fa-users text-dark mr-1"></i>{" "}
+                  {resource.capacity
+                    ? `Up to ${resource.capacity} Persons`
+                    : "1 Person"}
                 </div>
               </div>
 
@@ -205,7 +204,7 @@ export const WorkspaceDetailView: React.FC<WorkspaceDetailViewProps> = ({
 
               <h3>What is Included</h3>
               <ul className="ul-style-2 row">
-                {(resource.amenities || []).map((item, idx) => (
+                {(resource.amenities || []).map((item: string, idx: number) => (
                   <li key={idx} className="col-md-6 mb-2">
                     {item}
                   </li>
@@ -231,7 +230,7 @@ export const WorkspaceDetailView: React.FC<WorkspaceDetailViewProps> = ({
                   <label className="small text-muted font-weight-bold text-uppercase">
                     Starting Rate
                   </label>
-                  <div className="h3 text-primary font-weight-bold">
+                  <div className="h3 text-dark font-weight-bold">
                     {resource.pricing && resource.pricing.length > 0 ? (
                       <>
                         ₦{Number(resource.pricing[0].price).toLocaleString()}
@@ -249,19 +248,12 @@ export const WorkspaceDetailView: React.FC<WorkspaceDetailViewProps> = ({
                 <div className="spacer-20"></div>
 
                 <a
-                  href={`http://localhost:3002/book/${resource.slug}`}
+                  href={getPortalBookingUrl(resource.slug)}
                   className="btn-main w-100 text-center py-3 font-weight-bold d-block"
                   style={{ textDecoration: "none" }}
                 >
-                  Book Online in Customer Portal
+                  Sign In to Book
                 </a>
-
-                <div className="text-center mt-3">
-                  <span className="small text-muted">
-                    <i className="fa fa-lock text-success mr-1"></i> Secure
-                    checkout via Paystack
-                  </span>
-                </div>
               </div>
             </div>
           </div>

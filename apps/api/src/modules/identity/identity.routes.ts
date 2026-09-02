@@ -1,9 +1,10 @@
 import { Router } from "express";
-import { Permission } from "@daih/types";
+import { Permission, UserRole } from "@daih/types";
 import { identityController } from "./identity.controller.js";
 import { authenticate } from "../../middleware/auth.middleware.js";
 import {
   requirePermission,
+  requireRoles,
   requireStaff,
 } from "../../middleware/rbac.middleware.js";
 import {
@@ -24,9 +25,16 @@ import {
   resendVerificationSchema,
   requestPasswordResetSchema,
   confirmPasswordResetSchema,
+  setupAccountSchema,
   createStaffUserSchema,
   customerFilterSchema,
   createCustomerAdminSchema,
+  updateProfileSchema,
+  changePasswordSchema,
+  mfaSetupSchema,
+  mfaVerifySetupSchema,
+  mfaVerifyChallengeSchema,
+  mfaResendOtpSchema,
 } from "./identity.schema.js";
 
 export const identityRouter = Router();
@@ -46,6 +54,33 @@ identityRouter.post(
   identityController.login,
 );
 
+// ─── MFA Endpoints ───────────────────────────────────────────────────────────
+identityRouter.post(
+  "/mfa/setup",
+  validateBody(mfaSetupSchema),
+  identityController.setupMfa,
+);
+
+identityRouter.post(
+  "/mfa/verify-setup",
+  validateBody(mfaVerifySetupSchema),
+  identityController.confirmMfaSetup,
+);
+
+identityRouter.post(
+  "/mfa/verify",
+  loginRateLimiter,
+  validateBody(mfaVerifyChallengeSchema),
+  identityController.verifyMfaChallenge,
+);
+
+identityRouter.post(
+  "/mfa/send-otp",
+  verificationResendRateLimiter,
+  validateBody(mfaResendOtpSchema),
+  identityController.resendMfaOtp,
+);
+
 identityRouter.post("/refresh", refreshRateLimiter, identityController.refresh);
 
 identityRouter.post("/logout", identityController.logout);
@@ -53,6 +88,12 @@ identityRouter.post("/logout", identityController.logout);
 identityRouter.get(
   "/verify-email",
   validateQuery(verifyEmailSchema),
+  identityController.verifyEmailStatus,
+);
+
+identityRouter.post(
+  "/verify-email",
+  validateBody(verifyEmailSchema),
   identityController.verifyEmail,
 );
 
@@ -76,23 +117,91 @@ identityRouter.post(
   identityController.confirmPasswordReset,
 );
 
-// Protected Endpoints
-identityRouter.get("/me", authenticate, identityController.getProfile);
+identityRouter.post(
+  "/setup-account",
+  passwordResetRateLimiter,
+  validateBody(setupAccountSchema),
+  identityController.setupAccount,
+);
 
-// Staff Users Management Endpoints (Super Admin / Management Protected)
+// Protected Profile Endpoints
+identityRouter.get("/me", authenticate, identityController.getProfile);
+identityRouter.put(
+  "/me",
+  authenticate,
+  validateBody(updateProfileSchema),
+  identityController.updateProfile,
+);
+identityRouter.patch(
+  "/me",
+  authenticate,
+  validateBody(updateProfileSchema),
+  identityController.updateProfile,
+);
+identityRouter.post(
+  "/me/change-password",
+  authenticate,
+  validateBody(changePasswordSchema),
+  identityController.changePassword,
+);
+identityRouter.post(
+  "/me/avatar",
+  authenticate,
+  identityController.uploadAvatar,
+);
+identityRouter.delete(
+  "/me/avatar",
+  authenticate,
+  identityController.deleteAvatar,
+);
+identityRouter.get(
+  "/me/referrals",
+  authenticate,
+  identityController.getMyReferrals,
+);
+
+// Staff Users Management Endpoints (Strictly Super Admin Protected)
 identityRouter.get(
   "/admin/users",
   authenticate,
-  requirePermission(Permission.USERS_MANAGE),
+  requireRoles([UserRole.SUPER_ADMIN]),
   identityController.getStaffUsers,
 );
 
 identityRouter.post(
   "/admin/users",
   authenticate,
-  requirePermission(Permission.USERS_MANAGE),
+  requireRoles([UserRole.SUPER_ADMIN]),
   validateBody(createStaffUserSchema),
   identityController.createStaffUser,
+);
+
+identityRouter.patch(
+  "/admin/users/:userId",
+  authenticate,
+  requireRoles([UserRole.SUPER_ADMIN]),
+  identityController.updateStaffUser,
+);
+
+identityRouter.put(
+  "/admin/users/:userId/role",
+  authenticate,
+  requireRoles([UserRole.SUPER_ADMIN]),
+  identityController.updateStaffUser,
+);
+
+identityRouter.post(
+  "/admin/users/:userId/resend-setup",
+  authenticate,
+  requireRoles([UserRole.SUPER_ADMIN]),
+  identityController.resendStaffSetupLink,
+);
+
+identityRouter.delete(
+  "/admin/users/:userId/mfa",
+  authenticate,
+  requireRoles([UserRole.SUPER_ADMIN]),
+  identityController.disableUserMfa,
 );
 
 // Customer / Member Directory Management Endpoints (Accessible to all authenticated staff)
@@ -110,4 +219,11 @@ identityRouter.post(
   requireStaff(),
   validateBody(createCustomerAdminSchema),
   identityController.createCustomer,
+);
+
+identityRouter.get(
+  "/admin/customers/:id/referrals",
+  authenticate,
+  requireStaff(),
+  identityController.getCustomerReferrals,
 );

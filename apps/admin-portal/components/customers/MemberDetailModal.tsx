@@ -10,6 +10,7 @@ import {
   Clock,
   CreditCard,
   User,
+  Users,
 } from "lucide-react";
 import { MemberRecord } from "./MemberDirectoryTable";
 
@@ -109,6 +110,17 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
               </div>
               <div className="font-semibold text-slate-900">
                 {member.joinedDate || "August 2026"}
+              </div>
+            </div>
+
+            <div className="p-3 rounded-xl border border-slate-100 bg-white">
+              <div className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1.5 mb-1">
+                <Users className="w-3.5 h-3.5 text-[#23055c]" /> Referrals
+              </div>
+              <div className="font-semibold text-slate-900">
+                {member.referralCode
+                  ? `${member.referralCode} (${member.referralCount ?? 0} referred)`
+                  : `${member.referralCount ?? 0} referred`}
               </div>
             </div>
 

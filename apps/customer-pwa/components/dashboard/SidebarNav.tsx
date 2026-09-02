@@ -1,10 +1,12 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
+
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@daih/api-client";
 import { useToast } from "@daih/ui";
+import { resolveAvatarUrl } from "../../lib/image-utils";
 import {
   LayoutDashboard,
   Calendar,
@@ -17,6 +19,8 @@ import {
   PlusCircle,
   ChevronLeft,
   ChevronRight,
+  Loader2,
+  Users,
 } from "lucide-react";
 
 interface SidebarNavProps {
@@ -36,6 +40,15 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
   const router = useRouter();
   const { user, logout } = useAuth();
   const toast = useToast();
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [avatarError, setAvatarError] = useState(false);
+
+  useEffect(() => {
+    setAvatarError(false);
+  }, [user?.avatarUrl]);
+
+  const resolvedAvatar = resolveAvatarUrl(user?.avatarUrl);
 
   const displayName = user
     ? `${user.firstName} ${user.lastName}`.trim()
@@ -43,13 +56,17 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
   const displayRole =
     user?.role === "SUPER_ADMIN" ? "Administrator" : "Premium Member";
 
-  const handleLogout = async () => {
+  const handleConfirmLogout = async () => {
+    setIsLoggingOut(true);
     try {
       await logout();
       toast.info("You have been signed out.", { title: "Signed Out" });
       router.push("/login");
     } catch {
       router.push("/login");
+    } finally {
+      setIsLoggingOut(false);
+      setShowLogoutModal(false);
     }
   };
 
@@ -61,7 +78,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
       active: pathname === "/dashboard",
     },
     {
-      label: "Plans & Book",
+      label: "Pricing plans",
       href: "/book",
       icon: Layers,
       active: pathname === "/book" || pathname.startsWith("/book/"),
@@ -79,10 +96,16 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
       active: pathname.startsWith("/qr"),
     },
     {
+      label: "Referrals",
+      href: "/referrals",
+      icon: Users,
+      active: pathname.startsWith("/referrals"),
+    },
+    {
       label: "Settings",
-      href: "/dashboard#settings",
+      href: "/settings",
       icon: Settings,
-      active: false,
+      active: pathname.startsWith("/settings"),
     },
   ];
 
@@ -131,17 +154,31 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
         </div>
 
         {/* User Badge */}
-        <div
-          className={`flex items-center mb-6 ${collapsed ? "justify-center px-0" : "gap-3 px-2"}`}
-          title={displayName}
+        <Link
+          href="/settings"
+          onClick={onMobileClose}
+          className={`flex items-center mb-6 group hover:bg-slate-200/40 p-1.5 rounded-xl transition ${collapsed ? "justify-center px-0" : "gap-3"}`}
+          title="Account Settings"
         >
-          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#23055c] to-[#392271] text-white flex items-center justify-center font-bold text-xs shadow-xs shrink-0">
-            {user?.firstName?.[0] || "M"}
-            {user?.lastName?.[0] || ""}
+          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#23055c] to-[#392271] text-white flex items-center justify-center font-bold text-xs shadow-xs shrink-0 group-hover:scale-105 transition-transform overflow-hidden">
+            {resolvedAvatar && !avatarError ? (
+              <img
+                key={resolvedAvatar}
+                src={resolvedAvatar}
+                alt={displayName}
+                className="w-full h-full object-cover"
+                onError={() => setAvatarError(true)}
+              />
+            ) : (
+              <span>
+                {user?.firstName?.[0] || "M"}
+                {user?.lastName?.[0] || ""}
+              </span>
+            )}
           </div>
           {!collapsed && (
             <div className="min-w-0 flex-1">
-              <h2 className="text-xs font-bold text-[#181c20] truncate">
+              <h2 className="text-xs font-bold text-[#181c20] truncate group-hover:text-[#23055c] transition-colors">
                 {displayName}
               </h2>
               <p className="text-[11px] text-slate-500 truncate">
@@ -149,7 +186,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
               </p>
             </div>
           )}
-        </div>
+        </Link>
 
         {/* Navigation Items */}
         <ul className="space-y-1.5">
@@ -210,7 +247,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
           </li>
           <li>
             <button
-              onClick={handleLogout}
+              onClick={() => setShowLogoutModal(true)}
               title={collapsed ? "Logout" : undefined}
               className={`w-full flex items-center gap-3 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 rounded-xl transition cursor-pointer ${
                 collapsed ? "justify-center px-2" : "px-3"
@@ -245,6 +282,51 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
           />
           <div className="relative w-4/5 max-w-xs h-full bg-[#F8F9FA] shadow-2xl z-10 animate-in slide-in-from-left duration-200">
             {renderContent(false)}
+          </div>
+        </div>
+      )}
+
+      {/* Logout Confirmation Dialog */}
+      {showLogoutModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-slate-100 space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mx-auto">
+              <LogOut className="w-6 h-6" />
+            </div>
+            <div className="text-center space-y-1.5">
+              <h3 className="text-base font-bold text-slate-900">
+                Log Out of Account?
+              </h3>
+              <p className="text-xs text-slate-500">
+                Are you sure you want to log out? You will need your email and
+                password to sign back in.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowLogoutModal(false)}
+                disabled={isLoggingOut}
+                className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs hover:bg-slate-50 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmLogout}
+                disabled={isLoggingOut}
+                className="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs transition-colors flex items-center justify-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50"
+              >
+                {isLoggingOut ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Logging out...</span>
+                  </>
+                ) : (
+                  <span>Yes, Log Out</span>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

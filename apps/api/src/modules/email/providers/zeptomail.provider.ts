@@ -52,12 +52,25 @@ export class ZeptoMailEmailProvider implements IEmailProvider {
         textbody: options.text,
       };
 
+      const rawToken = config.email.zeptomailApiKey.trim();
+      let authHeader: string;
+
+      if (
+        rawToken.toLowerCase().startsWith("zoho-") ||
+        rawToken.toLowerCase().startsWith("sendmail-token ")
+      ) {
+        authHeader = rawToken;
+      } else {
+        // If raw token without prefix, default to Zoho-enczapikey prefix
+        authHeader = `Zoho-enczapikey ${rawToken}`;
+      }
+
       const response = await fetch(config.email.zeptomailApiUrl, {
         method: "POST",
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
-          Authorization: `SendMail-Token ${config.email.zeptomailApiKey}`,
+          Authorization: authHeader,
         },
         body: JSON.stringify(payload),
       });
@@ -65,10 +78,17 @@ export class ZeptoMailEmailProvider implements IEmailProvider {
       const data = (await response.json().catch(() => ({}))) as any;
 
       if (!response.ok) {
+        const errorDetail =
+          data?.error?.details?.[0]?.message ||
+          data?.error?.message ||
+          data?.message ||
+          (typeof data?.error === "string" ? data.error : null) ||
+          `ZeptoMail HTTP ${response.status}`;
+
         return {
           success: false,
           provider: this.name,
-          error: data?.message || `ZeptoMail HTTP ${response.status}`,
+          error: errorDetail,
         };
       }
 

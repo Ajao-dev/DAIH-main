@@ -7,12 +7,10 @@ export const debugRouter = Router();
 // Middleware ensuring debug endpoints are not publicly accessible in production
 debugRouter.use((_req, res, next) => {
   if (config.env === "production" && process.env.ENABLE_PROD_DEBUG !== "true") {
-    res
-      .status(404)
-      .json({
-        code: "NOT_FOUND",
-        message: "Debug routes disabled in production",
-      });
+    res.status(404).json({
+      code: "NOT_FOUND",
+      message: "Debug routes disabled in production",
+    });
     return;
   }
   next();

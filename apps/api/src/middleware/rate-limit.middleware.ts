@@ -1,4 +1,4 @@
-import { Request, Response } from "express";
+import { Request, Response, NextFunction } from "express";
 import rateLimit from "express-rate-limit";
 import { RedisStore } from "rate-limit-redis";
 import { redis } from "../config/redis.js";
@@ -30,25 +30,58 @@ const standardHandler = (_req: Request, res: Response) => {
   });
 };
 
+const skipInTest = () => config.env === "test" || Boolean(process.env.VITEST);
+
 /**
- * Rate Limiter for Login Endpoint (5 attempts per 15 mins by default)
+ * 1. IP-based Login Rate Limiter (20 attempts per 15 mins per IP)
+ * Protects against credential spraying from a single IP
  */
-export const loginRateLimiter = rateLimit({
+export const loginIpRateLimiter = rateLimit({
+  windowMs: config.rateLimit.loginWindowMinutes * 60 * 1000,
+  max: Math.max(20, config.rateLimit.loginMax * 4),
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: createRedisStore("login-ip"),
+  keyGenerator: (req: Request) => {
+    return req.ip || req.socket.remoteAddress || "unknown";
+  },
+  handler: standardHandler,
+  skip: skipInTest,
+});
+
+/**
+ * 2. Account-based Login Rate Limiter (5 attempts per 15 mins per email)
+ * Protects against distributed botnet brute-forcing of a single victim account
+ */
+export const loginAccountRateLimiter = rateLimit({
   windowMs: config.rateLimit.loginWindowMinutes * 60 * 1000,
   max: config.rateLimit.loginMax,
   standardHeaders: true,
   legacyHeaders: false,
-  store: createRedisStore("login"),
+  store: createRedisStore("login-acct"),
   keyGenerator: (req: Request) => {
     const email = req.body?.email
       ? String(req.body.email).toLowerCase().trim()
       : "";
-    const ip = req.ip || req.socket.remoteAddress || "unknown";
-    return `${ip}:${email}`;
+    return email || req.ip || req.socket.remoteAddress || "unknown";
   },
   handler: standardHandler,
-  skip: () => config.env === "test", // Skip in automated tests unless explicitly testing rate limits
+  skip: skipInTest,
 });
+
+/**
+ * Composite Dual-Layer Login Rate Limiter (runs IP check then Account check)
+ */
+export const loginRateLimiter = (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  loginIpRateLimiter(req, res, (err) => {
+    if (err) return next(err);
+    loginAccountRateLimiter(req, res, next);
+  });
+};
 
 /**
  * Rate Limiter for Registration Endpoint (10 per hour by default)
@@ -63,7 +96,7 @@ export const registrationRateLimiter = rateLimit({
     return req.ip || req.socket.remoteAddress || "unknown";
   },
   handler: standardHandler,
-  skip: () => config.env === "test",
+  skip: skipInTest,
 });
 
 /**
@@ -79,11 +112,10 @@ export const verificationResendRateLimiter = rateLimit({
     const email = req.body?.email
       ? String(req.body.email).toLowerCase().trim()
       : "";
-    const ip = req.ip || req.socket.remoteAddress || "unknown";
-    return `${ip}:${email}`;
+    return email || req.ip || req.socket.remoteAddress || "unknown";
   },
   handler: standardHandler,
-  skip: () => config.env === "test",
+  skip: skipInTest,
 });
 
 /**
@@ -99,11 +131,10 @@ export const passwordResetRateLimiter = rateLimit({
     const email = req.body?.email
       ? String(req.body.email).toLowerCase().trim()
       : "";
-    const ip = req.ip || req.socket.remoteAddress || "unknown";
-    return `${ip}:${email}`;
+    return email || req.ip || req.socket.remoteAddress || "unknown";
   },
   handler: standardHandler,
-  skip: () => config.env === "test",
+  skip: skipInTest,
 });
 
 /**
@@ -119,5 +150,5 @@ export const refreshRateLimiter = rateLimit({
     return req.ip || req.socket.remoteAddress || "unknown";
   },
   handler: standardHandler,
-  skip: () => config.env === "test",
+  skip: skipInTest,
 });

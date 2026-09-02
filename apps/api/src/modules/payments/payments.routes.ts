@@ -1,68 +1,129 @@
-import { Router, Request, Response } from "express";
-import { authenticate, AuthRequest } from "../../middleware/auth.middleware.js";
-import { PaymentStatus, PaymentMethod } from "@daih/types";
-
+import express, { Router } from "express";
+import { authenticate } from "../../middleware/auth.middleware.js";
+import { requireRoles } from "../../middleware/rbac.middleware.js";
+import { UserRole } from "@daih/types";
 import {
   validateParams,
   validateBody,
+  validateQuery,
 } from "../../middleware/validate.middleware.js";
+import { paymentsController } from "./payments.controller.js";
+import { verifyPaystackWebhookSignature } from "./webhook.verifier.js";
 import {
   InitializePaymentParamsSchema,
-  PaystackWebhookSchema,
+  InitializePaymentBodySchema,
+  TransactionIdParamsSchema,
+  BookingIdParamsSchema,
+  RefundBodySchema,
+  RequestRefundBodySchema,
+  TransactionFilterQuerySchema,
+  ReconciliationQuerySchema,
+  DailySummaryQuerySchema,
 } from "./payments.schema.js";
 
+// Dedicated Webhook Router that preserves raw body for cryptographic HMAC verification
+export const paymentsWebhookRouter = Router();
+
+paymentsWebhookRouter.post(
+  "/webhook",
+  express.raw({ type: "application/json" }),
+  verifyPaystackWebhookSignature,
+  paymentsController.webhook,
+);
+
+// Main Payments API Router
 export const paymentsRouter = Router();
 
+// Customer: Initialize Paystack checkout
 paymentsRouter.post(
   "/initialize/:bookingId",
   authenticate,
   validateParams(InitializePaymentParamsSchema),
-  (req: AuthRequest, res: Response) => {
-    const { bookingId } = req.params;
-    const reference = `DAIH-PAY-${Date.now()}`;
-
-    // Returns Paystack initialization response format
-    res.json({
-      success: true,
-      data: {
-        authorization_url: `https://checkout.paystack.com/mock-checkout-${reference}`,
-        access_code: `mock_code_${reference}`,
-        reference,
-      },
-    });
-  },
+  validateBody(InitializePaymentBodySchema),
+  paymentsController.initialize,
 );
 
+// Customer: Personal Payment History
+paymentsRouter.get("/history", authenticate, paymentsController.getHistory);
+
+// Customer: Request refund for a cancelled booking
 paymentsRouter.post(
-  "/webhook",
-  validateBody(PaystackWebhookSchema),
-  (req: Request, res: Response) => {
-    // Paystack webhook verification endpoint
-    const event = req.body?.event;
-
-    // Webhooks respond 200 OK immediately for idempotency
-    res.status(200).json({ received: true });
-  },
+  "/bookings/:bookingId/refund-request",
+  authenticate,
+  validateParams(BookingIdParamsSchema),
+  validateBody(RequestRefundBodySchema),
+  paymentsController.requestRefund,
 );
 
+// Finance Officer / Admin: List all transactions with filters
 paymentsRouter.get(
-  "/history",
+  "/admin/transactions",
   authenticate,
-  (req: AuthRequest, res: Response) => {
-    res.json({
-      success: true,
-      data: [
-        {
-          id: "tx_01",
-          reference: "DAIH-PAY-88219",
-          bookingId: "bk_sample_01",
-          amount: 45000,
-          currency: "NGN",
-          status: PaymentStatus.SUCCESSFUL,
-          method: PaymentMethod.PAYSTACK,
-          createdAt: new Date().toISOString(),
-        },
-      ],
-    });
-  },
+  requireRoles([
+    UserRole.FINANCE_OFFICER,
+    UserRole.SUPER_ADMIN,
+    UserRole.MANAGEMENT_VIEWER,
+  ]),
+  validateQuery(TransactionFilterQuerySchema),
+  paymentsController.getAdminTransactions,
+);
+
+// Finance Officer / Admin: Reconciliation overview
+paymentsRouter.get(
+  "/admin/reconciliation",
+  authenticate,
+  requireRoles([
+    UserRole.FINANCE_OFFICER,
+    UserRole.SUPER_ADMIN,
+    UserRole.MANAGEMENT_VIEWER,
+  ]),
+  validateQuery(ReconciliationQuerySchema),
+  paymentsController.getReconciliation,
+);
+
+// Finance Officer / Admin: Daily summary
+paymentsRouter.get(
+  "/admin/daily-summary",
+  authenticate,
+  requireRoles([
+    UserRole.FINANCE_OFFICER,
+    UserRole.SUPER_ADMIN,
+    UserRole.MANAGEMENT_VIEWER,
+  ]),
+  validateQuery(DailySummaryQuerySchema),
+  paymentsController.getDailySummary,
+);
+
+// Finance Officer / Super Admin: Process refund
+paymentsRouter.post(
+  "/:transactionId/refund",
+  authenticate,
+  requireRoles([UserRole.FINANCE_OFFICER, UserRole.SUPER_ADMIN]),
+  validateParams(TransactionIdParamsSchema),
+  validateBody(RefundBodySchema),
+  paymentsController.processRefund,
+);
+
+// Customer / Staff: Get transaction details
+paymentsRouter.get(
+  "/:transactionId",
+  authenticate,
+  validateParams(TransactionIdParamsSchema),
+  paymentsController.getTransaction,
+);
+
+// Customer: Poll payment status / verify
+paymentsRouter.post(
+  "/:transactionId/verify",
+  authenticate,
+  validateParams(TransactionIdParamsSchema),
+  paymentsController.verifyPayment,
+);
+
+// Customer: Get invoice / receipt for transaction
+paymentsRouter.get(
+  "/:transactionId/invoice",
+  authenticate,
+  validateParams(TransactionIdParamsSchema),
+  paymentsController.getInvoice,
 );

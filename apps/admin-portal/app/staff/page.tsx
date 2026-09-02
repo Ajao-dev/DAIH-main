@@ -80,7 +80,7 @@ export default function StaffManagementPage() {
         const users = await api.auth.getStaffUsers();
         if (isMounted && users && Array.isArray(users) && users.length > 0) {
           const mapped: AdminUserRecord[] = users.map((u: UserProfile) => ({
-            id: u.clientId || u.id,
+            id: u.id || u.clientId,
             name: `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.email,
             email: u.email,
             phone: u.phoneNumber,
@@ -144,77 +144,107 @@ export default function StaffManagementPage() {
     email: string;
     phone?: string;
     role: UserRole;
-    onboardingMethod: "INVITE_EMAIL" | "DIRECT_CREDENTIAL";
-    tempPassword?: string;
   }) => {
     const parts = newStaffData.name.trim().split(/\s+/);
     const firstName = parts[0] || "Staff";
     const lastName = parts.slice(1).join(" ") || "Member";
 
-    // Call backend API to persist staff user to database
+    // Call backend API to persist staff user to database and trigger setup email
     const createdUser = await api.auth.createStaffUser({
       firstName,
       lastName,
       email: newStaffData.email,
       phoneNumber: newStaffData.phone,
       role: newStaffData.role,
-      password: newStaffData.tempPassword || undefined,
     });
 
     const newStaff: AdminUserRecord = {
-      id: createdUser.clientId || createdUser.id,
-      name: `${createdUser.firstName} ${createdUser.lastName}`,
-      email: createdUser.email,
-      phone: createdUser.phoneNumber,
-      role: createdUser.role as UserRole,
-      status:
-        newStaffData.onboardingMethod === "DIRECT_CREDENTIAL"
-          ? "ACTIVE"
-          : "PENDING",
-      lastActive:
-        newStaffData.onboardingMethod === "DIRECT_CREDENTIAL"
-          ? "Just provisioned"
-          : "Never",
+      id: (createdUser as any).id || (createdUser as any).clientId,
+      name: `${(createdUser as any).firstName || firstName} ${(createdUser as any).lastName || lastName}`.trim(),
+      email: (createdUser as any).email || newStaffData.email,
+      phone: (createdUser as any).phoneNumber || newStaffData.phone,
+      role: ((createdUser as any).role || newStaffData.role) as UserRole,
+      status: "PENDING",
+      lastActive: "Invitation Sent",
     };
 
     setStaffList((prev) => [newStaff, ...prev]);
+    showToast(
+      `Admin account created. A secure 1-hour setup link was sent to ${newStaffData.email}`,
+    );
+  };
 
-    if (newStaffData.onboardingMethod === "INVITE_EMAIL") {
-      showToast(
-        `Onboarding invitation sent successfully to ${newStaffData.email}`,
+  const handleUpdateStaff = async (updatedStaff: AdminUserRecord) => {
+    const parts = updatedStaff.name.trim().split(/\s+/);
+    const firstName = parts[0] || "Staff";
+    const lastName = parts.slice(1).join(" ") || "Member";
+
+    try {
+      const result = await api.adminUsers.updateStaffUser(updatedStaff.id, {
+        firstName,
+        lastName,
+        phoneNumber: updatedStaff.phone || undefined,
+        role: updatedStaff.role,
+        isVerified: updatedStaff.status === "ACTIVE",
+      });
+
+      setStaffList((prev) =>
+        prev.map((u) =>
+          u.id === updatedStaff.id
+            ? {
+                ...updatedStaff,
+                role: (result.role || updatedStaff.role) as UserRole,
+                status: result.isVerified ? "ACTIVE" : updatedStaff.status,
+              }
+            : u,
+        ),
       );
-    } else {
-      showToast(`Staff account created in database for ${newStaffData.name}`);
+      showToast(
+        `Staff role and details updated successfully for ${updatedStaff.name}`,
+      );
+    } catch (err: any) {
+      showToast(
+        err?.message || "Failed to update staff record in database",
+        "error",
+      );
+      throw err;
     }
   };
 
-  const handleUpdateStaff = (updatedStaff: AdminUserRecord) => {
-    setStaffList((prev) =>
-      prev.map((u) => (u.id === updatedStaff.id ? updatedStaff : u)),
-    );
-    showToast(`Staff record updated for ${updatedStaff.name}`);
+  const handleToggleStatus = async (staffId: string) => {
+    const target = staffList.find((u) => u.id === staffId);
+    if (!target) return;
+    const nextStatus =
+      target.status === "DEACTIVATED" ? "ACTIVE" : "DEACTIVATED";
+
+    try {
+      await api.adminUsers.updateStaffUser(staffId, {
+        isVerified: nextStatus === "ACTIVE",
+      });
+
+      setStaffList((prev) =>
+        prev.map((u) => (u.id === staffId ? { ...u, status: nextStatus } : u)),
+      );
+      showToast(
+        `Staff access for ${target.name} has been ${
+          nextStatus === "ACTIVE" ? "restored" : "deactivated"
+        }`,
+      );
+    } catch (err: any) {
+      showToast(
+        err?.message || "Failed to update staff status in database",
+        "error",
+      );
+    }
   };
 
-  const handleToggleStatus = (staffId: string) => {
-    setStaffList((prev) =>
-      prev.map((u) => {
-        if (u.id === staffId) {
-          const nextStatus =
-            u.status === "DEACTIVATED" ? "ACTIVE" : "DEACTIVATED";
-          showToast(
-            `Staff access for ${u.name} has been ${
-              nextStatus === "ACTIVE" ? "restored" : "deactivated"
-            }`,
-          );
-          return { ...u, status: nextStatus };
-        }
-        return u;
-      }),
-    );
-  };
-
-  const handleResendInvite = (staff: AdminUserRecord) => {
-    showToast(`Onboarding invitation email resent to ${staff.email}`);
+  const handleResendInvite = async (staff: AdminUserRecord) => {
+    try {
+      await api.adminUsers.resendSetupLink(staff.id);
+      showToast(`Fresh 1-hour setup invitation link sent to ${staff.email}`);
+    } catch (err: any) {
+      showToast(err?.message || "Failed to resend setup invitation", "error");
+    }
   };
 
   const handleResetFilters = () => {

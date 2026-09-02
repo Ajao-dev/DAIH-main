@@ -193,6 +193,48 @@ describe("Milestone 1.2: Catalogue & Resource Model Module", () => {
       expect(deleteRes.body.success).toBe(true);
     });
 
+    it("uploads and compresses an image for a resource", async () => {
+      // 1x1 transparent PNG encoded in base64
+      const sampleBase64 =
+        "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+
+      const uploadRes = await request(app)
+        .post("/api/v1/catalogue/admin/upload-image")
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send({
+          data: sampleBase64,
+          fileName: "test-space-photo.png",
+          resourceId: createdResourceId,
+        });
+
+      expect(uploadRes.status).toBe(200);
+      expect(uploadRes.body.success).toBe(true);
+      expect(uploadRes.body.data.url).toMatch(
+        /^\/uploads\/resources\/test-space-photo-.*\.webp$/,
+      );
+      expect(uploadRes.body.data.format).toBe("webp");
+      expect(uploadRes.body.data.size).toBeGreaterThan(0);
+      expect(uploadRes.body.data.resource).toBeDefined();
+      expect(uploadRes.body.data.resource.imageUrl).toBe(
+        uploadRes.body.data.url,
+      );
+    });
+
+    it("rejects non-staff user from uploading resource images", async () => {
+      const sampleBase64 =
+        "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+
+      const res = await request(app)
+        .post("/api/v1/catalogue/admin/upload-image")
+        .set("Authorization", `Bearer ${customerToken}`)
+        .send({
+          data: sampleBase64,
+          fileName: "hacker-photo.png",
+        });
+
+      expect(res.status).toBe(403);
+    });
+
     afterAll(async () => {
       try {
         if (createdResourceId) {

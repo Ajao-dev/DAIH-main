@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, Suspense } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { api, useAuth } from "@daih/api-client";
-import { BookingSummary, BookingState } from "@daih/types";
+import { BookingSummary, BookingState, InvoiceDTO } from "@daih/types";
 import {
   Calendar,
   Clock,
@@ -17,6 +18,12 @@ import {
   Loader2,
   RefreshCw,
   AlertTriangle,
+  Receipt,
+  RotateCcw,
+  CreditCard,
+  Printer,
+  X,
+  Sparkles,
 } from "lucide-react";
 
 function formatDate(isoStr: string) {
@@ -37,32 +44,106 @@ function formatTime(isoStr: string) {
   });
 }
 
-export default function CustomerBookingsPage() {
+function BookingsContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useAuth();
+
   const [bookings, setBookings] = useState<BookingSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState("");
+  const [refundBookingId, setRefundBookingId] = useState<string | null>(null);
+  const [refundReason, setRefundReason] = useState("");
+  const [payingBookingId, setPayingBookingId] = useState<string | null>(null);
+  const [checkingBookingId, setCheckingBookingId] = useState<string | null>(
+    null,
+  );
+  const [selectedInvoice, setSelectedInvoice] = useState<InvoiceDTO | null>(
+    null,
+  );
+  const [loadingInvoice, setLoadingInvoice] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"active" | "history">("active");
+  const [isVerifyingReturn, setIsVerifyingReturn] = useState(false);
+  const [verifiedSuccessMessage, setVerifiedSuccessMessage] = useState<
+    string | null
+  >(null);
+  const verifiedRefTracker = React.useRef<string | null>(null);
 
-  const fetchBookings = useCallback(async (forceRefresh = false) => {
-    setLoading(true);
-    try {
-      const data = await api.bookings.getMyBookings({ forceRefresh });
-      setBookings(data);
-    } catch (err) {
-      console.warn("Could not load bookings:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const fetchBookings = useCallback(
+    async (forceRefresh = false, options: { silent?: boolean } = {}) => {
+      const isSilent = options.silent ?? (bookings.length > 0 && forceRefresh);
+      if (isSilent) {
+        setIsRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+      try {
+        const data = await api.bookings.getMyBookings({ forceRefresh });
+        setBookings(data);
+      } catch (err) {
+        console.warn("Could not load bookings:", err);
+      } finally {
+        setLoading(false);
+        setIsRefreshing(false);
+      }
+    },
+    [bookings.length],
+  );
 
+  // Handle return redirect from Paystack (?reference=... or ?trxref=...)
   useEffect(() => {
-    fetchBookings();
+    if (typeof window === "undefined") return;
+    const urlParams = new URLSearchParams(window.location.search);
+    const reference = urlParams.get("reference") || urlParams.get("trxref");
 
+    if (!reference) {
+      // Normal initial load without return callback
+      fetchBookings();
+      return;
+    }
+
+    if (verifiedRefTracker.current === reference) return;
+    verifiedRefTracker.current = reference;
+
+    // Clean query parameters from address bar immediately without unmounting component
+    window.history.replaceState({}, document.title, window.location.pathname);
+
+    setIsVerifyingReturn(true);
+    setLoading(true);
+
+    api.payments
+      .verifyPayment(reference)
+      .then(async (res) => {
+        setVerifiedSuccessMessage(
+          "Payment successfully confirmed! Your access pass is active.",
+        );
+        await fetchBookings(true, { silent: false });
+      })
+      .catch((err) => {
+        console.warn("Notice verifying payment on return:", err?.message);
+        fetchBookings(true, { silent: false });
+      })
+      .finally(() => {
+        setIsVerifyingReturn(false);
+      });
+  }, [fetchBookings]);
+
+  // Auto-dismiss success message after 8 seconds
+  useEffect(() => {
+    if (!verifiedSuccessMessage) return;
+    const timer = setTimeout(() => {
+      setVerifiedSuccessMessage(null);
+    }, 8000);
+    return () => clearTimeout(timer);
+  }, [verifiedSuccessMessage]);
+
+  // Silent refresh on tab switch / window focus
+  useEffect(() => {
     const handleFocus = () => {
-      fetchBookings(true);
+      fetchBookings(true, { silent: true });
     };
 
     if (typeof window !== "undefined") {
@@ -70,6 +151,85 @@ export default function CustomerBookingsPage() {
       return () => window.removeEventListener("focus", handleFocus);
     }
   }, [fetchBookings]);
+
+  const handlePayNow = async (bookingId: string) => {
+    setPayingBookingId(bookingId);
+    try {
+      const callbackUrl =
+        typeof window !== "undefined"
+          ? `${window.location.origin}/bookings`
+          : undefined;
+      const res = await api.payments.initializePayment(bookingId, callbackUrl);
+      if (res.authorization_url) {
+        window.location.href = res.authorization_url;
+      }
+    } catch (err: any) {
+      if (err?.code === "BOOKING_ALREADY_PAID") {
+        setVerifiedSuccessMessage(
+          "This booking is already paid and confirmed!",
+        );
+        await fetchBookings(true, { silent: true });
+      } else {
+        alert(err?.message || "Failed to initialize payment gateway");
+      }
+      setPayingBookingId(null);
+    }
+  };
+
+  const handleCheckStatus = async (booking: BookingSummary) => {
+    setCheckingBookingId(booking.id);
+    try {
+      // Find latest transaction reference for this booking or verify by booking id
+      const res = await api.payments.verifyPayment(booking.id);
+      if (
+        res.status === "SUCCESSFUL" ||
+        res.booking?.state === BookingState.CONFIRMED
+      ) {
+        setVerifiedSuccessMessage("Payment confirmed! Your booking is active.");
+      }
+      await fetchBookings(true, { silent: true });
+    } catch (err: any) {
+      console.warn("Check status notice:", err?.message);
+      await fetchBookings(true, { silent: true });
+    } finally {
+      setCheckingBookingId(null);
+    }
+  };
+
+  const handleViewInvoice = async (booking: BookingSummary) => {
+    setLoadingInvoice(true);
+    try {
+      const invoice = await api.payments.getInvoice(booking.id);
+      setSelectedInvoice(invoice);
+    } catch (err: any) {
+      alert(
+        err?.message ||
+          "Invoice is being generated. Please check back shortly.",
+      );
+    } finally {
+      setLoadingInvoice(false);
+    }
+  };
+
+  const handleRequestRefund = async (bookingId: string) => {
+    setActionLoading(true);
+    try {
+      await api.payments.requestRefund(
+        bookingId,
+        refundReason || "Customer requested cancellation refund",
+      );
+      alert(
+        "Refund request submitted successfully and pending Finance Officer approval.",
+      );
+      setRefundBookingId(null);
+      setRefundReason("");
+      await fetchBookings(true);
+    } catch (err: any) {
+      alert(err?.message || "Failed to submit refund request");
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   const handleCancelBooking = async (bookingId: string) => {
     setActionLoading(true);
@@ -80,7 +240,7 @@ export default function CustomerBookingsPage() {
       );
       setCancellingId(null);
       setCancelReason("");
-      await fetchBookings();
+      await fetchBookings(true);
     } catch (err: any) {
       alert(err?.message || "Failed to cancel booking");
     } finally {
@@ -88,32 +248,77 @@ export default function CustomerBookingsPage() {
     }
   };
 
-  const activeBookings = bookings.filter((b) =>
-    [
+  const now = new Date();
+
+  const activeBookings = bookings.filter((b) => {
+    const isStateActive = [
       BookingState.CONFIRMED,
       BookingState.HELD,
       BookingState.PENDING_PAYMENT,
       BookingState.ACTIVE,
       BookingState.CHECKED_IN,
-    ].includes(b.state as BookingState),
-  );
+    ].includes(b.state as BookingState);
+    const notEnded = new Date(b.endTime) >= now;
+    return isStateActive && notEnded;
+  });
 
-  const historicalBookings = bookings.filter(
-    (b) =>
-      ![
-        BookingState.CONFIRMED,
-        BookingState.HELD,
-        BookingState.PENDING_PAYMENT,
-        BookingState.ACTIVE,
-        BookingState.CHECKED_IN,
-      ].includes(b.state as BookingState),
-  );
+  const historicalBookings = bookings.filter((b) => {
+    const isStateActive = [
+      BookingState.CONFIRMED,
+      BookingState.HELD,
+      BookingState.PENDING_PAYMENT,
+      BookingState.ACTIVE,
+      BookingState.CHECKED_IN,
+    ].includes(b.state as BookingState);
+    const isEnded = new Date(b.endTime) < now;
+    return !isStateActive || isEnded;
+  });
 
   const displayedBookings =
     activeTab === "active" ? activeBookings : historicalBookings;
 
   return (
     <div className="space-y-8">
+      {/* Verification In-Progress Banner */}
+      {isVerifyingReturn && !verifiedSuccessMessage && (
+        <div className="bg-[#23055c] text-white p-4 rounded-2xl flex items-center justify-between shadow-md animate-in fade-in duration-200">
+          <div className="flex items-center gap-3">
+            <Loader2 className="h-5 w-5 animate-spin text-amber-300 shrink-0" />
+            <div>
+              <h4 className="text-xs font-bold uppercase tracking-wider text-amber-300">
+                Processing Payment
+              </h4>
+              <p className="text-xs text-white/90">
+                Verifying your transaction and issuing your pass...
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Verified Success Banner */}
+      {verifiedSuccessMessage && (
+        <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-2xl flex items-center justify-between shadow-xs animate-in fade-in duration-200">
+          <div className="flex items-center gap-3 text-emerald-800">
+            <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+            <div>
+              <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-900">
+                Payment Confirmed
+              </h4>
+              <p className="text-xs text-emerald-700">
+                {verifiedSuccessMessage}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setVerifiedSuccessMessage(null)}
+            className="text-emerald-500 hover:text-emerald-800 text-xs font-bold cursor-pointer"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#EBE7F5] pb-6">
         <div>
@@ -121,16 +326,19 @@ export default function CustomerBookingsPage() {
             My Bookings &amp; Passes
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            Manage your active workspace reservations and access passes.
+            Manage your active workspace reservations, payments, and access
+            passes.
           </p>
         </div>
         <div className="flex gap-2">
           <button
-            onClick={() => fetchBookings(true)}
-            className="p-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+            onClick={() => fetchBookings(true, { silent: true })}
+            className="p-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
             title="Refresh Bookings"
           >
-            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            <RefreshCw
+              className={`h-4 w-4 ${isRefreshing || loading ? "animate-spin" : ""}`}
+            />
           </button>
           <Link
             href="/book"
@@ -146,7 +354,7 @@ export default function CustomerBookingsPage() {
       <div className="flex border-b border-slate-200 gap-6">
         <button
           onClick={() => setActiveTab("active")}
-          className={`pb-3 text-xs font-bold transition-all relative ${
+          className={`pb-3 text-xs font-bold transition-all relative cursor-pointer ${
             activeTab === "active"
               ? "text-[#23055c]"
               : "text-slate-500 hover:text-slate-700"
@@ -159,7 +367,7 @@ export default function CustomerBookingsPage() {
         </button>
         <button
           onClick={() => setActiveTab("history")}
-          className={`pb-3 text-xs font-bold transition-all relative ${
+          className={`pb-3 text-xs font-bold transition-all relative cursor-pointer ${
             activeTab === "history"
               ? "text-[#23055c]"
               : "text-slate-500 hover:text-slate-700"
@@ -173,7 +381,7 @@ export default function CustomerBookingsPage() {
       </div>
 
       {/* Content */}
-      {loading ? (
+      {loading && !isVerifyingReturn ? (
         <div className="py-20 text-center space-y-3">
           <Loader2 className="h-8 w-8 animate-spin text-[#23055c] mx-auto" />
           <p className="text-xs text-slate-500 font-semibold">
@@ -209,13 +417,27 @@ export default function CustomerBookingsPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {displayedBookings.map((b) => {
+            const isNoShow =
+              b.state === BookingState.NO_SHOW ||
+              (!b.checkedInAt &&
+                b.state === BookingState.CONFIRMED &&
+                new Date(b.endTime) < now);
+            const isCompleted =
+              b.state === BookingState.COMPLETED ||
+              ((b.state === BookingState.CHECKED_IN ||
+                b.state === BookingState.ACTIVE) &&
+                new Date(b.endTime) < now);
             const isConfirmed =
-              b.state === BookingState.CONFIRMED ||
-              b.state === BookingState.CHECKED_IN;
-            const isHeld =
-              b.state === BookingState.HELD ||
-              b.state === BookingState.PENDING_PAYMENT;
+              (b.state === BookingState.CONFIRMED ||
+                b.state === BookingState.CHECKED_IN) &&
+              !isNoShow &&
+              !isCompleted;
+            const isHeld = b.state === BookingState.HELD;
+            const isPendingPayment = b.state === BookingState.PENDING_PAYMENT;
             const isCancelled = b.state === BookingState.CANCELLED;
+            const isRefundPending = b.state === BookingState.REFUND_PENDING;
+            const isRefunded = b.state === BookingState.REFUNDED;
+            const isExpired = b.state === BookingState.EXPIRED;
 
             return (
               <div
@@ -233,7 +455,60 @@ export default function CustomerBookingsPage() {
                         {b.resourceName}
                       </h3>
                     </div>
-                    <div></div>
+                    <div>
+                      {isConfirmed && (
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200/60 flex items-center gap-1">
+                          <CheckCircle2 className="h-3 w-3" />
+                          <span>Active / Confirmed</span>
+                        </span>
+                      )}
+                      {isPendingPayment && (
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-amber-50 text-amber-700 border border-amber-200/60 flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                          <span>Processing Payment</span>
+                        </span>
+                      )}
+                      {isHeld && (
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-purple-50 text-purple-700 border border-purple-200/60 flex items-center gap-1">
+                          <Clock className="h-3 w-3 animate-pulse" />
+                          <span>Held &bull; Pay to Confirm</span>
+                        </span>
+                      )}
+                      {isNoShow && (
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-rose-50 text-rose-700 border border-rose-200/60 flex items-center gap-1">
+                          <XCircle className="h-3 w-3 text-rose-600" />
+                          <span>No-Show &bull; Missed Date</span>
+                        </span>
+                      )}
+                      {isCompleted && (
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-slate-100 text-slate-700 border border-slate-200 flex items-center gap-1">
+                          <CheckCircle2 className="h-3 w-3 text-slate-500" />
+                          <span>Completed</span>
+                        </span>
+                      )}
+                      {isExpired && (
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-slate-100 text-slate-500 border border-slate-200 flex items-center gap-1">
+                          <Clock className="h-3 w-3 text-slate-400" />
+                          <span>Hold Expired</span>
+                        </span>
+                      )}
+                      {isRefundPending && (
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-purple-50 text-purple-700 border border-purple-200/60 flex items-center gap-1">
+                          <RotateCcw className="h-3 w-3" />
+                          <span>Refund Pending</span>
+                        </span>
+                      )}
+                      {isRefunded && (
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-slate-100 text-slate-700 border border-slate-200 flex items-center gap-1">
+                          <span>Refunded</span>
+                        </span>
+                      )}
+                      {isCancelled && (
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-rose-50 text-rose-700 border border-rose-200/60 flex items-center gap-1">
+                          <span>Cancelled</span>
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {/* Dates & Location */}
@@ -254,7 +529,7 @@ export default function CustomerBookingsPage() {
                     </div>
                     <div className="flex items-center justify-between pt-2 border-t border-[#EBE7F5]/70 font-semibold">
                       <span className="text-slate-500">Amount</span>
-                      <span className="text-[#23055c]">
+                      <span className="text-[#23055c] font-bold">
                         {b.currency} {Number(b.amount).toLocaleString()}
                       </span>
                     </div>
@@ -262,28 +537,107 @@ export default function CustomerBookingsPage() {
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
+                <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
                   {isConfirmed && (
-                    <Link
-                      href="/qr"
-                      className="flex-1 bg-[#23055c] hover:bg-[#392271] text-white text-xs font-bold py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5"
-                    >
-                      <QrCode className="h-3.5 w-3.5" />
-                      <span>View QR Pass</span>
-                    </Link>
+                    <>
+                      <Link
+                        href={`/qr?bookingId=${b.id}`}
+                        className="flex-1 bg-[#23055c] hover:bg-[#392271] text-white text-xs font-bold py-2.5 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5"
+                      >
+                        <QrCode className="h-3.5 w-3.5" />
+                        <span>View QR Pass</span>
+                      </Link>
+                      <button
+                        onClick={() => handleViewInvoice(b)}
+                        disabled={loadingInvoice}
+                        className="px-3 py-2.5 border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold rounded-xl transition-colors flex items-center gap-1 cursor-pointer"
+                        title="View Official Receipt"
+                      >
+                        <Receipt className="h-3.5 w-3.5" />
+                        <span>Receipt</span>
+                      </button>
+                    </>
                   )}
+
+                  {(isNoShow || isCompleted) && (
+                    <>
+                      <button
+                        onClick={() => handleViewInvoice(b)}
+                        disabled={loadingInvoice}
+                        className="flex-1 py-2.5 border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold rounded-xl transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                        title="View Official Receipt"
+                      >
+                        <Receipt className="h-3.5 w-3.5" />
+                        <span>Receipt</span>
+                      </button>
+                      <Link
+                        href="/book"
+                        className="px-3.5 py-2.5 bg-[#23055c] hover:bg-[#392271] text-white text-xs font-bold rounded-xl transition-colors flex items-center justify-center gap-1 shadow-2xs"
+                      >
+                        <span>Book Again</span>
+                        <ArrowRight className="h-3 w-3" />
+                      </Link>
+                    </>
+                  )}
+
+                  {/* Processing State */}
+                  {isPendingPayment && (
+                    <>
+                      <button
+                        disabled
+                        className="flex-1 bg-amber-50 text-amber-800 border border-amber-200/80 text-xs font-bold py-2.5 px-3 rounded-xl flex items-center justify-center gap-1.5 cursor-not-allowed opacity-90 shadow-2xs"
+                      >
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-amber-600" />
+                        <span>Processing...</span>
+                      </button>
+                      <button
+                        onClick={() => handleCheckStatus(b)}
+                        disabled={checkingBookingId === b.id}
+                        className="px-3 py-2.5 border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold rounded-xl transition-colors flex items-center gap-1 cursor-pointer"
+                        title="Check Payment Status"
+                      >
+                        <RefreshCw
+                          className={`h-3.5 w-3.5 ${checkingBookingId === b.id ? "animate-spin" : ""}`}
+                        />
+                        <span>Check Status</span>
+                      </button>
+                    </>
+                  )}
+
                   {isHeld && (
-                    <Link
-                      href={`/book/${b.resourceId}`}
-                      className="flex-1 bg-[#23055c] hover:bg-[#392271] text-white text-xs font-bold py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5"
+                    <button
+                      onClick={() => handlePayNow(b.id)}
+                      disabled={payingBookingId === b.id}
+                      className="flex-1 bg-[#23055c] hover:bg-[#392271] text-white text-xs font-bold py-2.5 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
                     >
-                      <span>Complete Checkout</span>
-                    </Link>
+                      {payingBookingId === b.id ? (
+                        <>
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          <span>Connecting...</span>
+                        </>
+                      ) : (
+                        <>
+                          <CreditCard className="h-3.5 w-3.5" />
+                          <span>Pay Now</span>
+                        </>
+                      )}
+                    </button>
                   )}
-                  {(isConfirmed || isHeld) && (
+
+                  {isCancelled && (
+                    <button
+                      onClick={() => setRefundBookingId(b.id)}
+                      className="flex-1 px-3 py-2.5 border border-purple-200 text-purple-700 hover:bg-purple-50 text-xs font-semibold rounded-xl transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <RotateCcw className="h-3.5 w-3.5" />
+                      <span>Request Refund</span>
+                    </button>
+                  )}
+
+                  {(isConfirmed || isHeld || isPendingPayment) && (
                     <button
                       onClick={() => setCancellingId(b.id)}
-                      className="px-3 py-2.5 border border-rose-200 text-rose-600 hover:bg-rose-50 text-xs font-semibold rounded-xl transition-colors"
+                      className="px-3 py-2.5 border border-rose-200 text-rose-600 hover:bg-rose-50 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
                       title="Cancel Booking"
                     >
                       Cancel
@@ -293,6 +647,133 @@ export default function CustomerBookingsPage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Invoice & Receipt Modal */}
+      {selectedInvoice && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4 print:p-0 print:bg-white print:static print:z-auto">
+          <div className="printable-receipt-container bg-white rounded-2xl max-w-lg w-full p-6 sm:p-8 space-y-6 shadow-xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-3">
+                <img
+                  src="/images/logo.png"
+                  alt="DAIH Hub"
+                  className="h-7 w-auto object-contain"
+                />
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900 tracking-tight">
+                    Payment Receipt
+                  </h3>
+                  <p className="text-[10px] text-slate-500 font-medium">
+                    DAIH Hub Innovation &amp; Workspace Center
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedInvoice(null)}
+                className="no-print p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer transition-colors"
+                title="Close receipt"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              <div className="flex justify-between items-center bg-[#faf9ff] p-3.5 rounded-xl border border-[#EBE7F5]">
+                <div>
+                  <span className="text-[10px] text-slate-500 uppercase font-bold block">
+                    Invoice Number
+                  </span>
+                  <span className="font-extrabold text-[#23055c] text-sm">
+                    {selectedInvoice.invoiceNumber}
+                  </span>
+                </div>
+                <div className="text-right">
+                  <span className="text-[10px] text-slate-500 uppercase font-bold block">
+                    Issued Date
+                  </span>
+                  <span className="text-slate-700 font-semibold">
+                    {formatDate(selectedInvoice.issuedAt)}
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-2 py-1">
+                <div className="flex justify-between text-slate-600">
+                  <span className="text-slate-500">Customer:</span>
+                  <span className="font-bold text-slate-900">
+                    {selectedInvoice.customerName} (
+                    {selectedInvoice.customerClientId})
+                  </span>
+                </div>
+                <div className="flex justify-between text-slate-600">
+                  <span className="text-slate-500">Workspace / Space:</span>
+                  <span className="font-semibold text-slate-900">
+                    {selectedInvoice.resourceName}
+                  </span>
+                </div>
+                <div className="flex justify-between text-slate-600">
+                  <span className="text-slate-500">Booking Reference:</span>
+                  <span className="font-mono font-bold text-[#23055c]">
+                    {selectedInvoice.bookingReference}
+                  </span>
+                </div>
+                <div className="flex justify-between text-slate-600">
+                  <span className="text-slate-500">Payment Status:</span>
+                  <span className="font-bold text-emerald-600 uppercase tracking-wider text-[11px]">
+                    PAID / CONFIRMED
+                  </span>
+                </div>
+              </div>
+
+              <div className="border-t border-slate-100 pt-3 space-y-2">
+                <span className="text-[11px] font-bold text-slate-500 uppercase block">
+                  Line Items
+                </span>
+                {selectedInvoice.lineItems.map((item, idx) => (
+                  <div
+                    key={idx}
+                    className="flex justify-between text-slate-700 py-0.5"
+                  >
+                    <span>
+                      {item.description} (x{item.quantity})
+                    </span>
+                    <span className="font-semibold">
+                      {selectedInvoice.currency}{" "}
+                      {Number(item.amount).toLocaleString()}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="border-t border-slate-200 pt-3 flex justify-between items-center text-sm font-extrabold text-[#23055c]">
+                <span>Total Paid:</span>
+                <span className="text-base">
+                  {selectedInvoice.currency}{" "}
+                  {Number(selectedInvoice.total).toLocaleString()}
+                </span>
+              </div>
+            </div>
+
+            {/* Modal Actions (Hidden when printing) */}
+            <div className="no-print flex gap-3 pt-2">
+              <button
+                onClick={() => window.print()}
+                className="flex-1 py-2.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+              >
+                <Printer className="h-3.5 w-3.5" />
+                <span>Print Receipt</span>
+              </button>
+              <button
+                onClick={() => setSelectedInvoice(null)}
+                className="flex-1 py-2.5 bg-[#23055c] hover:bg-[#392271] text-white rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-2xs"
+              >
+                Close
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -329,14 +810,14 @@ export default function CustomerBookingsPage() {
                   setCancelReason("");
                 }}
                 disabled={actionLoading}
-                className="flex-1 py-2.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors"
+                className="flex-1 py-2.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
               >
                 Keep Booking
               </button>
               <button
                 onClick={() => handleCancelBooking(cancellingId)}
                 disabled={actionLoading}
-                className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
+                className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 {actionLoading ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -347,6 +828,76 @@ export default function CustomerBookingsPage() {
           </div>
         </div>
       )}
+
+      {/* Request Refund Modal */}
+      {refundBookingId && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-3 text-purple-700">
+              <RotateCcw className="h-6 w-6 shrink-0" />
+              <h3 className="text-lg font-bold text-slate-900">
+                Request Cancellation Refund
+              </h3>
+            </div>
+            <p className="text-xs text-slate-600">
+              Submit a refund request for this cancelled booking. A Finance
+              Officer will review and process the funds according to the 24-hour
+              cancellation policy.
+            </p>
+            <div>
+              <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">
+                Reason for Refund Request
+              </label>
+              <input
+                type="text"
+                value={refundReason}
+                onChange={(e) => setRefundReason(e.target.value)}
+                placeholder="e.g. Cancelled 2 days in advance"
+                className="w-full text-xs border border-purple-200 rounded-xl px-3 py-2 outline-none focus:border-[#23055c]"
+              />
+            </div>
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => {
+                  setRefundBookingId(null);
+                  setRefundReason("");
+                }}
+                disabled={actionLoading}
+                className="flex-1 py-2.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
+              >
+                Dismiss
+              </button>
+              <button
+                onClick={() => handleRequestRefund(refundBookingId)}
+                disabled={actionLoading}
+                className="flex-1 py-2.5 bg-[#23055c] hover:bg-[#392271] text-white rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                {actionLoading ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : null}
+                <span>Submit Request</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+export default function CustomerBookingsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="py-20 text-center space-y-3">
+          <Loader2 className="h-8 w-8 animate-spin text-[#23055c] mx-auto" />
+          <p className="text-xs text-slate-500 font-semibold">
+            Loading reservations...
+          </p>
+        </div>
+      }
+    >
+      <BookingsContent />
+    </Suspense>
   );
 }

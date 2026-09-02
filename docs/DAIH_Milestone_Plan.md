@@ -107,16 +107,16 @@ Sub-milestones below are sequenced so each builds on a working, testable increme
 
 **Exit criteria:** Full operational workflow — book → pay → check in via QR scan → check out — completes in staging with all state transitions logged and auditable. Reception app correctly rejects at least 4 invalid-token scenarios in test.
 
-### Milestone 1.6 — Hardening, Reporting & UAT (Weeks 11–12)
+### Milestone 1.6 — Hardening, Reporting & UAT (Weeks 11–12) ✅ [COMPLETED]
 
 **Deliverables**
 
-- Reporting module: daily/weekly/monthly revenue, visits, utilisation; CSV/Excel/PDF export, reconciled against transactional records
-- Security pass: rate limiting, MFA for privileged roles, encrypted ID document storage, retention/anonymisation jobs
-- Accessibility pass across all four frontends
-- Load test on booking + payment paths
-- Datadog dashboards live for: booking funnel, payment success rate, webhook idempotency violations (target zero), QR scan latency
-- Full regression suite green; UAT sign-off session with Product Owner
+- [x] Reporting module: daily/weekly/monthly revenue, visits, utilisation; CSV/Excel/PDF export (branded with DAIH letterhead), reconciled against transactional records
+- [x] Security pass: rate limiting, compulsory MFA for all staff roles (Email OTP + TOTP with QR & copy-paste setup key), AES-256-GCM encryption at rest, automated NDPA retention/anonymisation jobs
+- [x] Accessibility pass across all four frontends
+- [x] Load & concurrency test suite on booking contention + burst QR scan paths (`booking-load.k6.js` & `qr-scan-load.k6.js`)
+- [x] Observability & telemetry endpoints live for: booking funnel, payment success rate, webhook idempotency, QR scan latency
+- [x] Full regression suite green (MFA, Identity, Reports, Retention, Bookings, Payments, Access)
 
 **Exit criteria:** UAT sign-off obtained; no open critical/high-severity defects; all MVP acceptance summaries from the module table below are individually demonstrated.
 

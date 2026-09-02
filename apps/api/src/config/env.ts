@@ -2,23 +2,20 @@ import dotenv from "dotenv";
 import path from "path";
 import fs from "fs";
 
-// Load from current working directory
-dotenv.config();
-
-// Check if running inside apps/api and load root .env if present
+// Find and load root .env as the primary source of truth
 const cwd = process.cwd();
 const possibleRootEnv = path.resolve(cwd, "../../.env");
-const localEnv = path.resolve(cwd, ".env");
+const directRootEnv = path.resolve(cwd, ".env");
 
-if (fs.existsSync(localEnv)) {
-  dotenv.config({ path: localEnv });
-}
 if (fs.existsSync(possibleRootEnv)) {
-  dotenv.config({ path: possibleRootEnv });
+  dotenv.config({ path: possibleRootEnv, override: true });
+} else if (fs.existsSync(directRootEnv)) {
+  dotenv.config({ path: directRootEnv, override: true });
 }
+dotenv.config({ override: false });
 
 export const config = {
-  env: process.env.NODE_ENV || "development",
+  env: process.env.VITEST ? "test" : process.env.NODE_ENV || "development",
   port: parseInt(process.env.PORT || "4000", 10),
   databaseUrl:
     process.env.DATABASE_URL ||
@@ -47,7 +44,7 @@ export const config = {
     secure: process.env.NODE_ENV === "production",
     sameSite:
       (process.env.COOKIE_SAME_SITE as "lax" | "strict" | "none") || "lax",
-    path: "/",
+    path: process.env.COOKIE_PATH || "/api/v1/identity",
   },
   superAdmin: {
     email: process.env.SUPER_ADMIN_EMAIL || "admin@daih.ng",
@@ -60,6 +57,16 @@ export const config = {
     customer: process.env.FRONTEND_CUSTOMER_URL || "http://localhost:3001",
     admin: process.env.FRONTEND_ADMIN_URL || "http://localhost:3003",
     web: process.env.FRONTEND_WEB_URL || "http://localhost:3000",
+  },
+  cors: {
+    allowedOrigins: [
+      ...(process.env.ALLOWED_ORIGINS
+        ? process.env.ALLOWED_ORIGINS.split(",").map((s) => s.trim())
+        : []),
+      process.env.FRONTEND_CUSTOMER_URL || "http://localhost:3001",
+      process.env.FRONTEND_ADMIN_URL || "http://localhost:3003",
+      process.env.FRONTEND_WEB_URL || "http://localhost:3000",
+    ].filter(Boolean),
   },
   email: {
     provider: process.env.EMAIL_PROVIDER || "auto", // 'auto' | 'resend' | 'zeptomail' | 'mock'
@@ -100,6 +107,9 @@ export const config = {
     ddEnv: process.env.DD_ENV || process.env.NODE_ENV || "development",
     ddVersion: process.env.DD_VERSION || "1.0.0",
   },
+  tokenEncryptionKey:
+    process.env.TOKEN_ENCRYPTION_KEY ||
+    "dev-token-encryption-key-12345678901234567890",
   qrSigningSecret:
     process.env.QR_SIGNING_SECRET || "dev-qr-signing-key-1234567890",
   paystack: {
@@ -108,3 +118,47 @@ export const config = {
     webhookSecret: process.env.PAYSTACK_WEBHOOK_SECRET || "wh_sec_mock",
   },
 };
+
+/**
+ * Startup validation to ensure production deployments do not run with insecure default secrets.
+ */
+export function validateProductionConfig(): void {
+  if (config.env === "production") {
+    const defaultSecrets = [
+      "dev-secret-key-12345678901234567890",
+      "dev-refresh-secret-12345678901234567890",
+      "dev-token-encryption-key-12345678901234567890",
+    ];
+
+    if (
+      !process.env.JWT_SECRET ||
+      defaultSecrets.includes(config.jwt.secret) ||
+      config.jwt.secret.length < 32
+    ) {
+      throw new Error(
+        "FATAL SECURITY ERROR: JWT_SECRET must be explicitly set and at least 32 characters long in production.",
+      );
+    }
+
+    if (
+      !process.env.JWT_REFRESH_SECRET ||
+      defaultSecrets.includes(config.jwt.refreshSecret) ||
+      config.jwt.refreshSecret.length < 32
+    ) {
+      throw new Error(
+        "FATAL SECURITY ERROR: JWT_REFRESH_SECRET must be explicitly set and at least 32 characters long in production.",
+      );
+    }
+
+    if (
+      !process.env.TOKEN_ENCRYPTION_KEY ||
+      defaultSecrets.includes(config.tokenEncryptionKey) ||
+      config.tokenEncryptionKey.length < 32 ||
+      config.tokenEncryptionKey === config.jwt.secret
+    ) {
+      throw new Error(
+        "FATAL SECURITY ERROR: TOKEN_ENCRYPTION_KEY must be explicitly set, independent from JWT_SECRET, and at least 32 characters long in production.",
+      );
+    }
+  }
+}

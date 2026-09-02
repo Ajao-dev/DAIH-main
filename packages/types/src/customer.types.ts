@@ -15,6 +15,9 @@ export interface CustomerRecord {
   totalSpent: number;
   isVerified: boolean;
   createdAt: string;
+  referralCode?: string;
+  referralCount?: number;
+  activeReferralCount?: number;
 }
 
 export interface CustomerMetrics {
@@ -47,4 +50,38 @@ export interface CreateCustomerDTO {
   phoneNumber?: string;
   tier?: string;
   sendInvite?: boolean;
+}
+
+export interface ReferralItem {
+  id: string;
+  clientId?: string;
+  name: string;
+  firstName?: string;
+  lastName?: string;
+  email: string;
+  phoneNumber?: string | null;
+  joinedAt: string;
+  isActive: boolean;
+  status: "Active" | "Inactive";
+  paidBookingsCount: number;
+}
+
+export interface CustomerReferralsResponse {
+  referralCode: string;
+  referralLink: string;
+  totalReferred: number;
+  activeReferred: number;
+  inactiveReferred: number;
+  referredUsers: ReferralItem[];
+}
+
+export interface AdminCustomerReferralsResponse {
+  customerId: string;
+  customerName: string;
+  customerEmail: string;
+  customerClientId: string;
+  referralCode: string;
+  totalReferred: number;
+  activeReferred: number;
+  referredUsers: ReferralItem[];
 }

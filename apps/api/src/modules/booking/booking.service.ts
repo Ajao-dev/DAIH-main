@@ -5,7 +5,9 @@ import {
   CreateHoldInput,
   AdminOverrideBookingInput,
   BookingFilterInput,
+  AnalyticsFilterInput,
 } from "./booking.schema.js";
+
 import {
   assertValidTransition,
   InvalidBookingStateTransitionError,
@@ -17,7 +19,19 @@ import {
   scheduleHoldExpiry,
   cancelHoldExpiryJob,
 } from "../../jobs/hold-expiry.job.js";
-import { BookingState, CalendarDayStatus } from "@daih/types";
+import {
+  UserRole,
+  BookingState,
+  CalendarDayStatus,
+  PaymentStatus,
+  AdminNoShowRescheduleDTO,
+  AdminDashboardSummaryDTO,
+  AdminAnalyticsSummaryDTO,
+  WifiAccessStatus,
+  WifiCredentialDTO,
+} from "@daih/types";
+import { generateSignedQrToken } from "../access/qr-token.util.js";
+import { accessService } from "../access/access.service.js";
 
 export class BookingService {
   constructor(private repo: BookingRepository = bookingRepository) {}
@@ -28,12 +42,63 @@ export class BookingService {
   private formatBookingSummary(booking: any) {
     if (!booking) return null;
 
+    const now = new Date();
     const isConfirmedOrActive = [
       BookingState.CONFIRMED,
       BookingState.ACTIVE,
       BookingState.CHECKED_IN,
-      BookingState.COMPLETED,
+      BookingState.CHECKED_OUT,
     ].includes(booking.state as BookingState);
+
+    const end =
+      booking.endTime instanceof Date
+        ? booking.endTime
+        : new Date(booking.endTime);
+
+    // Check if member checked in today
+    const sessions = booking.visitSessions || [];
+    const hasTodayVisit = sessions.some((v: any) => {
+      const checkInDate =
+        v.checkInTime instanceof Date ? v.checkInTime : new Date(v.checkInTime);
+      return checkInDate.toDateString() === now.toDateString();
+    });
+
+    const hasTodayCheckedInAt = booking.checkedInAt
+      ? (booking.checkedInAt instanceof Date
+          ? booking.checkedInAt
+          : new Date(booking.checkedInAt)
+        ).toDateString() === now.toDateString()
+      : false;
+
+    const checkedInToday =
+      hasTodayVisit ||
+      (hasTodayCheckedInAt &&
+        [BookingState.CHECKED_IN, BookingState.CHECKED_OUT].includes(
+          booking.state,
+        ));
+
+    const isSubscriptionExpired =
+      now >= end ||
+      [
+        BookingState.COMPLETED,
+        BookingState.EXPIRED,
+        BookingState.CANCELLED,
+        BookingState.REFUNDED,
+      ].includes(booking.state as BookingState);
+
+    let wifiStatus: WifiAccessStatus = "LOCKED_NO_PASS";
+    let wifiCredentials: WifiCredentialDTO | null = null;
+
+    if (isSubscriptionExpired) {
+      wifiStatus = "EXPIRED";
+      wifiCredentials = null;
+    } else if (isConfirmedOrActive && checkedInToday) {
+      wifiStatus = "ACTIVE";
+      wifiCredentials = accessService.generateWifiCredentials(booking, now);
+    } else if (isConfirmedOrActive && !checkedInToday) {
+      wifiStatus = "LOCKED_PENDING_DAILY_CHECKIN";
+      wifiCredentials = null;
+    }
 
     return {
       id: booking.id,
@@ -65,6 +130,19 @@ export class BookingService {
           ? booking.holdExpiresAt.toISOString()
           : booking.holdExpiresAt
         : null,
+      checkedInAt: booking.checkedInAt
+        ? booking.checkedInAt instanceof Date
+          ? booking.checkedInAt.toISOString()
+          : booking.checkedInAt
+        : null,
+      checkedOutAt: booking.checkedOutAt
+        ? booking.checkedOutAt instanceof Date
+          ? booking.checkedOutAt.toISOString()
+          : booking.checkedOutAt
+        : null,
+      checkedInToday,
+      wifiStatus,
+      wifiCredentials,
       createdAt:
         booking.createdAt instanceof Date
           ? booking.createdAt.toISOString()
@@ -103,7 +181,6 @@ export class BookingService {
     const start = new Date(input.startTime);
     const end = new Date(input.endTime);
 
-    // 1. Blackout date check
     const isBlackedOut = (resource.blackouts || []).some((b) => {
       const bStart = new Date(b.startDate);
       const bEnd = new Date(b.endDate);
@@ -578,7 +655,8 @@ export class BookingService {
   }
 
   /**
-   * Cancel an active booking or hold
+   * Cancel an active hold (or unconfirmed booking).
+   * Confirmed bookings cannot be cancelled under the No-Refund Policy.
    */
   async cancelBooking(
     bookingId: string,
@@ -604,6 +682,16 @@ export class BookingService {
       );
       error.statusCode = 403;
       error.code = "FORBIDDEN";
+      throw error;
+    }
+
+    // Confirmed bookings cannot be cancelled by customers under the strict No-Refund Policy
+    if (booking.state === BookingState.CONFIRMED && !isStaff) {
+      const error: any = new Error(
+        "Confirmed bookings cannot be cancelled under DAIH's No-Refund Policy. If you missed your session, an Operations Admin can grant a discretionary reschedule.",
+      );
+      error.statusCode = 400;
+      error.code = "CANNOT_CANCEL_CONFIRMED_BOOKING";
       throw error;
     }
 
@@ -641,6 +729,157 @@ export class BookingService {
       aggregateType: "Booking",
       aggregateId: bookingId,
       payload: { bookingId, reference: booking.reference, reason },
+    });
+
+    return this.formatBookingSummary(updated);
+  }
+
+  /**
+   * Operations Admin Discretionary Reschedule for NO_SHOW bookings
+   * Strictly requires booking.state === NO_SHOW and mandatory reason logged to AuditLog
+   */
+  async rescheduleNoShowBooking(
+    bookingId: string,
+    adminUserId: string,
+    input: AdminNoShowRescheduleDTO,
+    ipAddress?: string,
+  ) {
+    const booking = await this.repo.findById(bookingId);
+    if (!booking) {
+      const error: any = new Error(`Booking '${bookingId}' not found`);
+      error.statusCode = 404;
+      error.code = "BOOKING_NOT_FOUND";
+      throw error;
+    }
+
+    if (booking.state !== BookingState.NO_SHOW) {
+      const error: any = new Error(
+        `Only unredeemed bookings in NO_SHOW state can be rescheduled. Current state: '${booking.state}'`,
+      );
+      error.statusCode = 400;
+      error.code = "INVALID_BOOKING_STATE";
+      throw error;
+    }
+
+    if (!input.reason || input.reason.trim().length < 10) {
+      const error: any = new Error(
+        "A detailed discretionary reason of at least 10 characters is required for rescheduling a no-show booking.",
+      );
+      error.statusCode = 400;
+      error.code = "OVERRIDE_REASON_REQUIRED";
+      throw error;
+    }
+
+    const start = new Date(input.newStartTime);
+    const end = new Date(input.newEndTime);
+
+    if (isNaN(start.getTime()) || isNaN(end.getTime()) || start >= end) {
+      const error: any = new Error("Invalid reschedule start and end time");
+      error.statusCode = 400;
+      error.code = "INVALID_TIME_RANGE";
+      throw error;
+    }
+
+    // Verify slot capacity for new time window
+    const resource = await this.repo.findResource(booking.resourceId);
+    if (!resource) {
+      const error: any = new Error(
+        `Workspace resource '${booking.resourceId}' not found`,
+      );
+      error.statusCode = 404;
+      error.code = "RESOURCE_NOT_FOUND";
+      throw error;
+    }
+
+    const activeCount = await this.repo.countActiveOverlappingBookings(
+      prisma,
+      booking.resourceId,
+      start,
+      end,
+      booking.id,
+    );
+
+    if (activeCount >= resource.capacity) {
+      const error: any = new Error(
+        `Cannot reschedule to selected slot: capacity for '${resource.name}' is fully occupied for the chosen time range.`,
+      );
+      error.statusCode = 409;
+      error.code = "SLOT_UNAVAILABLE";
+      throw error;
+    }
+
+    assertValidTransition(
+      booking.state as BookingState,
+      BookingState.CONFIRMED,
+      booking.id,
+    );
+
+    const qrToken = generateSignedQrToken({
+      bookingId: booking.id,
+      reference: booking.reference,
+      userId: booking.userId,
+      startTime: start.toISOString(),
+      endTime: end.toISOString(),
+      issuedAt: Date.now(),
+    });
+    const updated = await prisma.$transaction(async (tx) => {
+      const b = await tx.booking.update({
+        where: { id: booking.id },
+        data: {
+          startTime: start,
+          endTime: end,
+          state: BookingState.CONFIRMED,
+          qrToken,
+          holdExpiresAt: null,
+          checkedInAt: null,
+          checkedOutAt: null,
+        },
+        include: {
+          resource: true,
+          user: true,
+        },
+      });
+
+      // Mandatory AuditLog entry
+      await tx.auditLog.create({
+        data: {
+          userId: adminUserId,
+          action: "BOOKING_ADMIN_DISCRETIONARY_RESCHEDULE",
+          entityType: "Booking",
+          entityId: booking.id,
+          metadata: {
+            reference: booking.reference,
+            resourceId: booking.resourceId,
+            previousStartTime: booking.startTime.toISOString(),
+            previousEndTime: booking.endTime.toISOString(),
+            newStartTime: start.toISOString(),
+            newEndTime: end.toISOString(),
+            reason: input.reason,
+            adminUserId,
+          },
+          ipAddress,
+        },
+      });
+
+      // Outbox Event
+      await outboxService.recordEvent(
+        {
+          eventType: "booking.rescheduled",
+          aggregateType: "Booking",
+          aggregateId: booking.id,
+          payload: {
+            bookingId: booking.id,
+            reference: booking.reference,
+            newStartTime: start.toISOString(),
+            newEndTime: end.toISOString(),
+            qrToken,
+            reason: input.reason,
+          },
+        },
+        tx,
+      );
+
+      return b;
     });
 
     return this.formatBookingSummary(updated);
@@ -691,7 +930,20 @@ export class BookingService {
       booking.id,
     );
 
-    const qrToken = `daih_qr_${booking.id}_${Date.now()}`;
+    const qrToken = generateSignedQrToken({
+      bookingId: booking.id,
+      reference: booking.reference,
+      userId: booking.userId,
+      startTime:
+        booking.startTime instanceof Date
+          ? booking.startTime.toISOString()
+          : String(booking.startTime),
+      endTime:
+        booking.endTime instanceof Date
+          ? booking.endTime.toISOString()
+          : String(booking.endTime),
+      issuedAt: Date.now(),
+    });
     const updated = await this.repo.updateState(
       prisma,
       bookingId,
@@ -735,10 +987,20 @@ export class BookingService {
    * Get all bookings for Operations Admin console
    */
   async getAdminBookings(filters: BookingFilterInput) {
+    const parseFilterDate = (d?: string, isEnd = false) => {
+      if (!d) return undefined;
+      const date = new Date(d);
+      if (isNaN(date.getTime())) return undefined;
+      if (isEnd && (d.length <= 10 || !d.includes("T"))) {
+        date.setHours(23, 59, 59, 999);
+      }
+      return date;
+    };
+
     const res = await this.repo.findAllAdminBookings({
       ...filters,
-      startDate: filters.startDate ? new Date(filters.startDate) : undefined,
-      endDate: filters.endDate ? new Date(filters.endDate) : undefined,
+      startDate: parseFilterDate(filters.startDate, false),
+      endDate: parseFilterDate(filters.endDate, true),
     });
 
     return {
@@ -799,7 +1061,14 @@ export class BookingService {
         currency: input.currency || "NGN",
         qrToken:
           targetState === BookingState.CONFIRMED
-            ? `daih_qr_${Date.now()}`
+            ? generateSignedQrToken({
+                bookingId: reference,
+                reference,
+                userId: targetUserId,
+                startTime: start.toISOString(),
+                endTime: end.toISOString(),
+                issuedAt: Date.now(),
+              })
             : null,
       },
       include: {
@@ -842,6 +1111,628 @@ export class BookingService {
     });
 
     return this.formatBookingSummary(booking);
+  }
+
+  /**
+   * Consolidated Admin Operations Dashboard Summary
+   * Single-roundtrip pre-aggregated KPIs, capacity, revenue, plan breakdowns, and movement feeds.
+   */
+  async getDashboardSummary(
+    userRole?: UserRole,
+  ): Promise<AdminDashboardSummaryDTO> {
+    const canViewFinancials =
+      userRole !== UserRole.RECEPTION_OFFICER &&
+      userRole !== UserRole.SECURITY_OFFICER;
+
+    const canViewDistributionAndFacilities =
+      userRole === UserRole.SUPER_ADMIN ||
+      userRole === UserRole.OPERATIONS_ADMIN ||
+      userRole === UserRole.MANAGEMENT_VIEWER;
+    const now = new Date();
+    const startOfToday = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      0,
+      0,
+      0,
+    );
+    const endOfToday = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      23,
+      59,
+      59,
+      999,
+    );
+    const startOfMonth = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      1,
+      0,
+      0,
+      0,
+    );
+
+    const [
+      resources,
+      todayCheckedInBookings,
+      activeCheckedInOnSite,
+      todayDepartures,
+      todayReservationsCount,
+      todayRevenueAgg,
+      mtdRevenueAgg,
+      paidBookings,
+      recentVisitSessions,
+    ] = await Promise.all([
+      prisma.facilityResource.findMany({
+        where: { isActive: true },
+        select: { id: true, name: true, category: true, capacity: true },
+      }),
+      // Check-ins today
+      prisma.booking.count({
+        where: {
+          OR: [
+            { checkedInAt: { gte: startOfToday, lte: endOfToday } },
+            {
+              state: {
+                in: [BookingState.CHECKED_IN, BookingState.CHECKED_OUT],
+              },
+              updatedAt: { gte: startOfToday, lte: endOfToday },
+            },
+          ],
+        },
+      }),
+      // Currently on-site
+      prisma.booking.count({
+        where: {
+          state: BookingState.CHECKED_IN,
+        },
+      }),
+      // Departures today
+      prisma.booking.count({
+        where: {
+          checkedOutAt: { gte: startOfToday, lte: endOfToday },
+        },
+      }),
+      // Reservations starting today
+      prisma.booking.count({
+        where: {
+          startTime: { gte: startOfToday, lte: endOfToday },
+        },
+      }),
+      // Revenue settled today
+      prisma.transaction.aggregate({
+        where: {
+          status: PaymentStatus.SUCCESSFUL,
+          createdAt: { gte: startOfToday, lte: endOfToday },
+        },
+        _sum: { amount: true },
+      }),
+      // Revenue settled this month (MTD)
+      prisma.transaction.aggregate({
+        where: {
+          status: PaymentStatus.SUCCESSFUL,
+          createdAt: { gte: startOfMonth, lte: endOfToday },
+        },
+        _sum: { amount: true },
+      }),
+      // Paid bookings for plans & facilities breakdown
+      prisma.booking.findMany({
+        where: {
+          state: {
+            in: [
+              BookingState.CONFIRMED,
+              BookingState.ACTIVE,
+              BookingState.CHECKED_IN,
+              BookingState.CHECKED_OUT,
+              BookingState.COMPLETED,
+            ],
+          },
+        },
+        select: {
+          id: true,
+          totalAmount: true,
+          resourceId: true,
+          resource: { select: { name: true, category: true } },
+        },
+      }),
+      // Recent movements / activity feed
+      prisma.visitSession.findMany({
+        take: 25,
+        orderBy: { checkInTime: "desc" },
+        include: {
+          booking: {
+            include: { resource: { select: { name: true, category: true } } },
+          },
+          user: {
+            select: {
+              firstName: true,
+              lastName: true,
+              email: true,
+              clientId: true,
+            },
+          },
+        },
+      }),
+    ]);
+
+    const totalCapacity =
+      resources.reduce((sum, r) => sum + (r.capacity || 1), 0) || 104;
+    const occupiedSeats = activeCheckedInOnSite;
+    const occupancyRate = Math.min(
+      100,
+      Math.round((occupiedSeats / totalCapacity) * 100),
+    );
+
+    const todayRevNum = Number(todayRevenueAgg._sum?.amount || 0);
+    const mtdRevNum = Number(mtdRevenueAgg._sum?.amount || 0);
+
+    // Subscription plan breakdowns
+    const categoryMap = new Map<string, { count: number; totalRev: number }>();
+    const facilityMap = new Map<
+      string,
+      { name: string; category: string; count: number; totalRev: number }
+    >();
+    let totalPaidCount = 0;
+
+    paidBookings.forEach((b) => {
+      const cat = b.resource?.category
+        ? b.resource.category.replace(/_/g, " ")
+        : "Hot Desk";
+      const amt = Number(b.totalAmount || 0);
+      const curCat = categoryMap.get(cat) || { count: 0, totalRev: 0 };
+      categoryMap.set(cat, {
+        count: curCat.count + 1,
+        totalRev: curCat.totalRev + amt,
+      });
+      totalPaidCount++;
+
+      const resKey = b.resourceId || "unknown";
+      const resName = b.resource?.name || "Workspace";
+      const curFac = facilityMap.get(resKey) || {
+        name: resName,
+        category: cat,
+        count: 0,
+        totalRev: 0,
+      };
+      facilityMap.set(resKey, {
+        ...curFac,
+        count: curFac.count + 1,
+        totalRev: curFac.totalRev + amt,
+      });
+    });
+
+    const colors = [
+      { colorClass: "text-primary", barColorClass: "bg-primary-container" },
+      { colorClass: "text-secondary", barColorClass: "bg-secondary" },
+      {
+        colorClass: "text-on-tertiary-container",
+        barColorClass: "bg-on-tertiary-container",
+      },
+      { colorClass: "text-[#10b981]", barColorClass: "bg-[#10b981]" },
+      { colorClass: "text-[#0ea5e9]", barColorClass: "bg-[#0ea5e9]" },
+    ];
+
+    const subscriptionPlans = Array.from(categoryMap.entries()).map(
+      ([name, data], idx) => ({
+        name,
+        count: data.count,
+        percentage:
+          totalPaidCount > 0
+            ? Math.round((data.count / totalPaidCount) * 100)
+            : 0,
+        revenueContribution: canViewFinancials
+          ? `₦${data.totalRev.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+          : "N/A",
+        colorClass: colors[idx % colors.length].colorClass,
+        barColorClass: colors[idx % colors.length].barColorClass,
+      }),
+    );
+
+    const mostUsedFacilities = Array.from(facilityMap.values())
+      .map((fac) => ({
+        name: fac.name,
+        category: fac.category,
+        bookingsCount: fac.count,
+        utilizationRate:
+          totalPaidCount > 0
+            ? Math.round((fac.count / totalPaidCount) * 100)
+            : 0,
+        totalRevenue: canViewFinancials
+          ? `₦${fac.totalRev.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+          : "N/A",
+      }))
+      .sort((a, b) => b.bookingsCount - a.bookingsCount)
+      .slice(0, 5);
+
+    const recentActivities = recentVisitSessions.map((v) => {
+      const checkInDate =
+        v.checkInTime instanceof Date ? v.checkInTime : new Date(v.checkInTime);
+      const checkOutDate = v.checkOutTime
+        ? v.checkOutTime instanceof Date
+          ? v.checkOutTime
+          : new Date(v.checkOutTime)
+        : null;
+
+      const formattedCheckIn = checkInDate.toLocaleTimeString("en-NG", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      const formattedCheckOut = checkOutDate
+        ? checkOutDate.toLocaleTimeString("en-NG", {
+            hour: "2-digit",
+            minute: "2-digit",
+          })
+        : null;
+
+      // Calculate elapsed duration
+      let hoursUsed = "Active (On-site)";
+      if (checkOutDate) {
+        const diffMs = checkOutDate.getTime() - checkInDate.getTime();
+        const diffMins = Math.max(1, Math.round(diffMs / (1000 * 60)));
+        const hrs = Math.floor(diffMins / 60);
+        const mins = diffMins % 60;
+        hoursUsed = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
+      }
+
+      return {
+        id: v.id,
+        bookingId: v.bookingId,
+        memberName: v.user
+          ? `${v.user.firstName || ""} ${v.user.lastName || ""}`.trim() ||
+            v.user.email
+          : "Member",
+        memberEmail: v.user?.email || "member@daih.ng",
+        clientNumber:
+          v.user?.clientId || `DAIH-CUS-${v.userId.slice(0, 6).toUpperCase()}`,
+        resourceName: v.booking?.resource?.name || "Workspace",
+        workspaceCategory: v.booking?.resource?.category || "HOT_DESK",
+        eventType: (v.checkOutTime ? "CHECK_OUT" : "CHECK_IN") as any,
+        timestamp: (checkOutDate || checkInDate).toISOString(),
+        formattedTime: formattedCheckOut || formattedCheckIn,
+        checkInTime: checkInDate.toISOString(),
+        checkOutTime: checkOutDate ? checkOutDate.toISOString() : null,
+        formattedCheckIn,
+        formattedCheckOut,
+        hoursUsed,
+        amountPaid: canViewFinancials
+          ? v.booking?.totalAmount
+            ? `₦${Number(v.booking.totalAmount).toLocaleString()}`
+            : "Settled"
+          : "Settled",
+        paymentStatus: "PAID",
+      };
+    });
+
+    return {
+      dailyVisitors: todayCheckedInBookings,
+      currentlyOnSite: occupiedSeats,
+      todayDeparturesCount: todayDepartures,
+      todayBookingsCount: todayReservationsCount,
+      revenueToday: canViewFinancials
+        ? `₦${todayRevNum.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+        : "Restricted",
+      totalRevenueMtd: canViewFinancials
+        ? `₦${mtdRevNum.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+        : "Restricted",
+      occupancyRate,
+      occupiedSeats,
+      totalSeats: totalCapacity,
+      peakHourWindow: "11:00 AM – 03:30 PM",
+      peakOccupancyRate: occupancyRate,
+      subscriptionPlans: canViewDistributionAndFacilities
+        ? subscriptionPlans
+        : [],
+      mostUsedFacilities: canViewDistributionAndFacilities
+        ? mostUsedFacilities
+        : [],
+      recentActivities,
+    };
+  }
+
+  /**
+   * Consolidated Admin Analytics Reports Summary
+   * Returns pre-aggregated period metrics, subscription plans, facility rankings,
+   * plus period bookings and transactions in one single database round-trip.
+   */
+  async getAnalyticsSummary(
+    input: AnalyticsFilterInput,
+  ): Promise<AdminAnalyticsSummaryDTO> {
+    const isAllTime =
+      input.preset === "all_time" || (!input.startDate && !input.endDate);
+
+    let start: Date | undefined;
+    let end: Date | undefined;
+
+    if (!isAllTime && input.startDate && input.endDate) {
+      start = new Date(input.startDate);
+      end = new Date(input.endDate);
+    }
+
+    const bookingWhere: any = {};
+    const transactionWhere: any = {};
+
+    if (start && end) {
+      bookingWhere.OR = [
+        { startTime: { gte: start, lte: end } },
+        { createdAt: { gte: start, lte: end } },
+        { checkedInAt: { gte: start, lte: end } },
+      ];
+      transactionWhere.createdAt = { gte: start, lte: end };
+    }
+
+    const [resources, rawBookings, rawTransactions] = await Promise.all([
+      prisma.facilityResource.findMany({
+        where: { isActive: true },
+        select: { id: true, name: true, category: true, capacity: true },
+      }),
+      prisma.booking.findMany({
+        where: bookingWhere,
+        orderBy: { createdAt: "desc" },
+        take: 1000,
+        include: {
+          resource: { select: { name: true, category: true } },
+          user: {
+            select: {
+              firstName: true,
+              lastName: true,
+              email: true,
+              phoneNumber: true,
+            },
+          },
+        },
+      }),
+      prisma.transaction.findMany({
+        where: transactionWhere,
+        orderBy: { createdAt: "desc" },
+        take: 1000,
+        include: {
+          booking: { include: { resource: { select: { name: true } } } },
+          user: { select: { firstName: true, lastName: true, email: true } },
+        },
+      }),
+    ]);
+
+    const totalCapacity =
+      resources.reduce((sum, r) => sum + (r.capacity || 1), 0) || 104;
+
+    const formattedBookings: any[] = rawBookings.map((b) =>
+      this.formatBookingSummary(b),
+    );
+    const formattedTransactions = rawTransactions.map((tx) => ({
+      id: tx.id,
+      reference: tx.reference,
+      bookingId: tx.bookingId,
+      userId: tx.userId,
+      amount: Number(tx.amount),
+      currency: tx.currency,
+      status: tx.status,
+      method: tx.method,
+      customerName: tx.user
+        ? `${tx.user.firstName || ""} ${tx.user.lastName || ""}`.trim() ||
+          tx.user.email
+        : "Customer",
+      customerEmail: tx.user?.email,
+      resourceName: tx.booking?.resource?.name || "Workspace",
+      createdAt: tx.createdAt.toISOString(),
+      paidAt: tx.paidAt ? tx.paidAt.toISOString() : null,
+    }));
+
+    // Successful transactions
+    const successfulTxs = formattedTransactions.filter(
+      (t) =>
+        t.status === PaymentStatus.SUCCESSFUL ||
+        (t.status as any) === "SUCCESS",
+    );
+    const totalRevenue = successfulTxs.reduce(
+      (sum, t) => sum + (Number(t.amount) || 0),
+      0,
+    );
+
+    // Paid bookings in period
+    const paidPeriodBookings = formattedBookings.filter((b) =>
+      [
+        BookingState.CONFIRMED,
+        BookingState.ACTIVE,
+        BookingState.CHECKED_IN,
+        BookingState.CHECKED_OUT,
+        BookingState.COMPLETED,
+      ].includes(b.state as any),
+    );
+
+    // Check-ins in period
+    const checkedInBookings = formattedBookings.filter(
+      (b) =>
+        Boolean(b.checkedInAt) ||
+        b.state === BookingState.CHECKED_IN ||
+        b.state === BookingState.CHECKED_OUT,
+    );
+    const totalCheckIns = checkedInBookings.length;
+
+    // Calculate days in period
+    let daysCount = 30;
+    if (start && end) {
+      daysCount = Math.max(
+        1,
+        Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)),
+      );
+    }
+    const avgDailyFootfall =
+      daysCount > 0 ? (totalCheckIns / daysCount).toFixed(1) : "0.0";
+    const totalAvailableSeatDays = totalCapacity * Math.max(1, daysCount);
+    const spaceOccupancyRate =
+      totalAvailableSeatDays > 0 && totalCheckIns > 0
+        ? Math.min(
+            100,
+            Math.round((totalCheckIns / totalAvailableSeatDays) * 100),
+          )
+        : 0;
+
+    // Repeat customers (unique customers with > 1 booking or check-in visit in this period)
+    const customerCounts = new Map<string, number>();
+    paidPeriodBookings.forEach((b) => {
+      const key = b.userId || b.customerEmail || b.customerName || b.reference;
+      customerCounts.set(key, (customerCounts.get(key) || 0) + 1);
+    });
+    checkedInBookings.forEach((b) => {
+      const key = b.userId || b.customerEmail || b.customerName || b.reference;
+      if (!customerCounts.has(key)) {
+        customerCounts.set(key, 1);
+      }
+    });
+    const repeatCustomers = Array.from(customerCounts.values()).filter(
+      (c) => c > 1,
+    ).length;
+    const totalUniqueCustomers = customerCounts.size;
+    const repeatRate =
+      totalUniqueCustomers > 0 && repeatCustomers > 0
+        ? Math.round((repeatCustomers / totalUniqueCustomers) * 100)
+        : 0;
+
+    const avgBookingValue =
+      paidPeriodBookings.length > 0
+        ? Math.round(totalRevenue / paidPeriodBookings.length)
+        : 0;
+
+    // Subscription plan allocations
+    const categoryMap = new Map<string, { count: number; totalRev: number }>();
+    const facilityMap = new Map<
+      string,
+      {
+        id: string;
+        name: string;
+        type: string;
+        count: number;
+        totalRev: number;
+      }
+    >();
+    let totalPaidCount = 0;
+
+    paidPeriodBookings.forEach((b) => {
+      const cat = b.category ? b.category.replace(/_/g, " ") : "Hot Desk";
+      const amt = Number(b.amount) || 0;
+      const curCat = categoryMap.get(cat) || { count: 0, totalRev: 0 };
+      categoryMap.set(cat, {
+        count: curCat.count + 1,
+        totalRev: curCat.totalRev + amt,
+      });
+      totalPaidCount++;
+
+      const resKey = b.resourceId || "unknown";
+      const resName = b.resourceName || "Workspace";
+      const curFac = facilityMap.get(resKey) || {
+        id: resKey,
+        name: resName,
+        type: cat,
+        count: 0,
+        totalRev: 0,
+      };
+      facilityMap.set(resKey, {
+        ...curFac,
+        count: curFac.count + 1,
+        totalRev: curFac.totalRev + amt,
+      });
+    });
+
+    const colors = [
+      { colorClass: "text-primary", barColorClass: "bg-primary-container" },
+      { colorClass: "text-secondary", barColorClass: "bg-secondary" },
+      {
+        colorClass: "text-on-tertiary-container",
+        barColorClass: "bg-on-tertiary-container",
+      },
+      { colorClass: "text-[#10b981]", barColorClass: "bg-[#10b981]" },
+      { colorClass: "text-[#0ea5e9]", barColorClass: "bg-[#0ea5e9]" },
+    ];
+
+    const subscriptionPlans = Array.from(categoryMap.entries()).map(
+      ([name, data], idx) => ({
+        name,
+        count: data.count,
+        percentage:
+          totalPaidCount > 0
+            ? Math.round((data.count / totalPaidCount) * 100)
+            : 0,
+        revenueContribution: `₦${data.totalRev.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        colorClass: colors[idx % colors.length].colorClass,
+        barColorClass: colors[idx % colors.length].barColorClass,
+      }),
+    );
+
+    const facilityColors = [
+      "bg-primary-container",
+      "bg-secondary",
+      "bg-on-tertiary-container",
+      "bg-[#10b981]",
+      "bg-[#0ea5e9]",
+      "bg-[#f59e0b]",
+    ];
+
+    const facilityRankings = resources
+      .map((r, idx) => {
+        const facData = facilityMap.get(r.id);
+        const paidCount = facData ? facData.count : 0;
+        const utilRate =
+          totalPaidCount > 0
+            ? Math.round((paidCount / totalPaidCount) * 100)
+            : 0;
+        const status: "High Demand" | "Active" | "Available" =
+          paidCount >= 4 || utilRate >= 30
+            ? "High Demand"
+            : paidCount > 0
+              ? "Active"
+              : "Available";
+
+        return {
+          id: r.id,
+          name: r.name,
+          type: r.category ? r.category.replace(/_/g, " ") : "Workspace",
+          utilizationRate: utilRate,
+          paidBookingsCount: paidCount,
+          activeOccupancy: `Cap: ${r.capacity} persons`,
+          status,
+          barColorClass: facilityColors[idx % facilityColors.length],
+        };
+      })
+      .sort(
+        (a, b) =>
+          b.paidBookingsCount - a.paidBookingsCount ||
+          b.utilizationRate - a.utilizationRate,
+      );
+
+    // Completed bookings in period (marked completed / checked-out, or confirmed/checked-in and past end time)
+    const completedBookings = formattedBookings.filter(
+      (b) =>
+        b.state === BookingState.COMPLETED ||
+        b.state === BookingState.CHECKED_OUT ||
+        ((b.state === BookingState.CONFIRMED ||
+          b.state === BookingState.ACTIVE ||
+          b.state === BookingState.CHECKED_IN) &&
+          (Boolean(b.checkedInAt) || new Date(b.endTime) < new Date())),
+    );
+
+    return {
+      periodMetrics: {
+        totalRevenue: `₦${Number(totalRevenue).toLocaleString("en-NG", { maximumFractionDigits: 2 })}`,
+        rawTotalRevenue: totalRevenue,
+        totalBookingsCount: paidPeriodBookings.length,
+        paidBookingsCount: paidPeriodBookings.length,
+        totalCheckIns,
+        totalCustomersCount: totalUniqueCustomers,
+        avgDailyFootfall,
+        spaceOccupancyRate,
+        totalCapacity,
+        repeatRate: `${repeatRate}%`,
+        repeatMembersCount: repeatCustomers,
+        avgBookingValue: `₦${avgBookingValue.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      },
+      subscriptionPlans,
+      facilityRankings,
+      bookings: formattedBookings,
+      transactions: formattedTransactions,
+    };
   }
 }
 

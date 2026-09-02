@@ -61,6 +61,18 @@ export default function AdminBookingsPage() {
   const [releaseReason, setReleaseReason] = useState("");
   const [releasingHold, setReleasingHold] = useState(false);
 
+  // Reschedule No-Show Modal
+  const [noShowToReschedule, setNoShowToReschedule] =
+    useState<BookingSummary | null>(null);
+  const [rescheduling, setRescheduling] = useState(false);
+  const [rescheduleForm, setRescheduleForm] = useState({
+    startDate: new Date().toISOString().split("T")[0],
+    startTime: "09:00",
+    endDate: new Date().toISOString().split("T")[0],
+    endTime: "17:00",
+    reason: "",
+  });
+
   // Override Modal
   const [overrideModalOpen, setOverrideModalOpen] = useState(false);
   const [submittingOverride, setSubmittingOverride] = useState(false);
@@ -95,7 +107,7 @@ export default function AdminBookingsPage() {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, searchQuery, page, limit, toast]);
+  }, [statusFilter, searchQuery, page, limit]);
 
   const fetchResources = useCallback(async () => {
     try {
@@ -141,6 +153,61 @@ export default function AdminBookingsPage() {
       });
     } finally {
       setReleasingHold(false);
+    }
+  };
+
+  const handleRescheduleNoShow = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!noShowToReschedule) return;
+
+    if (!rescheduleForm.reason || rescheduleForm.reason.trim().length < 10) {
+      toast.error(
+        "A clear discretionary reason (minimum 10 characters) is mandatory for audit compliance.",
+        {
+          title: "Audit Reason Required",
+        },
+      );
+      return;
+    }
+
+    setRescheduling(true);
+    try {
+      const startIso = new Date(
+        `${rescheduleForm.startDate}T${rescheduleForm.startTime}:00`,
+      ).toISOString();
+      const endIso = new Date(
+        `${rescheduleForm.endDate}T${rescheduleForm.endTime}:00`,
+      ).toISOString();
+
+      await api.bookings.rescheduleNoShow(noShowToReschedule.id, {
+        newStartTime: startIso,
+        newEndTime: endIso,
+        reason: rescheduleForm.reason.trim(),
+      });
+
+      toast.success(
+        `Reservation ${noShowToReschedule.reference} has been rescheduled and restored to CONFIRMED.`,
+        {
+          title: "No-Show Rescheduled",
+        },
+      );
+
+      setNoShowToReschedule(null);
+      setRescheduleForm({
+        startDate: new Date().toISOString().split("T")[0],
+        startTime: "09:00",
+        endDate: new Date().toISOString().split("T")[0],
+        endTime: "17:00",
+        reason: "",
+      });
+
+      await fetchBookings();
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to reschedule no-show booking", {
+        title: "Reschedule Failed",
+      });
+    } finally {
+      setRescheduling(false);
     }
   };
 
@@ -277,9 +344,11 @@ export default function AdminBookingsPage() {
             "HELD",
             "PENDING_PAYMENT",
             "CHECKED_IN",
+            "NO_SHOW",
             "COMPLETED",
             "CANCELLED",
             "EXPIRED",
+            "REFUND_PENDING",
           ].map((st) => (
             <button
               key={st}
@@ -386,6 +455,11 @@ export default function AdminBookingsPage() {
                             CHECKED IN
                           </span>
                         )}
+                        {b.state === BookingState.NO_SHOW && (
+                          <span className="px-2 py-0.5 bg-rose-50 text-rose-700 text-[10px] font-bold rounded-md border border-rose-200">
+                            NO SHOW
+                          </span>
+                        )}
                         {isHeld && (
                           <span className="px-2 py-0.5 bg-amber-50 text-amber-700 text-[10px] font-bold rounded-md border border-amber-200">
                             HOLD ACTIVE
@@ -401,6 +475,16 @@ export default function AdminBookingsPage() {
                             CANCELLED
                           </span>
                         )}
+                        {b.state === BookingState.REFUND_PENDING && (
+                          <span className="px-2 py-0.5 bg-purple-50 text-purple-700 text-[10px] font-bold rounded-md border border-purple-200">
+                            REFUND PENDING
+                          </span>
+                        )}
+                        {b.state === BookingState.REFUNDED && (
+                          <span className="px-2 py-0.5 bg-slate-100 text-slate-700 text-[10px] font-bold rounded-md border border-slate-200">
+                            REFUNDED
+                          </span>
+                        )}
                         {b.state === BookingState.COMPLETED && (
                           <span className="px-2 py-0.5 bg-purple-50 text-purple-700 text-[10px] font-bold rounded-md border border-purple-200">
                             COMPLETED
@@ -414,6 +498,25 @@ export default function AdminBookingsPage() {
                             className="px-2.5 py-1 text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-lg text-[11px] font-bold transition-colors cursor-pointer"
                           >
                             Release Hold
+                          </button>
+                        )}
+                        {b.state === BookingState.NO_SHOW && (
+                          <button
+                            onClick={() => {
+                              setNoShowToReschedule(b);
+                              setRescheduleForm({
+                                startDate: new Date()
+                                  .toISOString()
+                                  .split("T")[0],
+                                startTime: "09:00",
+                                endDate: new Date().toISOString().split("T")[0],
+                                endTime: "17:00",
+                                reason: "",
+                              });
+                            }}
+                            className="px-2.5 py-1 text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-300 rounded-lg text-[11px] font-bold transition-colors cursor-pointer"
+                          >
+                            Reschedule No-Show
                           </button>
                         )}
                       </td>
@@ -712,6 +815,185 @@ export default function AdminBookingsPage() {
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : null}
                   <span>Execute Override</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Discretionary Reschedule for No-Show Modal */}
+      {noShowToReschedule && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-800">
+                  <ShieldCheck className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">
+                    Discretionary Reschedule (No-Show)
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    Reassign unredeemed session to a new slot with mandatory
+                    audit log
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setNoShowToReschedule(null)}
+                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+              >
+                &times;
+              </button>
+            </div>
+
+            {/* Booking Summary Box */}
+            <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200/80 space-y-1.5 text-xs text-slate-600">
+              <div className="flex justify-between">
+                <span className="text-slate-400">Reference:</span>
+                <span className="font-mono font-bold text-[#23055c]">
+                  {noShowToReschedule.reference}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Space Resource:</span>
+                <span className="font-semibold text-slate-800">
+                  {noShowToReschedule.resourceName}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Customer:</span>
+                <span className="font-semibold text-slate-800">
+                  {noShowToReschedule.customerName}
+                </span>
+              </div>
+            </div>
+
+            <form
+              onSubmit={handleRescheduleNoShow}
+              className="space-y-4 text-xs"
+            >
+              {/* Start & End Dates */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+                    New Start Date
+                  </label>
+                  <input
+                    type="date"
+                    value={rescheduleForm.startDate}
+                    onChange={(e) =>
+                      setRescheduleForm({
+                        ...rescheduleForm,
+                        startDate: e.target.value,
+                      })
+                    }
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2 bg-slate-50 font-medium outline-none focus:bg-white focus:border-[#23055c]"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+                    New End Date
+                  </label>
+                  <input
+                    type="date"
+                    value={rescheduleForm.endDate}
+                    onChange={(e) =>
+                      setRescheduleForm({
+                        ...rescheduleForm,
+                        endDate: e.target.value,
+                      })
+                    }
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2 bg-slate-50 font-medium outline-none focus:bg-white focus:border-[#23055c]"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+                    Start Time
+                  </label>
+                  <input
+                    type="time"
+                    value={rescheduleForm.startTime}
+                    onChange={(e) =>
+                      setRescheduleForm({
+                        ...rescheduleForm,
+                        startTime: e.target.value,
+                      })
+                    }
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2 bg-slate-50 font-medium outline-none focus:bg-white focus:border-[#23055c]"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+                    End Time
+                  </label>
+                  <input
+                    type="time"
+                    value={rescheduleForm.endTime}
+                    onChange={(e) =>
+                      setRescheduleForm({
+                        ...rescheduleForm,
+                        endTime: e.target.value,
+                      })
+                    }
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2 bg-slate-50 font-medium outline-none focus:bg-white focus:border-[#23055c]"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Mandatory Reason */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+                  Mandatory Discretionary Reason{" "}
+                  <span className="text-rose-500">*</span>
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="e.g. Courtesy reschedule granted by Operations Manager due to flight delay"
+                  value={rescheduleForm.reason}
+                  onChange={(e) =>
+                    setRescheduleForm({
+                      ...rescheduleForm,
+                      reason: e.target.value,
+                    })
+                  }
+                  className="w-full border border-slate-200 rounded-xl px-3 py-2 bg-slate-50 font-medium outline-none focus:bg-white focus:border-[#23055c]"
+                  required
+                />
+                <span className="text-[10px] text-slate-400">
+                  Minimum 10 characters. This reason will be stamped in the
+                  permanent AuditLog.
+                </span>
+              </div>
+
+              {/* Submit Buttons */}
+              <div className="flex gap-3 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setNoShowToReschedule(null)}
+                  disabled={rescheduling}
+                  className="flex-1 py-2.5 rounded-xl border border-slate-200 font-bold text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={rescheduling}
+                  className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold transition-all flex items-center justify-center gap-2 shadow-xs cursor-pointer"
+                >
+                  {rescheduling ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : null}
+                  <span>Confirm Reschedule</span>
                 </button>
               </div>
             </form>

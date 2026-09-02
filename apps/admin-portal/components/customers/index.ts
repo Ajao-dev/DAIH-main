@@ -4,3 +4,4 @@ export { MemberDirectoryTable } from "./MemberDirectoryTable";
 export type { MemberRecord } from "./MemberDirectoryTable";
 export { MemberDetailModal } from "./MemberDetailModal";
 export { AddMemberModal } from "./AddMemberModal";
+export { CustomerReferralsModal } from "./CustomerReferralsModal";

@@ -21,6 +21,7 @@ import {
   UpdatePricingPlanSchema,
   CreateBlackoutSchema,
   UpsertSchedulesSchema,
+  UploadResourceImageSchema,
 } from "./catalogue.schema.js";
 
 export const catalogueRouter = Router();
@@ -79,6 +80,14 @@ catalogueRouter.put(
   validateParams(IdParamSchema),
   validateBody(UpdateResourceSchema),
   catalogueController.updateResource,
+);
+
+// Upload / compress resource image
+catalogueRouter.post(
+  "/admin/upload-image",
+  ...adminManageGuard,
+  validateBody(UploadResourceImageSchema),
+  catalogueController.uploadImage,
 );
 
 // Soft delete / toggle deactivate resource

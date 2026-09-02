@@ -1,6 +1,12 @@
 "use client";
 
-import React, { createContext, useContext, useState, useCallback } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useMemo,
+} from "react";
 import {
   CheckCircle2,
   AlertCircle,
@@ -100,10 +106,13 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({
     [show],
   );
 
+  const contextValue = useMemo(
+    () => ({ toasts, show, success, error, warning, info, dismiss }),
+    [toasts, show, success, error, warning, info, dismiss],
+  );
+
   return (
-    <ToastContext.Provider
-      value={{ toasts, show, success, error, warning, info, dismiss }}
-    >
+    <ToastContext.Provider value={contextValue}>
       {children}
       <ToastContainer toasts={toasts} onDismiss={dismiss} />
     </ToastContext.Provider>

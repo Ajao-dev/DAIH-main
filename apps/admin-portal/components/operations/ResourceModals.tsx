@@ -1,7 +1,10 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Modal, Button, Input } from "@daih/ui";
+import { api } from "@daih/api-client";
+import { compressImage, formatFileSize } from "../../lib/image-compression";
+import { resolveResourceImageUrl } from "../../lib/image-utils";
 import {
   FacilityResource,
   ResourceCategory,
@@ -24,6 +27,14 @@ import {
   Loader2,
   Clock,
   Sparkles,
+  UploadCloud,
+  Upload,
+  FileImage,
+  CheckCircle2,
+  AlertCircle,
+  RefreshCw,
+  Globe,
+  Layers,
 } from "lucide-react";
 
 const CATEGORIES: { label: string; value: ResourceCategory }[] = [
@@ -38,7 +49,7 @@ const CATEGORIES: { label: string; value: ResourceCategory }[] = [
   { label: "Studio", value: ResourceCategory.STUDIO },
 ];
 
-const IMAGE_PRESETS = [
+export const IMAGE_PRESETS = [
   { label: "Flex Desk (Open Plan)", url: "/images/search/2.jpg" },
   { label: "Dedicated Desk (Workstation)", url: "/images/search/1.jpg" },
   { label: "Private Office (Executive)", url: "/images/search/3.jpg" },
@@ -52,6 +63,336 @@ const IMAGE_PRESETS = [
     url: "/images/misc/space-type-streaming.jpg",
   },
 ];
+
+interface ResourceImageManagerProps {
+  value?: string | null;
+  onChange: (url: string) => void;
+  resourceId?: string;
+  category?: ResourceCategory;
+}
+
+export function ResourceImageManager({
+  value,
+  onChange,
+  resourceId,
+  category,
+}: ResourceImageManagerProps) {
+  const [activeTab, setActiveTab] = useState<"upload" | "preset" | "url">(
+    "upload",
+  );
+  const [isCompressing, setIsCompressing] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [compressionStats, setCompressionStats] = useState<{
+    originalSize: string;
+    compressedSize: string;
+    savings: number;
+    fileName: string;
+  } | null>(null);
+  const [customUrlInput, setCustomUrlInput] = useState("");
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const currentImageUrl = value || "";
+
+  // Helper to resolve display URL (e.g. if relative /uploads/)
+  const resolvedDisplayUrl = resolveResourceImageUrl(currentImageUrl, category);
+
+  const handleProcessFile = async (file: File) => {
+    if (!file) return;
+
+    // Validate file is an image
+    if (!file.type.startsWith("image/")) {
+      setUploadError("Please select a valid image file (PNG, JPG, WebP, SVG)");
+      return;
+    }
+
+    setUploadError(null);
+    setIsCompressing(true);
+    setCompressionStats(null);
+
+    try {
+      // 1. Client-Side compression before upload
+      const compressed = await compressImage(file, {
+        maxWidth: 1920,
+        maxHeight: 1080,
+        quality: 0.85,
+        mimeType: "image/webp",
+      });
+
+      setCompressionStats({
+        originalSize: formatFileSize(compressed.originalSize),
+        compressedSize: formatFileSize(compressed.compressedSize),
+        savings: compressed.savingsPercentage,
+        fileName: compressed.fileName,
+      });
+
+      setIsCompressing(false);
+      setIsUploading(true);
+
+      // 2. Server-side upload and optimization
+      const res = await api.catalogue.uploadImage({
+        data: compressed.data,
+        fileName: compressed.fileName,
+        contentType: compressed.contentType,
+        resourceId,
+      });
+
+      onChange(res.url);
+    } catch (err: any) {
+      setUploadError(err?.message || "Failed to process and upload image");
+    } finally {
+      setIsCompressing(false);
+      setIsUploading(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleProcessFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  return (
+    <div className="space-y-3 bg-slate-50/70 p-3.5 rounded-xl border border-slate-200">
+      {/* Header & Tabs */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <label className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+          <ImageIcon className="h-4 w-4 text-[#23055c]" /> Workspace Photo
+        </label>
+        <div className="flex items-center bg-slate-200/80 p-0.5 rounded-lg text-[11px] font-semibold">
+          <button
+            type="button"
+            onClick={() => setActiveTab("upload")}
+            className={`px-2.5 py-1 rounded-md transition-all flex items-center gap-1 cursor-pointer ${
+              activeTab === "upload"
+                ? "bg-white text-[#23055c] shadow-xs"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <UploadCloud className="h-3 w-3" /> Upload Photo
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("preset")}
+            className={`px-2.5 py-1 rounded-md transition-all flex items-center gap-1 cursor-pointer ${
+              activeTab === "preset"
+                ? "bg-white text-[#23055c] shadow-xs"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <Sparkles className="h-3 w-3" /> Presets
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("url")}
+            className={`px-2.5 py-1 rounded-md transition-all flex items-center gap-1 cursor-pointer ${
+              activeTab === "url"
+                ? "bg-white text-[#23055c] shadow-xs"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <Globe className="h-3 w-3" /> Direct URL
+          </button>
+        </div>
+      </div>
+
+      {/* Tab 1: Upload with Live Compression */}
+      {activeTab === "upload" && (
+        <div className="space-y-2.5">
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={(e) => {
+              if (e.target.files && e.target.files[0]) {
+                handleProcessFile(e.target.files[0]);
+              }
+            }}
+            accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
+            className="hidden"
+          />
+
+          <div
+            onDragOver={(e) => {
+              e.preventDefault();
+              setIsDragging(true);
+            }}
+            onDragLeave={() => setIsDragging(false)}
+            onDrop={handleDrop}
+            onClick={() => fileInputRef.current?.click()}
+            className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all ${
+              isDragging
+                ? "border-[#23055c] bg-purple-50/70"
+                : "border-slate-300 hover:border-purple-400 bg-white"
+            } ${isCompressing || isUploading ? "pointer-events-none opacity-80" : ""}`}
+          >
+            {isCompressing || isUploading ? (
+              <div className="py-3 flex flex-col items-center justify-center text-slate-600 gap-2">
+                <Loader2 className="h-6 w-6 animate-spin text-[#23055c]" />
+                <div className="text-xs font-semibold">
+                  {isCompressing
+                    ? "Compressing & Optimizing Image..."
+                    : "Uploading to Server Storage..."}
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  Resizing and compressing to WebP for lightning-fast loads...
+                </p>
+              </div>
+            ) : (
+              <div className="py-2 flex flex-col items-center justify-center gap-1.5">
+                <div className="w-10 h-10 rounded-full bg-purple-50 flex items-center justify-center text-[#23055c] mb-0.5">
+                  <UploadCloud className="h-5 w-5" />
+                </div>
+                <div className="text-xs font-bold text-slate-800">
+                  Click to browse or drag & drop photo here
+                </div>
+                <p className="text-[10px] text-slate-500">
+                  PNG, JPG, WebP or SVG up to 15MB • Automatically compressed
+                  before saving
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Compression feedback badge */}
+          {compressionStats && (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-2.5 text-[11px] text-emerald-900 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                <div>
+                  <span className="font-bold">{compressionStats.fileName}</span>
+                  :{" "}
+                  <span className="text-slate-500 line-through">
+                    {compressionStats.originalSize}
+                  </span>{" "}
+                  →{" "}
+                  <span className="font-extrabold text-emerald-700">
+                    {compressionStats.compressedSize}
+                  </span>
+                </div>
+              </div>
+              <span className="bg-emerald-200/70 text-emerald-800 font-extrabold px-2 py-0.5 rounded text-[10px]">
+                {compressionStats.savings}% smaller
+              </span>
+            </div>
+          )}
+
+          {uploadError && (
+            <div className="bg-rose-50 border border-rose-200 rounded-lg p-2 text-xs text-rose-700 flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              <span>{uploadError}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Tab 2: Preset Library Grid */}
+      {activeTab === "preset" && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-52 overflow-y-auto pr-1">
+          {IMAGE_PRESETS.map((p) => {
+            const isSelected = currentImageUrl === p.url;
+            return (
+              <button
+                key={p.url}
+                type="button"
+                onClick={() => onChange(p.url)}
+                className={`relative rounded-lg overflow-hidden border text-left transition-all p-1 group cursor-pointer ${
+                  isSelected
+                    ? "border-[#23055c] ring-2 ring-[#23055c]/20 bg-purple-50/50"
+                    : "border-slate-200 hover:border-slate-400 bg-white"
+                }`}
+              >
+                <div className="h-16 w-full rounded overflow-hidden relative bg-slate-100 mb-1">
+                  <img
+                    src={p.url}
+                    alt={p.label}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src =
+                        "/images/search/2.jpg";
+                    }}
+                  />
+                  {isSelected && (
+                    <div className="absolute top-1 right-1 bg-[#23055c] text-white rounded-full p-0.5 shadow-xs">
+                      <Check className="h-2.5 w-2.5" />
+                    </div>
+                  )}
+                </div>
+                <div className="text-[10px] font-bold text-slate-800 truncate px-0.5">
+                  {p.label}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Tab 3: Direct URL */}
+      {activeTab === "url" && (
+        <div className="space-y-2">
+          <div className="flex gap-2">
+            <Input
+              value={customUrlInput || currentImageUrl}
+              onChange={(e) => {
+                setCustomUrlInput(e.target.value);
+                onChange(e.target.value);
+              }}
+              placeholder="https://example.com/workspace-photo.jpg"
+              className="text-xs"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                if (customUrlInput) onChange(customUrlInput);
+              }}
+              className="text-xs"
+            >
+              Apply
+            </Button>
+          </div>
+          <p className="text-[10px] text-slate-400">
+            Paste any HTTPS image URL from your CDN or asset host.
+          </p>
+        </div>
+      )}
+
+      {/* Active Selected Image Preview Bar */}
+      {currentImageUrl && (
+        <div className="flex items-center gap-3 p-2 bg-white rounded-lg border border-slate-200 shadow-2xs">
+          <div className="h-12 w-16 rounded overflow-hidden border border-slate-200 bg-slate-100 shrink-0 relative">
+            <img
+              src={resolvedDisplayUrl}
+              alt="Active Preview"
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = "/images/search/2.jpg";
+              }}
+            />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+              Selected Image
+            </div>
+            <div className="text-xs font-semibold text-slate-800 truncate font-mono">
+              {currentImageUrl}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="text-xs text-[#23055c] hover:underline font-bold px-2 py-1 cursor-pointer"
+          >
+            Change
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface AddEditResourceModalProps {
   isOpen: boolean;
@@ -259,46 +600,13 @@ export function AddEditResourceModal({
           />
         </div>
 
-        {/* Space Image Preset & Custom URL */}
-        <div className="space-y-2">
-          <label className="font-semibold text-slate-700 block flex items-center gap-1.5">
-            <ImageIcon className="h-3.5 w-3.5 text-[#23055c]" /> Workspace Photo
-          </label>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <select
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs bg-white text-slate-900"
-              value={formData.imageUrl}
-              onChange={(e) =>
-                setFormData({ ...formData, imageUrl: e.target.value })
-              }
-            >
-              {IMAGE_PRESETS.map((p) => (
-                <option key={p.url} value={p.url}>
-                  {p.label}
-                </option>
-              ))}
-            </select>
-            <Input
-              value={formData.imageUrl || ""}
-              onChange={(e) =>
-                setFormData({ ...formData, imageUrl: e.target.value })
-              }
-              placeholder="Or enter custom image URL"
-            />
-          </div>
-          {formData.imageUrl && (
-            <div className="h-24 w-full rounded-lg overflow-hidden border border-slate-200 bg-slate-100 relative">
-              <img
-                src={formData.imageUrl}
-                alt="Preview"
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = "/images/search/2.jpg";
-                }}
-              />
-            </div>
-          )}
-        </div>
+        {/* Space Image Manager (Upload with compression, Presets, Custom URL) */}
+        <ResourceImageManager
+          value={formData.imageUrl}
+          onChange={(url) => setFormData({ ...formData, imageUrl: url })}
+          resourceId={resourceToEdit?.id}
+          category={formData.category}
+        />
 
         <div>
           <label className="font-semibold text-slate-700 block mb-1">
@@ -1509,6 +1817,89 @@ export function ScheduleManagementModal({
           </div>
         </div>
       </form>
+    </Modal>
+  );
+}
+
+interface UpdateResourceImageModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  resource: FacilityResource | null;
+  onSaveImage: (resourceId: string, imageUrl: string) => Promise<void>;
+}
+
+export function UpdateResourceImageModal({
+  isOpen,
+  onClose,
+  resource,
+  onSaveImage,
+}: UpdateResourceImageModalProps) {
+  const [selectedImageUrl, setSelectedImageUrl] = useState<string>("");
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (resource && isOpen) {
+      setSelectedImageUrl(resource.imageUrl || "/images/search/2.jpg");
+    }
+  }, [resource, isOpen]);
+
+  if (!isOpen || !resource) return null;
+
+  const handleSave = async () => {
+    if (!selectedImageUrl) return;
+    setSubmitting(true);
+    try {
+      await onSaveImage(resource.id, selectedImageUrl);
+      onClose();
+    } catch {
+      // Error handled by parent
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      className="max-w-2xl"
+      title={`Update Photo: ${resource.name}`}
+    >
+      <div className="space-y-4 text-xs">
+        <p className="text-slate-500">
+          Upload a high-quality photo for{" "}
+          <strong className="text-slate-800">{resource.name}</strong>, pick from
+          our curated workspace presets, or provide an image URL. Uploaded
+          photos are automatically resized and compressed for high performance.
+        </p>
+
+        <ResourceImageManager
+          value={selectedImageUrl}
+          onChange={setSelectedImageUrl}
+          resourceId={resource.id}
+          category={resource.category}
+        />
+
+        <div className="flex items-center justify-between pt-4 border-t border-slate-200">
+          <Button
+            variant="outline"
+            type="button"
+            onClick={onClose}
+            disabled={submitting}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            type="button"
+            onClick={handleSave}
+            isLoading={submitting}
+            className="bg-[#23055c] hover:bg-[#392271] text-white"
+          >
+            Save Photo
+          </Button>
+        </div>
+      </div>
     </Modal>
   );
 }

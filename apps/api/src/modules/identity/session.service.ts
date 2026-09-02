@@ -3,6 +3,7 @@ import { randomUUID } from "crypto";
 import { UserRole } from "@daih/types";
 import { config } from "../../config/env.js";
 import { prisma } from "../../db/client.js";
+import { redis } from "../../config/redis.js";
 import { passwordService } from "./password.service.js";
 import {
   JwtTokenPayload,
@@ -25,6 +26,30 @@ export class SessionService {
    */
   verifyAccessToken(token: string): JwtTokenPayload {
     return jwt.verify(token, config.jwt.secret) as JwtTokenPayload;
+  }
+
+  /**
+   * Mark session active in Redis cache
+   */
+  async markSessionActiveInCache(sessionId: string): Promise<void> {
+    try {
+      await redis.setex(`daih:session:active:${sessionId}`, 900, "1");
+      await redis.del(`daih:session:revoked:${sessionId}`);
+    } catch {
+      // Non-blocking cache error
+    }
+  }
+
+  /**
+   * Mark session revoked in Redis cache
+   */
+  async markSessionRevokedInCache(sessionId: string): Promise<void> {
+    try {
+      await redis.del(`daih:session:active:${sessionId}`);
+      await redis.setex(`daih:session:revoked:${sessionId}`, 900, "1");
+    } catch {
+      // Non-blocking cache error
+    }
   }
 
   /**
@@ -53,6 +78,8 @@ export class SessionService {
       },
     });
 
+    await this.markSessionActiveInCache(session.id);
+
     const accessToken = this.generateAccessToken({
       id: user.id,
       email: user.email,
@@ -68,6 +95,7 @@ export class SessionService {
    * Rotates a refresh token, issuing a new access token and rotating the refresh token.
    * If token reuse is detected (attempting to use an already-rotated or revoked token),
    * all sessions in that token family are revoked.
+   * Includes a 10-second concurrency grace window to prevent race-condition false-positives.
    */
   async rotateRefreshToken(
     rawRefreshToken: string,
@@ -88,48 +116,94 @@ export class SessionService {
       throw new Error("INVALID_REFRESH_TOKEN");
     }
 
-    // If session is already marked revoked, verify if it was revoked within the grace window (15s)
+    // If session is already marked revoked -> Check grace window for concurrent requests
     if (session.isRevoked) {
-      const now = Date.now();
-      const lastUsed = session.lastUsedAt
-        ? new Date(session.lastUsedAt).getTime()
-        : 0;
-      const gracePeriodMs = 15000; // 15 seconds grace window for concurrent requests
+      const GRACE_WINDOW_MS = 15 * 1000; // 15-second grace window for concurrent/in-flight requests
+      const timeSinceRevocation =
+        Date.now() - new Date(session.updatedAt).getTime();
 
-      if (now - lastUsed <= gracePeriodMs) {
-        // Issue new access token for the active user without creating duplicate chain
-        const userSummary: UserSummaryDTO = {
-          id: session.user.id,
-          email: session.user.email,
-          firstName: session.user.firstName,
-          lastName: session.user.lastName,
-          phoneNumber: session.user.phoneNumber,
-          clientId: session.user.clientId,
-          role: session.user.role as UserRole,
-          isVerified: session.user.isVerified,
-          createdAt: session.user.createdAt,
-        };
-
-        const accessToken = this.generateAccessToken({
-          id: userSummary.id,
-          email: userSummary.email,
-          role: userSummary.role,
-          clientId: userSummary.clientId,
-          sessionId: session.id,
+      if (timeSinceRevocation <= GRACE_WINDOW_MS) {
+        // Find newest active session in this family created during the rotation
+        const activeSession = await prisma.authSession.findFirst({
+          where: {
+            tokenFamily: session.tokenFamily,
+            isRevoked: false,
+            expiresAt: { gt: new Date() },
+          },
+          include: { user: true },
+          orderBy: { createdAt: "desc" },
         });
 
-        return {
-          accessToken,
-          rawRefreshToken,
-          user: userSummary,
-        };
+        if (activeSession && activeSession.user) {
+          const nextRawRefreshToken = passwordService.generateSecureToken(32);
+          const nextRefreshTokenHash =
+            passwordService.hashToken(nextRawRefreshToken);
+          const nextExpiresAt = new Date();
+          nextExpiresAt.setDate(
+            nextExpiresAt.getDate() + config.jwt.refreshExpiresInDays,
+          );
+
+          const rotatedSession = await prisma.authSession.create({
+            data: {
+              userId: activeSession.userId,
+              refreshTokenHash: nextRefreshTokenHash,
+              tokenFamily: activeSession.tokenFamily,
+              ipAddress: context.ipAddress || activeSession.ipAddress,
+              userAgent: context.userAgent || activeSession.userAgent,
+              expiresAt: nextExpiresAt,
+              lastUsedAt: new Date(),
+            },
+            include: { user: true },
+          });
+
+          await this.markSessionActiveInCache(rotatedSession.id);
+
+          const u = activeSession.user;
+          const userSummary: UserSummaryDTO = {
+            id: u.id,
+            email: u.email,
+            firstName: u.firstName,
+            lastName: u.lastName,
+            phoneNumber: u.phoneNumber,
+            avatarUrl: (u as any).avatarUrl || null,
+            birthday: (u as any).birthday || null,
+            clientId: u.clientId,
+            role: u.role as UserRole,
+            isVerified: u.isVerified,
+            createdAt: u.createdAt,
+            referralCode: (u as any).referralCode || null,
+          };
+
+          const accessToken = this.generateAccessToken({
+            id: userSummary.id,
+            email: userSummary.email,
+            role: userSummary.role,
+            clientId: userSummary.clientId,
+            sessionId: rotatedSession.id,
+          });
+
+          return {
+            accessToken,
+            rawRefreshToken: nextRawRefreshToken,
+            user: userSummary,
+          };
+        }
       }
 
-      // Beyond grace period -> Revoke entire token family to prevent replay attacks
+      // Beyond grace window or no active session -> Token reuse attack detected, revoke entire token family
+      const revokedSessions = await prisma.authSession.findMany({
+        where: { tokenFamily: session.tokenFamily },
+        select: { id: true },
+      });
+
       await prisma.authSession.updateMany({
         where: { tokenFamily: session.tokenFamily },
         data: { isRevoked: true },
       });
+
+      for (const s of revokedSessions) {
+        await this.markSessionRevokedInCache(s.id);
+      }
 
       throw new Error("REFRESH_TOKEN_REUSE_DETECTED");
     }
@@ -140,6 +214,7 @@ export class SessionService {
         where: { id: session.id },
         data: { isRevoked: true },
       });
+      await this.markSessionRevokedInCache(session.id);
       throw new Error("SESSION_EXPIRED");
     }
 
@@ -157,6 +232,7 @@ export class SessionService {
       where: { id: session.id },
       data: { isRevoked: true },
     });
+    await this.markSessionRevokedInCache(session.id);
 
     // Create next session in the same token family
     const newSession = await prisma.authSession.create({
@@ -172,18 +248,22 @@ export class SessionService {
       include: { user: true },
     });
 
+    await this.markSessionActiveInCache(newSession.id);
+
+    const u = (newSession as any).user || session.user;
     const userSummary: UserSummaryDTO = {
-      id: (newSession as any).user?.id || session.user.id,
-      email: (newSession as any).user?.email || session.user.email,
-      firstName: (newSession as any).user?.firstName || session.user.firstName,
-      lastName: (newSession as any).user?.lastName || session.user.lastName,
-      phoneNumber:
-        (newSession as any).user?.phoneNumber || session.user.phoneNumber,
-      clientId: (newSession as any).user?.clientId || session.user.clientId,
-      role: ((newSession as any).user?.role || session.user.role) as UserRole,
-      isVerified:
-        (newSession as any).user?.isVerified ?? session.user.isVerified,
-      createdAt: (newSession as any).user?.createdAt || session.user.createdAt,
+      id: u.id,
+      email: u.email,
+      firstName: u.firstName,
+      lastName: u.lastName,
+      phoneNumber: u.phoneNumber,
+      avatarUrl: (u as any).avatarUrl || null,
+      birthday: (u as any).birthday || null,
+      clientId: u.clientId,
+      role: (u.role || session.user.role) as UserRole,
+      isVerified: u.isVerified ?? session.user.isVerified,
+      createdAt: u.createdAt || session.user.createdAt,
+      referralCode: (u as any).referralCode || null,
     };
 
     const accessToken = this.generateAccessToken({
@@ -206,10 +286,19 @@ export class SessionService {
    */
   async revokeSessionByRefreshToken(rawRefreshToken: string): Promise<void> {
     const tokenHash = passwordService.hashToken(rawRefreshToken);
+    const sessions = await prisma.authSession.findMany({
+      where: { refreshTokenHash: tokenHash },
+      select: { id: true },
+    });
+
     await prisma.authSession.updateMany({
       where: { refreshTokenHash: tokenHash },
       data: { isRevoked: true, lastUsedAt: new Date() },
     });
+
+    for (const s of sessions) {
+      await this.markSessionRevokedInCache(s.id);
+    }
   }
 
   /**
@@ -220,16 +309,36 @@ export class SessionService {
       where: { id: sessionId },
       data: { isRevoked: true, lastUsedAt: new Date() },
     });
+    await this.markSessionRevokedInCache(sessionId);
   }
 
   /**
    * Revokes all active sessions for a user (e.g. after password reset)
+   * Supports explicit session IDs list for immediate cache purge
    */
-  async revokeAllUserSessions(userId: string): Promise<void> {
+  async revokeAllUserSessions(
+    userId: string,
+    explicitSessionIds?: string[],
+  ): Promise<void> {
+    if (explicitSessionIds && explicitSessionIds.length > 0) {
+      for (const id of explicitSessionIds) {
+        await this.markSessionRevokedInCache(id);
+      }
+    }
+
+    const sessions = await prisma.authSession.findMany({
+      where: { userId },
+      select: { id: true },
+    });
+
     await prisma.authSession.updateMany({
       where: { userId, isRevoked: false },
       data: { isRevoked: true, lastUsedAt: new Date() },
     });
+
+    for (const s of sessions) {
+      await this.markSessionRevokedInCache(s.id);
+    }
   }
 }
 

@@ -15,6 +15,7 @@ import {
   Users,
   Sliders,
   Sparkles,
+  Mail,
 } from "lucide-react";
 
 export default function WorkspaceSettingsPage() {
@@ -65,13 +66,22 @@ export default function WorkspaceSettingsPage() {
           </p>
         </div>
 
-        <Link
-          href="/staff"
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-[#EBE7F5] hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl shadow-xs transition-colors shrink-0"
-        >
-          <Users className="w-4 h-4 text-[#23055c]" />
-          Manage Staff & Roles
-        </Link>
+        <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
+          <Link
+            href="/settings/email-templates"
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-[#EBE7F5] hover:bg-purple-50 text-slate-700 hover:text-[#23055c] text-xs font-bold rounded-xl shadow-xs transition-colors shrink-0"
+          >
+            <Mail className="w-4 h-4 text-[#23055c]" />
+            Email Templates
+          </Link>
+          <Link
+            href="/staff"
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-[#EBE7F5] hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl shadow-xs transition-colors shrink-0"
+          >
+            <Users className="w-4 h-4 text-[#23055c]" />
+            Manage Staff & Roles
+          </Link>
+        </div>
       </div>
 
       {isSaved && (

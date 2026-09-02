@@ -14,25 +14,39 @@ import {
   Settings,
   LogOut,
   ChevronRight,
+  ChevronLeft,
   Shield,
-  ExternalLink,
+  PanelLeftOpen,
 } from "lucide-react";
 import { useAuth } from "@daih/api-client";
 import { cn } from "@daih/ui";
+import { resolveAvatarUrl } from "../../lib/image-utils";
+import { hasRouteAccess, NavSectionConfig } from "../../lib/rbac";
 
 export interface AdminSidebarProps {
   isMobileOpen: boolean;
   onMobileClose: () => void;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
 export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   isMobileOpen,
   onMobileClose,
+  isCollapsed = false,
+  onToggleCollapse,
 }) => {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const [avatarError, setAvatarError] = React.useState(false);
 
-  const navigationSections = [
+  React.useEffect(() => {
+    setAvatarError(false);
+  }, [user?.avatarUrl]);
+
+  const resolvedAvatar = resolveAvatarUrl(user?.avatarUrl);
+
+  const navigationSections: NavSectionConfig[] = [
     {
       title: "Operations & Hub",
       items: [
@@ -54,20 +68,12 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           href: "/operations",
           icon: Layers,
           description: "Desks, rooms, holds & capacity",
-          subItems: [
-            { name: "Resource Capacity Pools", href: "/operations#pools" },
-            { name: "Active Holds & Overrides", href: "/operations#holds" },
-          ],
         },
         {
           name: "Customers",
           href: "/customers",
           icon: Users,
           description: "Member directory & Client IDs",
-          subItems: [
-            { name: "Member Directory", href: "/customers#directory" },
-            { name: "Membership Tiers", href: "/customers#tiers" },
-          ],
         },
       ],
     },
@@ -94,10 +100,6 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           href: "/reports",
           icon: BarChart3,
           description: "Footfall & space analytics",
-          subItems: [
-            { name: "Space Utilisation", href: "/reports#utilisation" },
-            { name: "Pre-Generated Reports", href: "/reports#exports" },
-          ],
         },
         {
           name: "Staff Management",
@@ -115,6 +117,17 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       ],
     },
   ];
+
+  // Dynamically filter sections and items according to the logged-in admin's RBAC role and permissions
+  const userRole = user?.role;
+  const filteredSections = navigationSections
+    .map((section) => ({
+      ...section,
+      items: section.items.filter((item) =>
+        hasRouteAccess(userRole, item.href),
+      ),
+    }))
+    .filter((section) => section.items.length > 0);
 
   const handleLogout = async () => {
     try {
@@ -137,18 +150,39 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   return (
     <aside
       className={cn(
-        "fixed lg:sticky top-[65px] left-0 h-[calc(100vh-65px)] w-64 lg:w-72 bg-white border-r border-[#EBE7F5] z-40 overflow-y-auto flex flex-col justify-between transition-transform duration-300 shadow-xs shrink-0",
+        "fixed lg:sticky top-[65px] left-0 h-[calc(100vh-65px)] bg-white border-r border-[#EBE7F5] z-40 overflow-y-auto flex flex-col justify-between transition-all duration-300 shadow-xs shrink-0",
+        isCollapsed ? "w-64 lg:w-20" : "w-64 lg:w-72",
         isMobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
       )}
     >
-      <div className="p-4 sm:p-5 flex-1">
+      <div
+        className={cn(
+          "flex-1 transition-all duration-300",
+          isCollapsed ? "p-3 lg:p-2.5" : "p-4 sm:p-5",
+        )}
+      >
         {/* Navigation Categories */}
         <div className="space-y-6">
-          {navigationSections.map((section, sIdx) => (
+          {filteredSections.map((section, sIdx) => (
             <div key={sIdx} className="space-y-1.5">
-              <div className="px-3 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
-                <span>{section.title}</span>
-              </div>
+              {/* Category Header */}
+              {isCollapsed ? (
+                <div
+                  className="hidden lg:block my-2 border-t border-slate-100"
+                  title={section.title}
+                />
+              ) : (
+                <div className="px-3 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                  <span>{section.title}</span>
+                </div>
+              )}
+
+              {/* Mobile always shows full category header */}
+              {isCollapsed && (
+                <div className="lg:hidden px-3 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                  <span>{section.title}</span>
+                </div>
+              )}
 
               <nav className="space-y-1">
                 {section.items.map((item) => {
@@ -163,8 +197,16 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                       <Link
                         href={item.href}
                         onClick={onMobileClose}
+                        title={
+                          isCollapsed
+                            ? `${item.name} — ${item.description}`
+                            : undefined
+                        }
                         className={cn(
-                          "flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs transition-all group relative",
+                          "flex items-center gap-3 rounded-xl text-xs transition-all group relative",
+                          isCollapsed
+                            ? "px-3 py-2.5 lg:px-2 lg:py-2.5 lg:justify-center"
+                            : "px-3 py-2.5",
                           isActive
                             ? "bg-[#392271] text-white font-bold shadow-sm"
                             : "text-slate-600 hover:bg-[#F8F9FA] hover:text-[#23055c]",
@@ -186,7 +228,13 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                           <Icon className="w-4 h-4" />
                         </div>
 
-                        <div className="min-w-0 flex-1">
+                        {/* Text and metadata (hidden on collapsed desktop) */}
+                        <div
+                          className={cn(
+                            "min-w-0 flex-1 transition-opacity duration-200",
+                            isCollapsed ? "lg:hidden" : "block",
+                          )}
+                        >
                           <div className="flex items-center justify-between gap-1">
                             <span className="truncate">{item.name}</span>
                             {item.badge && (
@@ -213,11 +261,16 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                         </div>
                       </Link>
 
-                      {/* Sub-items (if active or expanded) */}
+                      {/* Sub-items (shown when expanded and active) */}
                       {isActive &&
                         item.subItems &&
                         item.subItems.length > 0 && (
-                          <div className="pl-9 pr-2 py-1 space-y-0.5 border-l-2 border-purple-100 ml-5 my-1">
+                          <div
+                            className={cn(
+                              "pl-9 pr-2 py-1 space-y-0.5 border-l-2 border-purple-100 ml-5 my-1",
+                              isCollapsed ? "lg:hidden" : "block",
+                            )}
+                          >
                             {item.subItems.map((sub, subIdx) => (
                               <Link
                                 key={subIdx}
@@ -240,13 +293,46 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
         </div>
       </div>
 
-      {/* User Info & Sign Out Footer */}
-      <div className="p-4 border-t border-[#EBE7F5] bg-[#F8F9FA] space-y-3">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#23055c] to-[#65519f] text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-xs">
-            {getInitials(user ? `${user.firstName} ${user.lastName}` : "Admin")}
+      {/* User Info & Collapse Controls Footer */}
+      <div
+        className={cn(
+          "border-t border-[#EBE7F5] bg-[#F8F9FA] space-y-2",
+          isCollapsed ? "p-3 lg:p-2" : "p-4",
+        )}
+      >
+        {/* User Card */}
+        <div
+          className={cn(
+            "flex items-center gap-3",
+            isCollapsed ? "lg:justify-center" : "",
+          )}
+        >
+          <div
+            className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#23055c] to-[#65519f] text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-xs cursor-pointer overflow-hidden"
+            title={
+              user
+                ? `${user.firstName} ${user.lastName} (${user.role})`
+                : "Staff Administrator"
+            }
+          >
+            {resolvedAvatar && !avatarError ? (
+              <img
+                src={resolvedAvatar}
+                alt={user ? `${user.firstName} ${user.lastName}` : "Admin"}
+                className="w-full h-full object-cover"
+                onError={() => setAvatarError(true)}
+              />
+            ) : (
+              getInitials(user ? `${user.firstName} ${user.lastName}` : "Admin")
+            )}
           </div>
-          <div className="min-w-0 flex-1">
+
+          <div
+            className={cn(
+              "min-w-0 flex-1",
+              isCollapsed ? "lg:hidden" : "block",
+            )}
+          >
             <div className="font-bold text-xs text-slate-900 truncate">
               {user
                 ? `${user.firstName} ${user.lastName}`
@@ -260,12 +346,40 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
 
           <button
             onClick={handleLogout}
-            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+            className={cn(
+              "p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer",
+              isCollapsed ? "lg:hidden" : "block",
+            )}
             title="Sign Out of Console"
           >
             <LogOut className="w-4 h-4" />
           </button>
         </div>
+
+        {/* Desktop Collapse / Expand Toggle Button */}
+        {onToggleCollapse && (
+          <button
+            onClick={onToggleCollapse}
+            className={cn(
+              "hidden lg:flex items-center justify-center w-full py-1.5 px-2 text-slate-400 hover:text-[#23055c] hover:bg-slate-100 rounded-lg text-xs font-semibold transition-all border border-transparent hover:border-slate-200 cursor-pointer",
+              isCollapsed ? "mt-1" : "mt-2",
+            )}
+            title={
+              isCollapsed
+                ? "Expand Sidebar (Ctrl+B)"
+                : "Collapse Sidebar (Ctrl+B)"
+            }
+          >
+            {isCollapsed ? (
+              <PanelLeftOpen className="w-4 h-4 text-[#23055c]" />
+            ) : (
+              <div className="flex items-center justify-between w-full text-[11px] text-slate-500 hover:text-[#23055c]">
+                <span>Collapse Navigation</span>
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </div>
+            )}
+          </button>
+        )}
       </div>
     </aside>
   );

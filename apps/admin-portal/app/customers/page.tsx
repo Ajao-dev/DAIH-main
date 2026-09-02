@@ -11,6 +11,7 @@ import {
   MemberDirectoryTable,
   MemberDetailModal,
   AddMemberModal,
+  CustomerReferralsModal,
 } from "../../components/customers";
 
 export default function CustomersPage() {
@@ -38,6 +39,11 @@ export default function CustomersPage() {
   );
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [selectedReferralMember, setSelectedReferralMember] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const [isReferralsModalOpen, setIsReferralsModalOpen] = useState(false);
 
   const fetchCustomers = useCallback(async () => {
     setLoading(true);
@@ -65,7 +71,7 @@ export default function CustomersPage() {
     } finally {
       setLoading(false);
     }
-  }, [searchQuery, statusFilter, tierFilter, currentPage, pageSize, toast]);
+  }, [searchQuery, statusFilter, tierFilter, currentPage, pageSize]);
 
   useEffect(() => {
     fetchCustomers();
@@ -74,6 +80,27 @@ export default function CustomersPage() {
   const handleViewMember = (member: any) => {
     setSelectedMember(member);
     setIsDetailModalOpen(true);
+  };
+
+  const handleViewReferrals = (member: any) => {
+    setSelectedReferralMember({
+      id: member.userId || member.id,
+      name: member.name,
+    });
+    setIsReferralsModalOpen(true);
+  };
+
+  const handleSelectReferredMember = (clientIdOrId: string) => {
+    const found = customers.find(
+      (c) => c.id === clientIdOrId || c.userId === clientIdOrId,
+    );
+    if (found) {
+      setSelectedMember(found);
+      setIsDetailModalOpen(true);
+    } else {
+      // If not on current page, search for them
+      setSearchQuery(clientIdOrId);
+    }
   };
 
   const handleMemberAdded = (newMember: CustomerRecord) => {
@@ -98,7 +125,7 @@ export default function CustomersPage() {
           <button
             onClick={fetchCustomers}
             className="p-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl transition-all shadow-2xs cursor-pointer"
-            title="Refresh Live Data"
+            title="Refresh Data"
           >
             <RefreshCw
               className={`h-4 w-4 ${loading ? "animate-spin text-[#23055c]" : ""}`}
@@ -174,10 +201,20 @@ export default function CustomersPage() {
               pageSize={pageSize}
               onPageChange={setCurrentPage}
               onViewMember={handleViewMember}
+              onViewReferrals={handleViewReferrals}
             />
           )}
         </div>
       </div>
+
+      {/* Referrals Breakdown Modal */}
+      <CustomerReferralsModal
+        isOpen={isReferralsModalOpen}
+        customerId={selectedReferralMember?.id || null}
+        customerName={selectedReferralMember?.name}
+        onClose={() => setIsReferralsModalOpen(false)}
+        onSelectReferredMember={handleSelectReferredMember}
+      />
 
       {/* Detail Modal */}
       <MemberDetailModal

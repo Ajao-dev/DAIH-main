@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useAuth } from "@daih/api-client";
 import { useToast } from "@daih/ui";
 import {
@@ -12,6 +13,11 @@ import {
   KeyRound,
   AlertCircle,
   Loader2,
+  Check,
+  X,
+  Eye,
+  EyeOff,
+  Users,
 } from "lucide-react";
 
 interface RegisterFormProps {
@@ -21,6 +27,7 @@ interface RegisterFormProps {
 export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
   const { register } = useAuth();
   const toast = useToast();
+  const searchParams = useSearchParams();
 
   const [formData, setFormData] = useState({
     firstName: "",
@@ -29,12 +36,54 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
     email: "",
     password: "",
     confirmPassword: "",
+    referralCode: "",
     termsAgreed: false,
     privacyAgreed: false,
   });
 
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const refParam =
+      searchParams.get("ref") || searchParams.get("referralCode");
+    if (refParam) {
+      setFormData((prev) => ({
+        ...prev,
+        referralCode: refParam.trim().toUpperCase(),
+      }));
+    }
+  }, [searchParams]);
+
+  const passwordRules = [
+    {
+      id: "length",
+      label: "8+ characters",
+      valid: formData.password.length >= 8,
+    },
+    {
+      id: "upper",
+      label: "Uppercase letter (A-Z)",
+      valid: /[A-Z]/.test(formData.password),
+    },
+    {
+      id: "lower",
+      label: "Lowercase letter (a-z)",
+      valid: /[a-z]/.test(formData.password),
+    },
+    {
+      id: "number",
+      label: "Number (0-9)",
+      valid: /[0-9]/.test(formData.password),
+    },
+    {
+      id: "symbol",
+      label: "Special character (!@#$%...)",
+      valid: /[^A-Za-z0-9]/.test(formData.password),
+    },
+  ];
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
@@ -84,9 +133,22 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
       return false;
     }
 
-    if (formData.password.length < 8) {
-      toast.warning("Password must be at least 8 characters long.", {
-        title: "Weak Password",
+    // Comprehensive friendly password character requirement checks
+    const missing: string[] = [];
+    if (formData.password.length < 8) missing.push("at least 8 characters");
+    if (!/[A-Z]/.test(formData.password))
+      missing.push("an uppercase letter (A-Z)");
+    if (!/[a-z]/.test(formData.password))
+      missing.push("a lowercase letter (a-z)");
+    if (!/[0-9]/.test(formData.password)) missing.push("a number (0-9)");
+    if (!/[^A-Za-z0-9]/.test(formData.password))
+      missing.push("a special symbol (!@#$%^&*)");
+
+    if (missing.length > 0) {
+      const friendlyMsg = `Your password needs ${missing.join(", ")}.`;
+      setErrorMessage(friendlyMsg);
+      toast.warning(friendlyMsg, {
+        title: "Password Requirements",
       });
       return false;
     }
@@ -128,6 +190,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
         password: formData.password,
         policyVersion: "1.0-2026",
         consented: Boolean(formData.termsAgreed && formData.privacyAgreed),
+        referralCode: formData.referralCode.trim() || undefined,
       });
 
       toast.success(
@@ -137,9 +200,20 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
 
       onSuccess(formData.email.trim().toLowerCase());
     } catch (err: any) {
-      const msg =
+      let msg =
         err?.message ||
         "Registration failed. Please check your details and try again.";
+
+      // Translate technical backend validation into user-friendly guidance
+      if (
+        msg.toLowerCase().includes("password") ||
+        msg.toLowerCase().includes("character") ||
+        msg.toLowerCase().includes("invalid_string")
+      ) {
+        msg =
+          "Password must be at least 8 characters and include uppercase, lowercase, numbers, and special symbols (!@#$%).";
+      }
+
       setErrorMessage(msg);
       toast.error(msg, { title: "Registration Failed" });
     } finally {
@@ -159,13 +233,13 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
       </div>
 
       {errorMessage && (
-        <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 flex items-start gap-3">
-          <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
-          <span>{errorMessage}</span>
+        <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800 flex items-start gap-3 animate-in fade-in duration-150">
+          <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+          <span className="leading-relaxed">{errorMessage}</span>
         </div>
       )}
 
-      {/* Form with noValidate to disable browser default popups in favor of rich toasts */}
+      {/* Form with noValidate to disable browser default popups in favor of rich alerts */}
       <form noValidate onSubmit={handleRegister} className="space-y-4">
         {/* First Name & Last Name */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -268,6 +342,32 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
           </div>
         </div>
 
+        {/* Referral Code (Optional) */}
+        <div className="space-y-1.5">
+          <label
+            className="block text-xs font-bold text-slate-700"
+            htmlFor="referralCode"
+          >
+            Referral Code{" "}
+            <span className="text-slate-400 font-normal">(Optional)</span>
+          </label>
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+              <Users className="w-4 h-4 text-[#23055c]" />
+            </div>
+            <input
+              id="referralCode"
+              name="referralCode"
+              type="text"
+              placeholder="e.g. REF-8K9M2X"
+              value={formData.referralCode}
+              onChange={handleChange}
+              disabled={isLoading}
+              className="block w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 text-sm font-mono uppercase tracking-wider placeholder:normal-case placeholder:tracking-normal placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#23055c] focus:border-transparent transition-colors"
+            />
+          </div>
+        </div>
+
         {/* Password & Confirm Password */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1.5">
@@ -284,15 +384,26 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
               <input
                 id="password"
                 name="password"
-                type="password"
+                type={showPassword ? "text" : "password"}
                 placeholder="••••••••"
                 value={formData.password}
                 onChange={handleChange}
                 disabled={isLoading}
-                className="block w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 text-sm placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#23055c] focus:border-transparent transition-colors"
+                className="block w-full pl-9 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 text-sm placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#23055c] focus:border-transparent transition-colors"
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 transition-colors"
+                title={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? (
+                  <EyeOff className="w-4 h-4" />
+                ) : (
+                  <Eye className="w-4 h-4" />
+                )}
+              </button>
             </div>
-            <p className="text-[11px] text-slate-500">Min. 8 characters</p>
           </div>
 
           <div className="space-y-1.5">
@@ -309,16 +420,56 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
               <input
                 id="confirmPassword"
                 name="confirmPassword"
-                type="password"
+                type={showConfirmPassword ? "text" : "password"}
                 placeholder="••••••••"
                 value={formData.confirmPassword}
                 onChange={handleChange}
                 disabled={isLoading}
-                className="block w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 text-sm placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#23055c] focus:border-transparent transition-colors"
+                className="block w-full pl-9 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 text-sm placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#23055c] focus:border-transparent transition-colors"
               />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 transition-colors"
+                title={showConfirmPassword ? "Hide password" : "Show password"}
+              >
+                {showConfirmPassword ? (
+                  <EyeOff className="w-4 h-4" />
+                ) : (
+                  <Eye className="w-4 h-4" />
+                )}
+              </button>
             </div>
           </div>
         </div>
+
+        {/* Live Password Requirements Checklist */}
+        {formData.password.length > 0 && (
+          <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5 animate-in fade-in duration-200">
+            <p className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+              Password Requirements:
+            </p>
+            <div className="grid grid-cols-2 gap-1.5 text-[11px]">
+              {passwordRules.map((rule) => (
+                <div
+                  key={rule.id}
+                  className={`flex items-center gap-1.5 transition-colors ${
+                    rule.valid
+                      ? "text-emerald-700 font-medium"
+                      : "text-slate-400"
+                  }`}
+                >
+                  {rule.valid ? (
+                    <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  ) : (
+                    <X className="w-3.5 h-3.5 text-slate-300 shrink-0" />
+                  )}
+                  <span>{rule.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Policy Consent Checkboxes */}
         <div className="space-y-2.5 pt-3 border-t border-slate-100">

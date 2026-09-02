@@ -31,23 +31,7 @@ import {
   Timer,
 } from "lucide-react";
 
-function getWorkspaceImage(slug: string, imageUrl?: string | null): string {
-  if (
-    imageUrl &&
-    (imageUrl.startsWith("http") || imageUrl.startsWith("/images/"))
-  )
-    return imageUrl;
-  const s = slug.toLowerCase();
-  if (s.includes("studio") || s.includes("audio") || s.includes("stream"))
-    return "/images/search/4.jpg";
-  if (s.includes("rooftop")) return "/images/search/6.jpg";
-  if (s.includes("training") || s.includes("meeting"))
-    return "/images/search/5.jpg";
-  if (s.includes("office") || s.includes("private"))
-    return "/images/search/3.jpg";
-  if (s.includes("dedicated")) return "/images/search/1.jpg";
-  return "/images/search/2.jpg";
-}
+import { getWorkspaceImage } from "../../../../lib/image-utils";
 
 // ---- duration helpers ----
 function getPlanDurationType(
@@ -106,304 +90,6 @@ function formatTime(hour: number): string {
   const display = h === 0 ? 12 : h > 12 ? h - 12 : h;
   return `${display}:00 ${ampm}`;
 }
-
-const FALLBACK_RESOURCES: Record<string, Partial<FacilityResource>> = {
-  "flex-desk": {
-    name: "Flex Desk",
-    slug: "flex-desk",
-    location: "Ground Floor, Innovation Lounge",
-    capacity: 50,
-    description:
-      "Flexible workstation access in our dynamic open coworking lounge.",
-    amenities: [
-      "Dedicated Workstation Access",
-      "High-Speed Internet/Wi-Fi",
-      "Comfortable Ergonomic Seating",
-      "Power & Charging Facilities",
-      "24/7 Power supply",
-      "Quiet & Productive Work Environment",
-      "Flexible Access",
-      "Water (Hot/Cold)",
-    ],
-    pricing: [
-      {
-        id: "flex-daily",
-        resourceId: "flex-desk",
-        planName: "Day Pass",
-        durationDays: 1,
-        price: 4000,
-        currency: "NGN",
-        isPopular: true,
-        isActive: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-      {
-        id: "flex-weekly",
-        resourceId: "flex-desk",
-        planName: "Weekly Pack",
-        durationDays: 7,
-        price: 20000,
-        currency: "NGN",
-        isPopular: false,
-        isActive: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-      {
-        id: "flex-monthly",
-        resourceId: "flex-desk",
-        planName: "Monthly Flex Pass",
-        durationMonths: 1,
-        price: 60000,
-        currency: "NGN",
-        isPopular: false,
-        isActive: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-    ],
-  },
-  "dedicated-desk": {
-    name: "Dedicated Desk",
-    slug: "dedicated-desk",
-    location: "1st Floor, Focus Wing",
-    capacity: 24,
-    description:
-      "Assigned personal workstation with personal desk drawer and daily access.",
-    amenities: [
-      "Assigned Personal workstation",
-      "High-Speed Internet/Wi-Fi",
-      "Ergonomic Office Chair",
-      "Power & Charging Facilities",
-      "24/7 Power Supply",
-      "Quiet & Productive Work Environment",
-      "Personal Desk Drawer",
-      "Daily Access",
-      "Water (Hot/Cold)",
-    ],
-    pricing: [
-      {
-        id: "dedicated-monthly",
-        resourceId: "dedicated-desk",
-        planName: "Monthly Dedicated",
-        durationMonths: 1,
-        price: 68000,
-        currency: "NGN",
-        isPopular: true,
-        isActive: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-      {
-        id: "dedicated-quarterly",
-        resourceId: "dedicated-desk",
-        planName: "Quarterly Dedicated",
-        durationMonths: 3,
-        price: 190000,
-        currency: "NGN",
-        isPopular: false,
-        isActive: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-    ],
-  },
-  "private-office": {
-    name: "Private Office / Mini Conference",
-    slug: "private-office",
-    location: "2nd Floor, Executive Wing",
-    capacity: 8,
-    description:
-      "Air-conditioned private workspace with presentation screen/TV for teams.",
-    amenities: [
-      "High-Speed Internet/Wi-Fi",
-      "Presentation Screen/TV",
-      "Power & Charging Facilities",
-      "24/7 Power Supply",
-      "Air-Conditioned Environment",
-      "Comfortable Seating Arrangement",
-      "Suitable for Teams",
-    ],
-    pricing: [
-      {
-        id: "office-daily",
-        resourceId: "private-office",
-        planName: "Daily Team Suite",
-        durationDays: 1,
-        price: 8000,
-        currency: "NGN",
-        isPopular: true,
-        isActive: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-      {
-        id: "office-weekly",
-        resourceId: "private-office",
-        planName: "Weekly Team Pass",
-        durationDays: 7,
-        price: 45000,
-        currency: "NGN",
-        isPopular: false,
-        isActive: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-      {
-        id: "office-monthly",
-        resourceId: "private-office",
-        planName: "Monthly Dedicated Office",
-        durationMonths: 1,
-        price: 180000,
-        currency: "NGN",
-        isPopular: false,
-        isActive: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-    ],
-  },
-  "training-room": {
-    name: "Training / Meeting Room",
-    slug: "training-room",
-    location: "1st Floor, Learning Wing",
-    capacity: 40,
-    description:
-      "Professional meeting and training space with flexible room setup and AC.",
-    amenities: [
-      "Professional Meeting & Training Space",
-      "Comfortable Seating Arrangement",
-      "High-Speed Internet/Wi-Fi",
-      "Presentation Screen/TV",
-      "Power & Charging Facilities",
-      "24/7 Power Supply",
-      "Air-Conditioned Environment",
-      "Flexible Room Setup",
-    ],
-    pricing: [
-      {
-        id: "training-hourly",
-        resourceId: "training-room",
-        planName: "Hourly Session",
-        durationHours: 1,
-        price: 25000,
-        currency: "NGN",
-        isPopular: true,
-        isActive: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-      {
-        id: "training-half-day",
-        resourceId: "training-room",
-        planName: "Half-Day Block (4 Hours)",
-        durationHours: 4,
-        price: 90000,
-        currency: "NGN",
-        isPopular: false,
-        isActive: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-      {
-        id: "training-full-day",
-        resourceId: "training-room",
-        planName: "Full-Day Session (8 Hours)",
-        durationHours: 8,
-        price: 170000,
-        currency: "NGN",
-        isPopular: false,
-        isActive: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-    ],
-  },
-  "rooftop-lounge": {
-    name: "Rooftop Lounge",
-    slug: "rooftop-lounge",
-    location: "Rooftop Terrace",
-    capacity: 100,
-    description:
-      "Scenic outdoor premium rooftop ambience perfect for events and content creation.",
-    amenities: [
-      "Premium Rooftop Ambience",
-      "Private & Social Event Space",
-      "Scenic Outdoor Setting",
-      "Perfect for Photoshoots & Content Creation",
-      "Birthday & Event Hosting",
-      "Corporate & Networking events",
-    ],
-    pricing: [
-      {
-        id: "rooftop-hourly",
-        resourceId: "rooftop-lounge",
-        planName: "Hourly Event Booking",
-        durationHours: 1,
-        price: 35000,
-        currency: "NGN",
-        isPopular: true,
-        isActive: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-      {
-        id: "rooftop-evening",
-        resourceId: "rooftop-lounge",
-        planName: "Evening Social Block (4 Hours)",
-        durationHours: 4,
-        price: 130000,
-        currency: "NGN",
-        isPopular: false,
-        isActive: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-    ],
-  },
-  studio: {
-    name: "Studio",
-    slug: "studio",
-    location: "Ground Floor, Media Production Suite",
-    capacity: 10,
-    description:
-      "Fully equipped professional creative production studio with high-end audio/visual gear.",
-    amenities: [
-      "Professional Content Creation Space",
-      "Podcast Recording Setup",
-      "Professional Lighting Setup",
-      "Content Production Support",
-      "Flexible Studio Layout",
-    ],
-    pricing: [
-      {
-        id: "studio-hourly",
-        resourceId: "studio",
-        planName: "Hourly Studio Session",
-        durationHours: 1,
-        price: 200000,
-        currency: "NGN",
-        isPopular: true,
-        isActive: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-      {
-        id: "studio-half-day",
-        resourceId: "studio",
-        planName: "Half-Day Shoot (4 Hours)",
-        durationHours: 4,
-        price: 700000,
-        currency: "NGN",
-        isPopular: false,
-        isActive: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-    ],
-  },
-};
 
 // ---- DurationSelector sub-component ----
 interface DurationSelectorProps {
@@ -878,6 +564,7 @@ export default function PlanSelectionAndCheckoutPage() {
 
   // Hold & Checkout State
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isRedirectingPaystack, setIsRedirectingPaystack] = useState(false);
   const [activeHoldId, setActiveHoldId] = useState<string | null>(null);
   const [holdExpiresAt, setHoldExpiresAt] = useState<string | null>(null);
   const [remainingHoldSeconds, setRemainingHoldSeconds] = useState<
@@ -915,28 +602,21 @@ export default function PlanSelectionAndCheckoutPage() {
       const data = await api.catalogue.getResourceBySlug(slug);
       if (data) {
         setResource(data);
-        const backendPlans =
-          data.pricing && data.pricing.length > 0
-            ? data.pricing
-            : FALLBACK_RESOURCES[slug]?.pricing || [];
+        const backendPlans = data.pricing || [];
         setPlans(backendPlans as ResourcePricingPlan[]);
         if (backendPlans.length > 0) {
           const popular =
             backendPlans.find((p) => p.isPopular) || backendPlans[0];
           setSelectedPlanId(popular.id);
         }
+      } else {
+        setResource(null);
+        setPlans([]);
       }
-    } catch {
-      const fallback =
-        FALLBACK_RESOURCES[slug] || FALLBACK_RESOURCES["flex-desk"];
-      setResource(fallback as FacilityResource);
-      const fallbackPlans = (fallback.pricing || []) as ResourcePricingPlan[];
-      setPlans(fallbackPlans);
-      if (fallbackPlans.length > 0) {
-        const popular =
-          fallbackPlans.find((p) => p.isPopular) || fallbackPlans[0];
-        setSelectedPlanId(popular.id);
-      }
+    } catch (err) {
+      console.error("Failed to load live workspace resource:", err);
+      setResource(null);
+      setPlans([]);
     } finally {
       setLoading(false);
     }
@@ -1130,7 +810,41 @@ export default function PlanSelectionAndCheckoutPage() {
     }
   };
 
-  if (loading && !resource)
+  const handleProceedToPayment = async () => {
+    if (!activeHoldId) return;
+    setIsRedirectingPaystack(true);
+    try {
+      const callbackUrl =
+        typeof window !== "undefined"
+          ? `${window.location.origin}/bookings`
+          : undefined;
+      const res = await api.payments.initializePayment(
+        activeHoldId,
+        callbackUrl,
+      );
+      if (res.authorization_url) {
+        window.location.href = res.authorization_url;
+      }
+    } catch (err: any) {
+      alert(err?.message || "Failed to initialize payment gateway");
+      setIsRedirectingPaystack(false);
+    }
+  };
+
+  const imageSrc = getWorkspaceImage(
+    resource?.slug || slug,
+    resource?.imageUrl,
+  );
+
+  const isSlotUnavailable = Boolean(
+    availabilityResult && !availabilityResult.available,
+  );
+  const remainingSecs = remainingHoldSeconds ?? 0;
+  const holdMinutes = Math.floor(remainingSecs / 60);
+  const holdSecs = remainingSecs % 60;
+  const isHoldExpired = Boolean(activeHoldId && remainingSecs <= 0);
+
+  if (loading && !resource) {
     return (
       <div className="py-24 flex items-center justify-center">
         <div className="text-center space-y-3">
@@ -1141,13 +855,33 @@ export default function PlanSelectionAndCheckoutPage() {
         </div>
       </div>
     );
+  }
 
-  const imageSrc = getWorkspaceImage(
-    resource?.slug || slug,
-    resource?.imageUrl,
-  );
+  if (!loading && !resource) {
+    return (
+      <div className="py-24 flex items-center justify-center">
+        <div className="max-w-md w-full bg-white rounded-2xl p-10 border border-[#EBE7F5] shadow-sm text-center space-y-4">
+          <div className="w-16 h-16 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mx-auto">
+            <AlertCircle className="h-8 w-8" />
+          </div>
+          <h2 className="text-xl font-bold text-slate-900">
+            Workspace Not Found
+          </h2>
+          <p className="text-xs text-slate-500">
+            We couldn't locate this workspace in our active inventory.
+          </p>
+          <Link
+            href="/book"
+            className="inline-block px-5 py-2.5 rounded-xl bg-[#23055c] text-white font-bold text-xs hover:bg-[#35089e] transition-colors"
+          >
+            Explore Available Spaces
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
-  if (confirmed)
+  if (confirmed) {
     return (
       <div className="py-24 flex items-center justify-center">
         <div className="max-w-md w-full bg-white rounded-2xl p-10 border border-[#EBE7F5] shadow-sm text-center space-y-6">
@@ -1159,7 +893,8 @@ export default function PlanSelectionAndCheckoutPage() {
               Booking Reserved!
             </h2>
             <p className="text-xs text-slate-500">
-              Your workspace is held and awaiting payment.
+              Your 10-minute hold is secured. Complete payment to activate your
+              pass.
             </p>
           </div>
           <div className="bg-[#faf9ff] rounded-xl p-4 border border-[#EBE7F5] space-y-2 text-left text-xs">
@@ -1191,25 +926,35 @@ export default function PlanSelectionAndCheckoutPage() {
               </span>
             </div>
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-col gap-3">
+            <button
+              onClick={handleProceedToPayment}
+              disabled={isRedirectingPaystack}
+              className="w-full bg-[#23055c] hover:bg-[#392271] text-white font-bold text-xs py-3.5 px-4 rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm disabled:opacity-50 cursor-pointer"
+            >
+              {isRedirectingPaystack ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Connecting to secure checkout...</span>
+                </>
+              ) : (
+                <>
+                  <Lock className="h-4 w-4" />
+                  <span>Proceed to Secure Checkout</span>
+                </>
+              )}
+            </button>
             <Link
               href="/bookings"
-              className="flex-1 bg-[#23055c] hover:bg-[#392271] text-white font-bold text-xs py-3 rounded-xl transition-all text-center"
+              className="w-full py-3 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs hover:bg-slate-50 transition-colors text-center"
             >
-              View Bookings
+              View in My Bookings
             </Link>
           </div>
         </div>
       </div>
     );
-
-  const isSlotUnavailable = Boolean(
-    availabilityResult && !availabilityResult.available,
-  );
-  const remainingSecs = remainingHoldSeconds ?? 0;
-  const holdMinutes = Math.floor(remainingSecs / 60);
-  const holdSecs = remainingSecs % 60;
-  const isHoldExpired = Boolean(activeHoldId && remainingSecs <= 0);
+  }
 
   return (
     <div className="space-y-8">
@@ -1235,16 +980,18 @@ export default function PlanSelectionAndCheckoutPage() {
               </h1>
               <div className="flex items-center gap-1.5 mt-1 text-white/80 text-xs font-medium">
                 <MapPin className="h-3.5 w-3.5 shrink-0" />
-                <span>
-                  {resource?.location || "DAIH Campus, Redemption City"}
-                </span>
-                {resource?.capacity && (
-                  <>
-                    <span className="mx-1 opacity-50">&middot;</span>
-                    <Users className="h-3.5 w-3.5 shrink-0" />
-                    <span>Capacity: up to {resource.capacity} persons</span>
-                  </>
-                )}
+                <span>{resource?.location || "DAIH Campus"}</span>
+                {resource?.capacity !== undefined &&
+                  resource?.capacity !== null && (
+                    <>
+                      <span className="mx-1 opacity-50">&middot;</span>
+                      <Users className="h-3.5 w-3.5 shrink-0" />
+                      <span>
+                        Capacity: {resource.capacity}{" "}
+                        {resource.capacity === 1 ? "person" : "persons"}
+                      </span>
+                    </>
+                  )}
               </div>
             </div>
             <div className="flex gap-2 shrink-0">
@@ -1558,7 +1305,7 @@ export default function PlanSelectionAndCheckoutPage() {
               )}
             </button>
             <p className="text-[11px] text-slate-400 text-center font-medium">
-              Payments are secured by Paystack. Instant QR Access Pass.
+              Payments are 256-bit encrypted and secure. Instant QR Access Pass.
             </p>
           </div>
         </div>

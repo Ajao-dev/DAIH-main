@@ -68,16 +68,19 @@ export const ResetPasswordCard: React.FC = () => {
       return false;
     }
 
-    if (!hasMinLength) {
-      toast.warning("Password must be at least 8 characters long.", {
-        title: "Password Too Short",
-      });
-      return false;
-    }
+    const missing: string[] = [];
+    if (password.length < 8) missing.push("at least 8 characters");
+    if (!/[A-Z]/.test(password)) missing.push("an uppercase letter (A-Z)");
+    if (!/[a-z]/.test(password)) missing.push("a lowercase letter (a-z)");
+    if (!/[0-9]/.test(password)) missing.push("a number (0-9)");
+    if (!/[^A-Za-z0-9]/.test(password))
+      missing.push("a special symbol (!@#$%^&*)");
 
-    if (!hasNumberOrSymbol) {
-      toast.warning("Password must contain at least one number or symbol.", {
-        title: "Weak Password",
+    if (missing.length > 0) {
+      const friendlyMsg = `Your password needs ${missing.join(", ")}.`;
+      setErrorMessage(friendlyMsg);
+      toast.warning(friendlyMsg, {
+        title: "Password Requirements",
       });
       return false;
     }

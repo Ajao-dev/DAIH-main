@@ -6,43 +6,7 @@ import { useAuth } from "@daih/api-client";
 import { AdminHeader, AdminSidebar } from "../components/navigation";
 import { AccessDeniedView } from "../components/auth/AccessDeniedView";
 import { Loader2 } from "lucide-react";
-import { Permission, ROLE_PERMISSIONS, UserRole } from "@daih/types";
-
-interface RoutePermissionRule {
-  pathPrefix: string;
-  permission: Permission;
-}
-
-const ROUTE_RULES: RoutePermissionRule[] = [
-  {
-    pathPrefix: "/bookings",
-    permission: Permission.BOOKINGS_READ_ALL,
-  },
-  {
-    pathPrefix: "/staff",
-    permission: Permission.USERS_MANAGE,
-  },
-  {
-    pathPrefix: "/finance",
-    permission: Permission.PAYMENTS_READ,
-  },
-  {
-    pathPrefix: "/reports",
-    permission: Permission.REPORTS_VIEW,
-  },
-  {
-    pathPrefix: "/settings",
-    permission: Permission.SYSTEM_CONFIG,
-  },
-  {
-    pathPrefix: "/operations",
-    permission: Permission.BOOKINGS_READ_ALL,
-  },
-  {
-    pathPrefix: "/customers",
-    permission: Permission.BOOKINGS_READ_ALL,
-  },
-];
+import { hasRouteAccess } from "../lib/rbac";
 
 interface AdminShellProps {
   children: React.ReactNode;
@@ -53,11 +17,48 @@ export function AdminShell({ children }: AdminShellProps) {
   const router = useRouter();
   const { user, isAuthenticated, isLoading } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        return localStorage.getItem("daih_admin_sidebar_collapsed") === "true";
+      } catch {}
+    }
+    return false;
+  });
+
+  const handleToggleSidebar = () => {
+    setIsSidebarCollapsed((prev) => {
+      const next = !prev;
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem("daih_admin_sidebar_collapsed", String(next));
+        } catch {}
+      }
+      return next;
+    });
+  };
+
+  // Keyboard shortcut Ctrl+B / Cmd+B to toggle sidebar
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        handleToggleSidebar();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   const isLoginPage = pathname === "/login" || pathname.startsWith("/login");
+  const isSetupAccountPage =
+    pathname === "/setup-account" || pathname.startsWith("/setup-account");
+  const isSetupMfaPage =
+    pathname === "/setup-mfa" || pathname.startsWith("/setup-mfa");
   const isAccessDeniedPage =
     pathname === "/access-denied" || pathname.startsWith("/access-denied");
-  const isPublicPage = isLoginPage || isAccessDeniedPage;
+  const isPublicPage =
+    isLoginPage || isAccessDeniedPage || isSetupAccountPage || isSetupMfaPage;
 
   // Enforce authentication on all protected console routes
   useEffect(() => {
@@ -66,8 +67,8 @@ export function AdminShell({ children }: AdminShellProps) {
     }
   }, [isLoading, isAuthenticated, isPublicPage, router]);
 
-  // If on login page, render children directly without navbar / sidebar
-  if (isLoginPage) {
+  // If on login, setup account, or setup MFA page, render children directly without navbar / sidebar
+  if (isLoginPage || isSetupAccountPage || isSetupMfaPage) {
     return <div className="min-h-screen bg-[#ebeef3]">{children}</div>;
   }
 
@@ -87,56 +88,11 @@ export function AdminShell({ children }: AdminShellProps) {
     );
   }
 
-  // Check RBAC permission for current route
-  const matchingRule = ROUTE_RULES.find(
-    (rule) =>
-      pathname === rule.pathPrefix ||
-      pathname.startsWith(`${rule.pathPrefix}/`),
-  );
-
-  const rawRole = (user?.role || "").toString().toUpperCase();
-  const isSuperAdmin =
-    rawRole === "SUPER_ADMIN" ||
-    rawRole === "ADMIN" ||
-    rawRole === UserRole.SUPER_ADMIN;
-
-  const roleKey =
-    Object.values(UserRole).find((r) => r.toUpperCase() === rawRole) ||
-    (user?.role as UserRole);
-  const userPermissions =
-    roleKey && ROLE_PERMISSIONS[roleKey] ? ROLE_PERMISSIONS[roleKey] : [];
-
-  const hasPermission =
-    isSuperAdmin ||
-    !matchingRule ||
-    userPermissions.includes(matchingRule.permission) ||
-    (pathname.startsWith("/bookings") &&
-      (rawRole === "OPERATIONS_ADMIN" ||
-        rawRole === "RECEPTION_OFFICER" ||
-        userPermissions.includes(Permission.BOOKINGS_READ_ALL))) ||
-    (pathname.startsWith("/operations") &&
-      (rawRole === "OPERATIONS_ADMIN" ||
-        userPermissions.includes(Permission.RESOURCES_MANAGE) ||
-        userPermissions.includes(Permission.BOOKINGS_READ_ALL))) ||
-    (pathname.startsWith("/customers") &&
-      (rawRole === "OPERATIONS_ADMIN" ||
-        userPermissions.includes(Permission.BOOKINGS_READ_ALL))) ||
-    (pathname.startsWith("/finance") &&
-      (rawRole === "FINANCE_OFFICER" ||
-        userPermissions.includes(Permission.PAYMENTS_READ))) ||
-    (pathname.startsWith("/reports") &&
-      (rawRole === "MANAGEMENT_VIEWER" ||
-        rawRole === "FINANCE_OFFICER" ||
-        rawRole === "OPERATIONS_ADMIN" ||
-        userPermissions.includes(Permission.REPORTS_VIEW))) ||
-    (pathname.startsWith("/staff") &&
-      (rawRole === "OPERATIONS_ADMIN" ||
-        userPermissions.includes(Permission.USERS_MANAGE)));
-
-  const isForbidden = !hasPermission;
+  // Verify RBAC access using centralized helper
+  const hasAccess = hasRouteAccess(user?.role, pathname);
 
   // If accessing a forbidden resource or on /access-denied, render standalone page without navbar
-  if (isAccessDeniedPage || isForbidden) {
+  if (isAccessDeniedPage || !hasAccess) {
     return <AccessDeniedView />;
   }
 
@@ -146,6 +102,8 @@ export function AdminShell({ children }: AdminShellProps) {
       <AdminHeader
         isMobileOpen={mobileMenuOpen}
         onMobileToggle={() => setMobileMenuOpen((prev) => !prev)}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={handleToggleSidebar}
       />
 
       {/* Main Layout (Left Navigation Sidebar + Main Content) */}
@@ -154,6 +112,8 @@ export function AdminShell({ children }: AdminShellProps) {
         <AdminSidebar
           isMobileOpen={mobileMenuOpen}
           onMobileClose={() => setMobileMenuOpen(false)}
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={handleToggleSidebar}
         />
 
         {/* Mobile Backdrop */}
@@ -165,8 +125,8 @@ export function AdminShell({ children }: AdminShellProps) {
         )}
 
         {/* Main Content Area */}
-        <main className="flex-1 p-4 sm:p-6 md:p-8 bg-[#f7f9ff] min-w-0 overflow-y-auto">
-          <div className="max-w-7xl mx-auto w-full">{children}</div>
+        <main className="flex-1 p-4 sm:p-6 md:p-8 bg-[#f7f9ff] min-w-0 overflow-y-auto transition-all duration-300">
+          <div className="max-w-[1600px] mx-auto w-full">{children}</div>
         </main>
       </div>
 

@@ -1,9 +1,10 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useAuth } from "@daih/api-client";
-import { Search, Bell, HelpCircle, Menu, Sparkles } from "lucide-react";
+import { resolveAvatarUrl } from "../../lib/image-utils";
+import { Search, Bell, HelpCircle, Menu } from "lucide-react";
 
 interface TopAppBarProps {
   title?: string;
@@ -15,6 +16,13 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
   onMobileMenuToggle,
 }) => {
   const { user } = useAuth();
+  const [avatarError, setAvatarError] = useState(false);
+
+  useEffect(() => {
+    setAvatarError(false);
+  }, [user?.avatarUrl]);
+
+  const resolvedAvatar = resolveAvatarUrl(user?.avatarUrl);
 
   return (
     <header className="sticky top-0 w-full z-30 flex justify-between items-center px-4 sm:px-8 py-3.5 bg-white/95 backdrop-blur-md border-b border-slate-100 shadow-xs">
@@ -54,15 +62,6 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
           />
         </div>
 
-        {/* Book Space Action Slot */}
-        <Link
-          href="/book"
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#23055c] hover:bg-[#35089e] text-white text-xs font-bold transition-colors shadow-xs"
-        >
-          <Sparkles className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">Book Space</span>
-        </Link>
-
         {/* Action Controls */}
         <div className="flex items-center gap-2 sm:gap-3">
           <button
@@ -81,10 +80,26 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
           </Link>
 
           {/* User Profile Avatar */}
-          <Link href="/dashboard" className="flex items-center gap-2 ml-1">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#23055c] to-[#392271] text-white flex items-center justify-center font-bold text-xs shadow-xs border border-purple-200/80">
-              {user?.firstName?.[0] || "M"}
-              {user?.lastName?.[0] || ""}
+          <Link
+            href="/settings"
+            className="flex items-center gap-2 ml-1"
+            title="Account Settings"
+          >
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#23055c] to-[#392271] text-white flex items-center justify-center font-bold text-xs shadow-xs border border-purple-200/80 hover:scale-105 transition-transform overflow-hidden">
+              {resolvedAvatar && !avatarError ? (
+                <img
+                  key={resolvedAvatar}
+                  src={resolvedAvatar}
+                  alt={`${user?.firstName} ${user?.lastName}`}
+                  className="w-full h-full object-cover"
+                  onError={() => setAvatarError(true)}
+                />
+              ) : (
+                <span>
+                  {user?.firstName?.[0] || "M"}
+                  {user?.lastName?.[0] || ""}
+                </span>
+              )}
             </div>
           </Link>
         </div>

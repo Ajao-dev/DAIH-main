@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useState } from "react";
+import { UserRole } from "@daih/types";
 import { Modal, Button } from "@daih/ui";
+import { Activity, Download, Search, RefreshCw } from "lucide-react";
 
 export interface DailyActivityRecord {
   id: string;
@@ -19,121 +21,27 @@ export interface DailyActivityRecord {
   paymentStatus: "PAID" | "PENDING" | "REFUNDED" | "WAIVED";
 }
 
-const sampleActivities: DailyActivityRecord[] = [
-  {
-    id: "rec-1",
-    date: "2026-08-20",
-    day: "Thursday",
-    customerName: "Sarah Jenkins",
-    clientId: "DAIH-2026-0042",
-    timeIn: "08:30 AM",
-    timeOut: "04:45 PM",
-    hoursUsed: "8.25 hrs",
-    workspaceUsed: "Dedicated Desk #12",
-    meetingRoomUsed: "Podcast Room 1 (1h)",
-    subscriptionPlan: "Monthly Dedicated Resident",
-    amountPaid: "$150.00",
-    paymentStatus: "PAID",
-  },
-  {
-    id: "rec-2",
-    date: "2026-08-20",
-    day: "Thursday",
-    customerName: "Tunde Adebayo",
-    clientId: "DAIH-2026-0118",
-    timeIn: "09:15 AM",
-    timeOut: "01:30 PM",
-    hoursUsed: "4.25 hrs",
-    workspaceUsed: "Hot Desk Lounge",
-    meetingRoomUsed: "None / N/A",
-    subscriptionPlan: "Daily Hot Desk Pass",
-    amountPaid: "$15.00",
-    paymentStatus: "PAID",
-  },
-  {
-    id: "rec-3",
-    date: "2026-08-20",
-    day: "Thursday",
-    customerName: "Amara Okafor",
-    clientId: "DAIH-2026-0089",
-    timeIn: "10:00 AM",
-    timeOut: "Active (On-site)",
-    hoursUsed: "In Progress",
-    workspaceUsed: "Dedicated Desk #04",
-    meetingRoomUsed: "Meeting Room C (2h)",
-    subscriptionPlan: "Weekly Flex Plan",
-    amountPaid: "$45.00",
-    paymentStatus: "PAID",
-  },
-  {
-    id: "rec-4",
-    date: "2026-08-20",
-    day: "Thursday",
-    customerName: "Emmanuel Victor",
-    clientId: "DAIH-2026-0205",
-    timeIn: "11:20 AM",
-    timeOut: "Active (On-site)",
-    hoursUsed: "In Progress",
-    workspaceUsed: "Hot Desk Lounge",
-    meetingRoomUsed: "Photo Studio A (1.5h)",
-    subscriptionPlan: "Daily Hot Desk Pass",
-    amountPaid: "$35.00",
-    paymentStatus: "PENDING",
-  },
-  {
-    id: "rec-5",
-    date: "2026-08-20",
-    day: "Thursday",
-    customerName: "Kemi Balogun",
-    clientId: "DAIH-2026-0012",
-    timeIn: "08:00 AM",
-    timeOut: "05:00 PM",
-    hoursUsed: "9.00 hrs",
-    workspaceUsed: "Office Suite 201",
-    meetingRoomUsed: "Meeting Room C (3h)",
-    subscriptionPlan: "Corporate Private Suite",
-    amountPaid: "$850.00",
-    paymentStatus: "PAID",
-  },
-  {
-    id: "rec-6",
-    date: "2026-08-20",
-    day: "Thursday",
-    customerName: "David Nnamdi",
-    clientId: "DAIH-2026-0174",
-    timeIn: "01:00 PM",
-    timeOut: "Active (On-site)",
-    hoursUsed: "In Progress",
-    workspaceUsed: "Hot Desk Lounge",
-    meetingRoomUsed: "Streaming Pod B (1h)",
-    subscriptionPlan: "Daily Hot Desk Pass",
-    amountPaid: "$25.00",
-    paymentStatus: "PAID",
-  },
-  {
-    id: "rec-7",
-    date: "2026-08-19",
-    day: "Wednesday",
-    customerName: "Zainab Aliyu",
-    clientId: "DAIH-2026-0063",
-    timeIn: "09:00 AM",
-    timeOut: "06:00 PM",
-    hoursUsed: "9.00 hrs",
-    workspaceUsed: "Dedicated Desk #18",
-    meetingRoomUsed: "Podcast Room 1 (2h)",
-    subscriptionPlan: "Monthly Dedicated Resident",
-    amountPaid: "$150.00",
-    paymentStatus: "PAID",
-  },
-];
+interface DailyActivityTableProps {
+  activities?: DailyActivityRecord[];
+  loading?: boolean;
+  onRefresh?: () => void;
+  role?: UserRole | string | null;
+}
 
-export const DailyActivityTable: React.FC = () => {
+export const DailyActivityTable: React.FC<DailyActivityTableProps> = ({
+  activities = [],
+  loading = false,
+  onRefresh,
+  role,
+}) => {
+  const showFinancials =
+    role !== UserRole.RECEPTION_OFFICER && role !== UserRole.SECURITY_OFFICER;
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [selectedRecord, setSelectedRecord] =
     useState<DailyActivityRecord | null>(null);
 
-  const filteredActivities = sampleActivities.filter((item) => {
+  const filteredActivities = activities.filter((item) => {
     const matchesSearch =
       item.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.clientId.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -147,6 +55,8 @@ export const DailyActivityTable: React.FC = () => {
   });
 
   const exportToCSV = () => {
+    if (filteredActivities.length === 0) return;
+
     const headers = [
       "Date",
       "Day",
@@ -205,7 +115,7 @@ export const DailyActivityTable: React.FC = () => {
               </h3>
               <p className="font-body-md text-xs text-on-surface-variant mt-0.5">
                 Real-time tracking of visitor check-ins, facility occupancy,
-                hours, and Paystack revenue ledger.
+                hours, and revenue ledger.
               </p>
             </div>
 
@@ -236,15 +146,29 @@ export const DailyActivityTable: React.FC = () => {
                 <option value="REFUNDED">REFUNDED</option>
               </select>
 
+              {/* Refresh Button */}
+              {onRefresh && (
+                <button
+                  onClick={onRefresh}
+                  disabled={loading}
+                  title="Refresh Activity Log"
+                  className="flex items-center gap-1.5 bg-surface-container hover:bg-accent-soft text-primary font-label-md text-xs px-3 py-1.5 rounded-DEFAULT border border-accent-soft transition-colors cursor-pointer disabled:opacity-40"
+                >
+                  <RefreshCw
+                    className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`}
+                  />
+                  <span>Refresh</span>
+                </button>
+              )}
+
               {/* Export CSV Button */}
               <button
                 onClick={exportToCSV}
+                disabled={filteredActivities.length === 0}
                 title="Export Activity to CSV"
-                className="flex items-center gap-1.5 bg-surface-container hover:bg-accent-soft text-primary font-label-md text-xs px-3 py-1.5 rounded-DEFAULT border border-accent-soft transition-colors cursor-pointer"
+                className="flex items-center gap-1.5 bg-surface-container hover:bg-accent-soft text-primary font-label-md text-xs px-3 py-1.5 rounded-DEFAULT border border-accent-soft transition-colors cursor-pointer disabled:opacity-40"
               >
-                <span className="material-symbols-outlined text-[16px]">
-                  download
-                </span>
+                <Download className="w-4 h-4" />
                 <span>Export CSV</span>
               </button>
             </div>
@@ -265,25 +189,49 @@ export const DailyActivityTable: React.FC = () => {
                   <th className="py-3 px-3">Workspace Used</th>
                   <th className="py-3 px-3">Meeting Room Used</th>
                   <th className="py-3 px-3">Subscription Plan</th>
-                  <th className="py-3 px-2">Amount</th>
-                  <th className="py-3 px-2">Payment Status</th>
+                  {showFinancials && (
+                    <>
+                      <th className="py-3 px-2">Amount</th>
+                      <th className="py-3 px-2">Payment Status</th>
+                    </>
+                  )}
                   <th className="py-3 px-3 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="font-body-md text-xs text-on-surface divide-y divide-accent-soft/50 font-medium">
-                {filteredActivities.length === 0 ? (
+                {loading ? (
+                  [1, 2, 3, 4, 5].map((i) => (
+                    <tr key={i} className="animate-pulse h-[52px]">
+                      <td
+                        colSpan={showFinancials ? 13 : 11}
+                        className="py-3 px-3"
+                      >
+                        <div className="h-4 bg-slate-200 rounded w-full" />
+                      </td>
+                    </tr>
+                  ))
+                ) : filteredActivities.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={13}
-                      className="py-8 text-center text-on-surface-variant font-medium"
+                      colSpan={showFinancials ? 13 : 11}
+                      className="py-12 text-center text-on-surface-variant font-medium"
                     >
-                      No activity records found matching your filters.
+                      <Activity className="w-7 h-7 text-slate-300 mx-auto mb-2" />
+                      <p className="font-bold text-slate-700">
+                        No Activity Records Found
+                      </p>
+                      <p className="text-[11px] text-slate-400">
+                        Visitor check-ins and session telemetry will appear here
+                        in real time.
+                      </p>
                     </td>
                   </tr>
                 ) : (
                   filteredActivities.map((row, idx) => {
                     const isZebra = idx % 2 === 1;
-                    const isOngoing = row.timeOut.includes("Active");
+                    const isOngoing =
+                      row.timeOut.includes("Active") ||
+                      row.timeOut.includes("On-site");
 
                     return (
                       <tr
@@ -311,7 +259,13 @@ export const DailyActivityTable: React.FC = () => {
                         </td>
 
                         <td className="py-2.5 px-2 whitespace-nowrap font-mono text-[11px]">
-                          {row.timeIn}
+                          {row.timeIn.includes("Pending") ? (
+                            <span className="text-slate-400 font-sans italic text-[10px]">
+                              Pending
+                            </span>
+                          ) : (
+                            row.timeIn
+                          )}
                         </td>
 
                         <td className="py-2.5 px-2 whitespace-nowrap font-mono text-[11px]">
@@ -431,7 +385,7 @@ export const DailyActivityTable: React.FC = () => {
             <div className="grid grid-cols-2 gap-3 text-xs">
               <div className="p-3 bg-workspace-surface rounded-lg border border-accent-soft">
                 <span className="font-bold text-outline block mb-1">
-                  Session Date & Time
+                  Session Date &amp; Time
                 </span>
                 <p className="font-semibold text-on-surface">
                   {selectedRecord.day}, {selectedRecord.date}
@@ -459,7 +413,7 @@ export const DailyActivityTable: React.FC = () => {
 
             <div className="p-3 bg-workspace-surface rounded-lg border border-accent-soft text-xs">
               <span className="font-bold text-outline block mb-1">
-                Financial & Subscription Ledger
+                Financial &amp; Subscription Ledger
               </span>
               <div className="flex justify-between items-center">
                 <span className="text-on-surface">

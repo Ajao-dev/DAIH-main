@@ -7,6 +7,7 @@ import {
   CalendarAvailabilityQueryDTO,
   CalendarAvailabilityResultDTO,
   AdminOverrideBookingDTO,
+  AdminNoShowRescheduleDTO,
   BookingFilterDTO,
   CancelBookingDTO,
   FacilityResource,
@@ -19,6 +20,8 @@ import {
   UpdatePricingPlanDTO,
   CreateBlackoutDTO,
   UpsertScheduleDTO,
+  UploadResourceImageDTO,
+  UploadImageResponse,
   PaystackInitializeResponse,
   UserProfile,
   UserRole,
@@ -27,6 +30,26 @@ import {
   CustomerFilterDTO,
   CreateCustomerDTO,
   CustomerMetrics,
+  PaymentTransaction,
+  InvoiceDTO,
+  RefundRequestDTO,
+  ReconciliationSummary,
+  DailyPaymentSummary,
+  VerifyAccessPassResponse,
+  CheckInResultDTO,
+  CheckOutResultDTO,
+  AccessPassDetails,
+  TerminalActivityRecord,
+  LiveOccupancyDTO,
+  AdminDashboardSummaryDTO,
+  AdminAnalyticsSummaryDTO,
+  ReceptionTerminalSummaryDTO,
+  LoginApiResponse,
+  MfaSetupInitResponse,
+  MfaMethod,
+  SetupAccountResponse,
+  CustomerReferralsResponse,
+  AdminCustomerReferralsResponse,
 } from "@daih/types";
 import { apiCacheManager } from "./cache";
 
@@ -79,13 +102,10 @@ export class DaihApiClient {
 
   setAccessToken(token: string | null): void {
     this.inMemoryToken = token;
+    // Clean up legacy localStorage token if previously stored to prevent lingering XSS exposure
     if (typeof window !== "undefined") {
       try {
-        if (token) {
-          localStorage.setItem("daih_access_token", token);
-        } else {
-          localStorage.removeItem("daih_access_token");
-        }
+        localStorage.removeItem("daih_access_token");
       } catch {}
     }
     if (this.setTokenFn) {
@@ -98,17 +118,7 @@ export class DaihApiClient {
       const customToken = await this.getTokenFn();
       if (customToken !== undefined) return customToken;
     }
-    if (this.inMemoryToken) return this.inMemoryToken;
-    if (typeof window !== "undefined") {
-      try {
-        const stored = localStorage.getItem("daih_access_token");
-        if (stored) {
-          this.inMemoryToken = stored;
-          return stored;
-        }
-      } catch {}
-    }
-    return null;
+    return this.inMemoryToken;
   }
 
   private onTokenRefreshed(token: string | null) {
@@ -222,21 +232,79 @@ export class DaihApiClient {
       password: string;
       portal?: "customer" | "admin" | string;
       audience?: "CUSTOMER" | "ADMIN" | string;
-    }) => {
-      const res = await this.request<{
-        accessToken?: string;
-        token?: string;
-        user: UserProfile;
-      }>("/identity/login", {
+    }): Promise<LoginApiResponse> => {
+      const res = await this.request<any>("/identity/login", {
         method: "POST",
         body: JSON.stringify(credentials),
       });
+      if (res.requiresMfaSetup || res.requiresMfa) {
+        return res as LoginApiResponse;
+      }
       const jwt = res.accessToken || res.token || null;
       if (jwt) {
         this.setAccessToken(jwt);
       }
-      return { ...res, accessToken: jwt || "" };
+      return { ...res, token: jwt || "" };
     },
+
+    setupMfa: (payload: { setupToken: string; method: MfaMethod }) =>
+      this.request<MfaSetupInitResponse>("/identity/mfa/setup", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
+
+    confirmMfaSetup: async (payload: {
+      setupToken: string;
+      method: MfaMethod;
+      code: string;
+      ephemeralSecret?: string;
+    }) => {
+      const res = await this.request<{ token: string; user: UserProfile }>(
+        "/identity/mfa/verify-setup",
+        {
+          method: "POST",
+          body: JSON.stringify(payload),
+        },
+      );
+      if (res.token) {
+        this.setAccessToken(res.token);
+      }
+      return res;
+    },
+
+    verifyMfaChallenge: async (payload: {
+      mfaChallengeToken: string;
+      code: string;
+    }) => {
+      const res = await this.request<{ token: string; user: UserProfile }>(
+        "/identity/mfa/verify",
+        {
+          method: "POST",
+          body: JSON.stringify(payload),
+        },
+      );
+      if (res.token) {
+        this.setAccessToken(res.token);
+      }
+      return res;
+    },
+
+    sendMfaOtp: (payload: { mfaChallengeToken: string }) =>
+      this.request<{ success: boolean; message: string }>(
+        "/identity/mfa/send-otp",
+        {
+          method: "POST",
+          body: JSON.stringify(payload),
+        },
+      ),
+
+    disableUserMfa: (userId: string) =>
+      this.request<{ success: boolean; message: string }>(
+        `/identity/admin/users/${userId}/mfa`,
+        {
+          method: "DELETE",
+        },
+      ),
 
     register: (payload: {
       email: string;
@@ -246,6 +314,7 @@ export class DaihApiClient {
       phoneNumber?: string;
       policyVersion?: string;
       consented: boolean;
+      referralCode?: string;
     }) =>
       this.request<{ user: UserProfile; verificationSent: boolean }>(
         "/identity/register",
@@ -280,6 +349,47 @@ export class DaihApiClient {
 
     getProfile: () => this.request<UserProfile>("/identity/me"),
 
+    updateProfile: (data: {
+      firstName?: string;
+      lastName?: string;
+      phoneNumber?: string;
+      birthday?: string | null;
+    }) =>
+      this.request<UserProfile>("/identity/me", {
+        method: "PUT",
+        body: JSON.stringify(data),
+      }),
+
+    changePassword: (data: { currentPassword: string; newPassword: string }) =>
+      this.request<{ success: boolean; message: string }>(
+        "/identity/me/change-password",
+        {
+          method: "POST",
+          body: JSON.stringify(data),
+        },
+      ),
+
+    uploadAvatar: (data: {
+      data: string;
+      fileName?: string;
+      contentType?: string;
+    }) =>
+      this.request<{ avatarUrl: string; user: UserProfile }>(
+        "/identity/me/avatar",
+        {
+          method: "POST",
+          body: JSON.stringify(data),
+        },
+      ),
+
+    deleteAvatar: () =>
+      this.request<{ success: boolean; user: UserProfile }>(
+        "/identity/me/avatar",
+        {
+          method: "DELETE",
+        },
+      ),
+
     verifyEmail: (token: string) =>
       this.request<{ success: boolean; message: string }>(
         "/identity/verify-email",
@@ -300,7 +410,7 @@ export class DaihApiClient {
 
     requestPasswordReset: (email: string) =>
       this.request<{ success: boolean; message: string }>(
-        "/identity/forgot-password",
+        "/identity/password-reset/request",
         {
           method: "POST",
           body: JSON.stringify({ email }),
@@ -309,7 +419,7 @@ export class DaihApiClient {
 
     resetPassword: (payload: { token: string; newPassword: string }) =>
       this.request<{ success: boolean; message: string }>(
-        "/identity/reset-password",
+        "/identity/password-reset/confirm",
         {
           method: "POST",
           body: JSON.stringify(payload),
@@ -319,9 +429,32 @@ export class DaihApiClient {
     confirmPasswordReset: (payload: { token: string; newPassword: string }) =>
       this.auth.resetPassword(payload),
 
+    setupAccount: (payload: { token: string; password: string }) =>
+      this.request<SetupAccountResponse>("/identity/setup-account", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
+
     getStaffUsers: () => this.adminUsers.getStaffUsers(),
 
-    createStaffUser: (payload: any) => this.adminUsers.createStaffUser(payload),
+    createStaffUser: (payload: {
+      email: string;
+      firstName: string;
+      lastName: string;
+      phoneNumber?: string;
+      role: UserRole;
+    }) => this.adminUsers.createStaffUser(payload),
+
+    updateStaffUser: (
+      userId: string,
+      payload: {
+        role?: UserRole;
+        firstName?: string;
+        lastName?: string;
+        phoneNumber?: string;
+        isVerified?: boolean;
+      },
+    ) => this.adminUsers.updateStaffUser(userId, payload),
   };
 
   // Catalogue & Resources API
@@ -460,6 +593,42 @@ export class DaihApiClient {
       apiCacheManager.invalidate("catalogue");
       return res;
     },
+
+    uploadImage: async (dto: UploadResourceImageDTO) => {
+      const res = await this.request<UploadImageResponse>(
+        "/catalogue/admin/upload-image",
+        {
+          method: "POST",
+          body: JSON.stringify(dto),
+        },
+      );
+      apiCacheManager.invalidate("catalogue");
+      return res;
+    },
+
+    updateResourceImage: async (
+      resourceId: string,
+      imagePayload: { data: string; fileName?: string } | string,
+    ) => {
+      let imageUrl: string;
+      if (typeof imagePayload === "string") {
+        imageUrl = imagePayload;
+        const res = await this.catalogue.updateResource(resourceId, {
+          imageUrl,
+        });
+        return res;
+      } else {
+        const uploadRes = await this.catalogue.uploadImage({
+          ...imagePayload,
+          resourceId,
+        });
+        imageUrl = uploadRes.url;
+        const res = await this.catalogue.getResourceById(resourceId, {
+          forceRefresh: true,
+        });
+        return res;
+      }
+    },
   };
 
   // Bookings API
@@ -596,6 +765,42 @@ export class DaihApiClient {
       };
     },
 
+    getDashboardSummary: async (options?: { forceRefresh?: boolean }) => {
+      return apiCacheManager.fetchWithCache<AdminDashboardSummaryDTO>(
+        "admin_dashboard_summary",
+        () =>
+          this.request<AdminDashboardSummaryDTO>(
+            "/bookings/admin/dashboard-summary",
+          ),
+        30000,
+        options,
+      );
+    },
+
+    getAnalyticsSummary: async (filter?: {
+      startDate?: string;
+      endDate?: string;
+      preset?: string;
+      forceRefresh?: boolean;
+    }) => {
+      const params = new URLSearchParams();
+      if (filter?.startDate) params.set("startDate", filter.startDate);
+      if (filter?.endDate) params.set("endDate", filter.endDate);
+      if (filter?.preset) params.set("preset", filter.preset);
+      const queryStr = params.toString() ? `?${params.toString()}` : "";
+      const cacheKey = `admin_analytics_summary_${filter?.preset || "custom"}_${filter?.startDate || ""}_${filter?.endDate || ""}`;
+
+      return apiCacheManager.fetchWithCache<AdminAnalyticsSummaryDTO>(
+        cacheKey,
+        () =>
+          this.request<AdminAnalyticsSummaryDTO>(
+            `/bookings/admin/analytics-summary${queryStr}`,
+          ),
+        30000,
+        { forceRefresh: filter?.forceRefresh },
+      );
+    },
+
     adminOverrideBooking: async (
       bookingId: string,
       dto: AdminOverrideBookingDTO,
@@ -615,13 +820,153 @@ export class DaihApiClient {
     adminOverride: (dto: AdminOverrideBookingDTO) =>
       this.bookings.adminOverrideBooking(dto.resourceId, dto),
 
-    initializePayment: (bookingId: string) =>
-      this.request<PaystackInitializeResponse>(
-        `/bookings/${bookingId}/payment/initialize`,
+    rescheduleNoShow: async (
+      bookingId: string,
+      dto: AdminNoShowRescheduleDTO,
+    ) => {
+      const res = await this.request<{
+        success: boolean;
+        message: string;
+        data: BookingSummary;
+      }>(`/bookings/admin/${bookingId}/reschedule-noshow`, {
+        method: "POST",
+        body: JSON.stringify(dto),
+      });
+      apiCacheManager.invalidate("my_bookings");
+      apiCacheManager.invalidate("cal_avail");
+      return res.data || res;
+    },
+
+    initializePayment: (bookingId: string, callbackUrl?: string) =>
+      this.payments.initializePayment(bookingId, callbackUrl),
+  };
+
+  // Payments & Ledger API
+  public payments = {
+    initializePayment: async (bookingId: string, callbackUrl?: string) => {
+      const res = await this.request<PaystackInitializeResponse>(
+        `/payments/initialize/${bookingId}`,
+        {
+          method: "POST",
+          body: JSON.stringify({ callbackUrl }),
+        },
+      );
+      apiCacheManager.invalidate("my_bookings");
+      apiCacheManager.invalidate("payment_history");
+      return res;
+    },
+
+    getHistory: (options?: {
+      page?: number;
+      limit?: number;
+      forceRefresh?: boolean;
+    }) => {
+      const params = new URLSearchParams();
+      if (options?.page) params.set("page", String(options.page));
+      if (options?.limit) params.set("limit", String(options.limit));
+      const queryStr = params.toString() ? `?${params.toString()}` : "";
+
+      return apiCacheManager.fetchWithCache<PaymentTransaction[]>(
+        `payment_history_${options?.page || 1}`,
+        () =>
+          this.request<PaymentTransaction[]>(`/payments/history${queryStr}`),
+        15000,
+        options,
+      );
+    },
+
+    getTransaction: (transactionId: string) =>
+      this.request<PaymentTransaction>(`/payments/${transactionId}`),
+
+    verifyPayment: async (transactionId: string) => {
+      const res = await this.request<PaymentTransaction>(
+        `/payments/${transactionId}/verify`,
         {
           method: "POST",
         },
+      );
+      apiCacheManager.invalidate("my_bookings");
+      apiCacheManager.invalidate("payment_history");
+      apiCacheManager.invalidate("cal_avail");
+      apiCacheManager.invalidate("avail_");
+      return res;
+    },
+
+    getInvoice: (transactionId: string) =>
+      this.request<InvoiceDTO>(`/payments/${transactionId}/invoice`),
+
+    requestRefund: (bookingId: string, reason?: string) =>
+      this.request<{ success: boolean; message: string; bookingId: string }>(
+        `/payments/bookings/${bookingId}/refund-request`,
+        {
+          method: "POST",
+          body: JSON.stringify({ reason }),
+        },
       ),
+
+    processRefund: (transactionId: string, dto: RefundRequestDTO) =>
+      this.request<{
+        success: boolean;
+        message: string;
+        data: PaymentTransaction;
+      }>(`/payments/${transactionId}/refund`, {
+        method: "POST",
+        body: JSON.stringify(dto),
+      }),
+
+    getAdminTransactions: async (filters?: {
+      status?: string;
+      method?: string;
+      search?: string;
+      startDate?: string;
+      endDate?: string;
+      page?: number;
+      limit?: number;
+    }) => {
+      const params = new URLSearchParams();
+      if (filters?.status) params.set("status", filters.status);
+      if (filters?.method) params.set("method", filters.method);
+      if (filters?.search) params.set("search", filters.search);
+      if (filters?.startDate) params.set("startDate", filters.startDate);
+      if (filters?.endDate) params.set("endDate", filters.endDate);
+      if (filters?.page) params.set("page", String(filters.page));
+      if (filters?.limit) params.set("limit", String(filters.limit));
+      const queryStr = params.toString() ? `?${params.toString()}` : "";
+
+      const res = await this.request<any>(
+        `/payments/admin/transactions${queryStr}`,
+      );
+      if (Array.isArray(res)) {
+        return { transactions: res, total: res.length };
+      }
+      return {
+        transactions: res.transactions || res.data || [],
+        total: res.total ?? (res.transactions?.length || 0),
+        page: res.page || 1,
+        limit: res.limit || 20,
+      };
+    },
+
+    getReconciliation: (query?: { startDate?: string; endDate?: string }) => {
+      const params = new URLSearchParams();
+      if (query?.startDate) params.set("startDate", query.startDate);
+      if (query?.endDate) params.set("endDate", query.endDate);
+      const queryStr = params.toString() ? `?${params.toString()}` : "";
+
+      return this.request<ReconciliationSummary>(
+        `/payments/admin/reconciliation${queryStr}`,
+      );
+    },
+
+    getDailySummary: (date?: string) => {
+      const params = new URLSearchParams();
+      if (date) params.set("date", date);
+      const queryStr = params.toString() ? `?${params.toString()}` : "";
+
+      return this.request<DailyPaymentSummary>(
+        `/payments/admin/daily-summary${queryStr}`,
+      );
+    },
   };
 
   // Staff / User Management API
@@ -636,13 +981,85 @@ export class DaihApiClient {
       lastName: string;
       phoneNumber?: string;
       role: UserRole;
-      password?: string;
     }) => {
       const res = await this.request<any>("/identity/admin/users", {
         method: "POST",
         body: JSON.stringify(payload),
       });
-      return (res?.user || res) as UserProfile;
+      return (res?.user || res?.data || res) as UserProfile;
+    },
+
+    resendSetupLink: (userId: string) => {
+      return this.request<{ success: boolean; message: string }>(
+        `/identity/admin/users/${userId}/resend-setup`,
+        {
+          method: "POST",
+        },
+      );
+    },
+
+    updateStaffUser: async (
+      userId: string,
+      payload: {
+        role?: UserRole;
+        firstName?: string;
+        lastName?: string;
+        phoneNumber?: string;
+        isVerified?: boolean;
+      },
+    ) => {
+      const res = await this.request<any>(`/identity/admin/users/${userId}`, {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      });
+      return (res?.user || res?.data?.user || res?.data || res) as UserProfile;
+    },
+  };
+
+  // Email Template Management API (Super Admin)
+  public emailTemplates = {
+    listTemplates: () => {
+      return this.request<
+        Array<{
+          type: string;
+          subject: string;
+          htmlBody: string;
+          textBody?: string;
+          description: string;
+          variables: string[];
+          isCustomized: boolean;
+          isActive: boolean;
+          updatedAt?: string;
+        }>
+      >("/email-templates");
+    },
+
+    getTemplate: (type: string) => {
+      return this.request<{
+        type: string;
+        subject: string;
+        htmlBody: string;
+        textBody?: string;
+        isActive: boolean;
+      }>(`/email-templates/${type}`);
+    },
+
+    updateTemplate: (
+      type: string,
+      data: {
+        subject: string;
+        htmlBody: string;
+        textBody?: string;
+        isActive?: boolean;
+      },
+    ) => {
+      return this.request<{ success: boolean; type: string }>(
+        `/email-templates/${type}`,
+        {
+          method: "PUT",
+          body: JSON.stringify(data),
+        },
+      );
     },
   };
 
@@ -670,6 +1087,156 @@ export class DaihApiClient {
         body: JSON.stringify(dto),
       });
       return (res?.data || res) as CustomerRecord;
+    },
+  };
+
+  // Customer & Admin Referrals API
+  public referrals = {
+    getMyReferrals: () =>
+      this.request<CustomerReferralsResponse>("/identity/me/referrals"),
+
+    getCustomerReferrals: (customerId: string) =>
+      this.request<AdminCustomerReferralsResponse>(
+        `/identity/admin/customers/${customerId}/referrals`,
+      ),
+  };
+
+  // Access & Reception Scanner API
+  public access = {
+    getAccessPass: (bookingId: string) =>
+      this.request<{
+        token: string;
+        bookingId: string;
+        reference: string;
+        resourceName: string;
+        customerName: string;
+        startTime: string;
+        expiresAt: string;
+        state: string;
+        checkedInAt?: string | null;
+      }>(`/access/qr/${bookingId}`),
+
+    verifyQr: (token: string) =>
+      this.request<VerifyAccessPassResponse>("/access/verify-qr", {
+        method: "POST",
+        body: JSON.stringify({ token }),
+      }),
+
+    verifyPass: (tokenOrRef: string) => this.access.verifyQr(tokenOrRef),
+
+    checkIn: (
+      bookingId: string,
+      payload?: { terminalId?: string; notes?: string },
+    ) =>
+      this.request<CheckInResultDTO>(`/access/checkin/${bookingId}`, {
+        method: "POST",
+        body: JSON.stringify(payload || {}),
+      }),
+
+    checkOut: (
+      bookingId: string,
+      payload?: { terminalId?: string; notes?: string },
+    ) =>
+      this.request<CheckOutResultDTO>(`/access/checkout/${bookingId}`, {
+        method: "POST",
+        body: JSON.stringify(payload || {}),
+      }),
+
+    searchBookings: (query: string) =>
+      this.request<AccessPassDetails[]>(
+        `/access/search?q=${encodeURIComponent(query)}`,
+      ),
+
+    getTerminalActivity: (params?: {
+      terminalId?: string;
+      limit?: number;
+      offset?: number;
+    }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.terminalId) searchParams.set("terminalId", params.terminalId);
+      if (params?.limit) searchParams.set("limit", String(params.limit));
+      if (params?.offset) searchParams.set("offset", String(params.offset));
+      const queryStr = searchParams.toString()
+        ? `?${searchParams.toString()}`
+        : "";
+      return this.request<TerminalActivityRecord[]>(
+        `/access/activity${queryStr}`,
+      );
+    },
+
+    getLiveOccupancy: () => this.request<LiveOccupancyDTO>("/access/occupancy"),
+
+    getTerminalSummary: async (options?: {
+      terminalId?: string;
+      forceRefresh?: boolean;
+    }) => {
+      const queryStr = options?.terminalId
+        ? `?terminalId=${options.terminalId}`
+        : "";
+      const cacheKey = `reception_terminal_summary_${options?.terminalId || "all"}`;
+      return apiCacheManager.fetchWithCache<ReceptionTerminalSummaryDTO>(
+        cacheKey,
+        () =>
+          this.request<ReceptionTerminalSummaryDTO>(
+            `/access/terminal-summary${queryStr}`,
+          ),
+        15000,
+        { forceRefresh: options?.forceRefresh },
+      );
+    },
+  };
+
+  // Reports & Analytics Export API
+  public reports = {
+    downloadExport: async (query: {
+      type: "revenue" | "bookings" | "occupancy" | "financial_audit";
+      format: "csv" | "xlsx" | "pdf";
+      startDate?: string;
+      endDate?: string;
+      preset?: string;
+    }): Promise<void> => {
+      const searchParams = new URLSearchParams();
+      searchParams.set("type", query.type);
+      searchParams.set("format", query.format);
+      if (query.startDate) searchParams.set("startDate", query.startDate);
+      if (query.endDate) searchParams.set("endDate", query.endDate);
+      if (query.preset) searchParams.set("preset", query.preset);
+
+      const url = `${this.baseUrl}/reports/export?${searchParams.toString()}`;
+      const token = await this.getAccessToken();
+
+      const headers: HeadersInit = {};
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(url, {
+        headers,
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to download report (HTTP ${response.status})`);
+      }
+
+      const blob = await response.blob();
+      const contentDisposition =
+        response.headers.get("Content-Disposition") || "";
+      const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+      const filename =
+        filenameMatch?.[1] ||
+        `DAIH_${query.type.toUpperCase()}_REPORT.${query.format}`;
+
+      if (typeof window !== "undefined") {
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = downloadUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(downloadUrl);
+      }
     },
   };
 

@@ -47,7 +47,6 @@ export const ALLOWED_TRANSITIONS: Record<BookingState, BookingState[]> = {
   [BookingState.CONFIRMED]: [
     BookingState.ACTIVE,
     BookingState.CHECKED_IN,
-    BookingState.CANCELLED,
     BookingState.NO_SHOW,
     BookingState.COMPLETED,
   ],
@@ -55,17 +54,25 @@ export const ALLOWED_TRANSITIONS: Record<BookingState, BookingState[]> = {
     BookingState.CHECKED_IN,
     BookingState.CHECKED_OUT,
     BookingState.COMPLETED,
-    BookingState.CANCELLED,
   ],
   [BookingState.CHECKED_IN]: [BookingState.CHECKED_OUT, BookingState.COMPLETED],
-  [BookingState.CHECKED_OUT]: [BookingState.COMPLETED],
+  [BookingState.CHECKED_OUT]: [
+    BookingState.CHECKED_IN, // Member re-entry before scheduled endTime
+    BookingState.COMPLETED,
+  ],
   [BookingState.COMPLETED]: [],
   [BookingState.CANCELLED]: [],
+  [BookingState.REFUND_PENDING]: [],
+  [BookingState.REFUNDED]: [],
   [BookingState.EXPIRED]: [
-    // Allow recovery if late webhook arrives and slot is still available
+    // Recovers to CONFIRMED if slot free; transitions to NO_SHOW with conflict alert if occupied
+    BookingState.CONFIRMED,
+    BookingState.NO_SHOW,
+  ],
+  [BookingState.NO_SHOW]: [
+    // Permitted exclusively through Admin Discretionary Rescheduling
     BookingState.CONFIRMED,
   ],
-  [BookingState.NO_SHOW]: [],
 };
 
 /**
@@ -102,6 +109,7 @@ export const ACTIVE_BOOKING_STATES: BookingState[] = [
   BookingState.CONFIRMED,
   BookingState.ACTIVE,
   BookingState.CHECKED_IN,
+  BookingState.CHECKED_OUT,
 ];
 
 export function isActiveHoldOrBooking(

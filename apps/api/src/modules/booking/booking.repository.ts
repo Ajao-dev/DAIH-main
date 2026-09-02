@@ -135,6 +135,10 @@ export class BookingRepository {
           },
         },
         transactions: true,
+        visitSessions: {
+          orderBy: { checkInTime: "desc" },
+          take: 5,
+        },
       },
     });
   }
@@ -158,12 +162,16 @@ export class BookingRepository {
           },
         },
         transactions: true,
+        visitSessions: {
+          orderBy: { checkInTime: "desc" },
+          take: 5,
+        },
       },
     });
   }
 
   /**
-   * Find customer's own bookings
+   * Find customer's own bookings (with automatic overdue sweep)
    */
   async findMyBookings(userId: string) {
     return prisma.booking.findMany({
@@ -179,6 +187,10 @@ export class BookingRepository {
             lastName: true,
             clientId: true,
           },
+        },
+        visitSessions: {
+          orderBy: { checkInTime: "desc" },
+          take: 5,
         },
       },
     });
@@ -198,15 +210,21 @@ export class BookingRepository {
     limit?: number;
   }) {
     const page = Math.max(1, filters.page || 1);
-    const limit = Math.max(1, Math.min(100, filters.limit || 20));
+    const limit = Math.max(1, Math.min(1000, filters.limit || 20));
     const skip = (page - 1) * limit;
 
     const where: Prisma.BookingWhereInput = {
       ...(filters.state ? { state: filters.state as BookingState } : {}),
       ...(filters.resourceId ? { resourceId: filters.resourceId } : {}),
       ...(filters.userId ? { userId: filters.userId } : {}),
-      ...(filters.startDate ? { startTime: { gte: filters.startDate } } : {}),
-      ...(filters.endDate ? { endTime: { lte: filters.endDate } } : {}),
+      ...(filters.startDate || filters.endDate
+        ? {
+            startTime: {
+              ...(filters.startDate ? { gte: filters.startDate } : {}),
+              ...(filters.endDate ? { lte: filters.endDate } : {}),
+            },
+          }
+        : {}),
       ...(filters.search
         ? {
             OR: [
@@ -323,6 +341,49 @@ export class BookingRepository {
       },
     });
     return result.count;
+  }
+
+  /**
+   * Bulk updates overdue CONFIRMED bookings with no check-in to NO_SHOW,
+   * and overdue CHECKED_IN/ACTIVE bookings to COMPLETED.
+   */
+  async sweepOverdueBookings(
+    now: Date = new Date(),
+  ): Promise<{ noShowCount: number; completedCount: number }> {
+    const [noShowResult, completedResult] = await Promise.all([
+      // 1. Confirmed bookings whose end time has passed and never checked in -> NO_SHOW
+      prisma.booking.updateMany({
+        where: {
+          state: BookingState.CONFIRMED,
+          endTime: { lte: now },
+          checkedInAt: null,
+        },
+        data: {
+          state: BookingState.NO_SHOW,
+        },
+      }),
+      // 2. Checked-in / Active / Checked-out bookings whose end time has passed -> COMPLETED
+      prisma.booking.updateMany({
+        where: {
+          state: {
+            in: [
+              BookingState.CHECKED_IN,
+              BookingState.ACTIVE,
+              BookingState.CHECKED_OUT,
+            ],
+          },
+          endTime: { lte: now },
+        },
+        data: {
+          state: BookingState.COMPLETED,
+        },
+      }),
+    ]);
+
+    return {
+      noShowCount: noShowResult.count,
+      completedCount: completedResult.count,
+    };
   }
 }
 

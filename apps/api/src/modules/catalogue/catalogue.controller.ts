@@ -7,6 +7,7 @@ import {
   UpdatePricingPlanSchema,
   CreateBlackoutSchema,
   UpsertSchedulesSchema,
+  UploadResourceImageSchema,
 } from "./catalogue.schema.js";
 import { AuthRequest } from "../../middleware/auth.middleware.js";
 
@@ -27,6 +28,12 @@ export class CatalogueController {
   ) => {
     try {
       const data = await this.service.getActiveResources();
+      // Catalogue data changes rarely — allow browsers and CDN to cache for 60s,
+      // serve stale for up to 5 minutes while revalidating in background
+      res.set(
+        "Cache-Control",
+        "public, max-age=60, stale-while-revalidate=300",
+      );
       res.json({ success: true, data });
     } catch (err) {
       next(err);
@@ -50,6 +57,10 @@ export class CatalogueController {
         return;
       }
 
+      res.set(
+        "Cache-Control",
+        "public, max-age=60, stale-while-revalidate=300",
+      );
       res.json({ success: true, data });
     } catch (err) {
       next(err);
@@ -131,6 +142,27 @@ export class CatalogueController {
         ipAddress,
       );
       res.json({ success: true, data });
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  uploadImage = async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      const validated = UploadResourceImageSchema.parse(req.body);
+      const actorUserId = req.user?.id;
+      const ipAddress = getIpAddress(req);
+      const reqProtocol = req.protocol;
+      const reqHost = req.get("host");
+
+      const data = await this.service.uploadResourceImage(
+        validated,
+        actorUserId,
+        ipAddress,
+        reqProtocol,
+        reqHost,
+      );
+      res.status(200).json({ success: true, data });
     } catch (err) {
       next(err);
     }

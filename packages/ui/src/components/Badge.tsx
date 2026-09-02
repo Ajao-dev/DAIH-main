@@ -58,12 +58,19 @@ export function StatusBadge({ status }: { status: BookingState | string }) {
       case BookingState.CANCELLED:
       case BookingState.EXPIRED:
       case BookingState.NO_SHOW:
-        return { variant: "danger" as const, label: st.replace("_", " ") };
+        return { variant: "danger" as const, label: st.replace(/_/g, " ") };
+      case BookingState.REFUND_PENDING:
+        return { variant: "warning" as const, label: "REFUND PENDING" };
+      case BookingState.REFUNDED:
+        return { variant: "default" as const, label: "REFUNDED" };
       case BookingState.CHECKED_IN:
       case BookingState.CHECKED_OUT:
-        return { variant: "info" as const, label: st.replace("_", " ") };
+        return { variant: "info" as const, label: st.replace(/_/g, " ") };
       default:
-        return { variant: "default" as const, label: st };
+        return {
+          variant: "default" as const,
+          label: String(st).replace(/_/g, " "),
+        };
     }
   };
 

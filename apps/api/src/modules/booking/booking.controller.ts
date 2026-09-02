@@ -6,6 +6,7 @@ import {
   CreateHoldSchema,
   CancelBookingSchema,
   AdminOverrideBookingSchema,
+  AdminNoShowRescheduleSchema,
   BookingFilterSchema,
 } from "./booking.schema.js";
 import { AuthRequest } from "../../middleware/auth.middleware.js";
@@ -263,6 +264,78 @@ export class BookingController {
         success: true,
         message: `Hold for booking '${bookingId}' has been released.`,
       });
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  /**
+   * Admin: Discretionary Reschedule for NO_SHOW booking
+   * POST /api/v1/bookings/admin/:id/reschedule-noshow
+   */
+  rescheduleNoShow = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    try {
+      const bookingId = String(req.params.id);
+      const validated = AdminNoShowRescheduleSchema.parse(req.body);
+      const adminUserId = req.user!.id;
+      const ipAddress = getIpAddress(req);
+
+      const data = await this.service.rescheduleNoShowBooking(
+        bookingId,
+        adminUserId,
+        validated,
+        ipAddress,
+      );
+      res.json({
+        success: true,
+        message: "No-show booking has been rescheduled successfully.",
+        data,
+      });
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  /**
+   * Consolidated Admin Operations Dashboard Summary
+   * GET /api/v1/bookings/admin/dashboard-summary
+   */
+  getDashboardSummary = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    try {
+      const data = await this.service.getDashboardSummary(
+        req.user?.role as any,
+      );
+      res.json({ success: true, data });
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  /**
+   * Consolidated Admin Analytics Reports Summary
+   * GET /api/v1/bookings/admin/analytics-summary
+   */
+  getAnalyticsSummary = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    try {
+      const { startDate, endDate, preset } = req.query;
+      const data = await this.service.getAnalyticsSummary({
+        startDate: startDate ? String(startDate) : undefined,
+        endDate: endDate ? String(endDate) : undefined,
+        preset: preset ? String(preset) : undefined,
+      });
+      res.json({ success: true, data });
     } catch (err) {
       next(err);
     }

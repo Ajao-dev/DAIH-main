@@ -72,6 +72,7 @@ class ApiCacheManager {
   invalidate(pattern?: string): void {
     if (!pattern) {
       this.memoryCache.clear();
+      this.inFlightRequests.clear();
       if (typeof window !== "undefined" && window.localStorage) {
         try {
           Object.keys(window.localStorage).forEach((key) => {
@@ -87,6 +88,12 @@ class ApiCacheManager {
     }
 
     // Invalidate matching keys
+    Array.from(this.inFlightRequests.keys()).forEach((k) => {
+      if (k.includes(pattern)) {
+        this.inFlightRequests.delete(k);
+      }
+    });
+
     Array.from(this.memoryCache.keys()).forEach((k) => {
       if (k.includes(pattern)) {
         this.memoryCache.delete(k);
@@ -128,6 +135,9 @@ class ApiCacheManager {
         }
         return cached.data;
       }
+    } else {
+      // Evict any stale in-flight request so forced refresh executes a fresh network request
+      this.inFlightRequests.delete(key);
     }
 
     // Execute deduplicated fetch

@@ -141,14 +141,20 @@ export interface UpsertScheduleDTO {
   isClosed?: boolean;
 }
 
-export interface UserProfile {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  phoneNumber?: string;
-  clientId: string;
-  role: UserRole;
-  isVerified: boolean;
-  avatarUrl?: string;
+export interface UploadResourceImageDTO {
+  data: string; // Base64 data or data URL (e.g. data:image/png;base64,...)
+  fileName?: string;
+  contentType?: string;
+  resourceId?: string;
+}
+
+export interface UploadImageResponse {
+  url: string;
+  fullUrl: string;
+  filename: string;
+  size?: number;
+  format?: string;
+  width?: number;
+  height?: number;
+  resourceId?: string;
 }

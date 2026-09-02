@@ -18,47 +18,47 @@ function VerifyEmailContent() {
   const toast = useToast();
 
   const [status, setStatus] = useState<
-    "verifying" | "success" | "error" | "awaiting"
+    "verifying" | "success" | "error" | "awaiting" | "already_used"
   >(token ? "verifying" : "awaiting");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
   const [resendEmail, setResendEmail] = useState(emailParam || "");
   const [resendStatus, setResendStatus] = useState<"idle" | "loading" | "sent">(
     "idle",
   );
 
-  useEffect(() => {
-    if (!token) return;
+  const verifiedTokenRef = React.useRef<string | null>(null);
 
-    let mounted = true;
-    (async () => {
-      try {
-        await api.auth.verifyEmail(token);
-        if (mounted) {
-          setStatus("success");
-          toast.success("Your email has been verified successfully!", {
-            title: "Email Verified",
+  useEffect(() => {
+    if (!token || verifiedTokenRef.current === token) return;
+
+    api.auth
+      .verifyEmail(token)
+      .then(() => {
+        verifiedTokenRef.current = token;
+        setStatus("success");
+        setErrorCode(null);
+        toast.success("Your email has been verified successfully!", {
+          title: "Email Verified",
+        });
+      })
+      .catch((err: any) => {
+        const code = err?.code || "VERIFICATION_ERROR";
+        setErrorCode(code);
+
+        if (code === "TOKEN_ALREADY_USED") {
+          setStatus("already_used");
+        } else {
+          setStatus("error");
+          const msg =
+            err?.message || "Verification link is invalid or has expired";
+          setErrorMessage(msg);
+          toast.error(msg, {
+            title: "Verification Failed",
           });
         }
-      } catch (err: any) {
-        if (mounted) {
-          setStatus("error");
-          setErrorMessage(
-            err?.message || "Verification link is invalid or has expired",
-          );
-          toast.error(
-            err?.message || "Verification link is invalid or has expired",
-            {
-              title: "Verification Failed",
-            },
-          );
-        }
-      }
-    })();
-
-    return () => {
-      mounted = false;
-    };
-  }, [token, toast]);
+      });
+  }, [token]);
 
   const handleResend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,6 +99,7 @@ function VerifyEmailContent() {
           <VerificationStatusCard
             status={status}
             errorMessage={errorMessage}
+            errorCode={errorCode}
             resendEmail={resendEmail}
             onResendEmailChange={setResendEmail}
             onResendSubmit={handleResend}

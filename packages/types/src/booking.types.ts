@@ -1,3 +1,5 @@
+import { WifiCredentialDTO, WifiAccessStatus } from "./access.types";
+
 export enum BookingState {
   DRAFT = "DRAFT",
   HELD = "HELD",
@@ -10,6 +12,8 @@ export enum BookingState {
   CANCELLED = "CANCELLED",
   EXPIRED = "EXPIRED",
   NO_SHOW = "NO_SHOW",
+  REFUND_PENDING = "REFUND_PENDING",
+  REFUNDED = "REFUNDED",
 }
 
 export enum ResourceCategory {
@@ -97,6 +101,103 @@ export interface CancelBookingDTO {
   reason?: string;
 }
 
+export interface AdminNoShowRescheduleDTO {
+  newStartTime: string;
+  newEndTime: string;
+  reason: string;
+}
+
+export interface DashboardSubscriptionMetric {
+  name: string;
+  count: number;
+  percentage: number;
+  revenueContribution: string;
+  colorClass: string;
+  barColorClass: string;
+}
+
+export interface DashboardFacilityMetric {
+  name: string;
+  category: string;
+  bookingsCount: number;
+  utilizationRate: number;
+  totalRevenue: string;
+}
+
+export interface DashboardActivityRecord {
+  id: string;
+  bookingId?: string;
+  memberName: string;
+  memberEmail: string;
+  clientNumber: string;
+  resourceName: string;
+  workspaceCategory?: string;
+  eventType: "CHECK_IN" | "CHECK_OUT" | "AUTO_CHECK_OUT" | "RE_ENTRY";
+  timestamp: string;
+  formattedTime: string;
+  checkInTime?: string;
+  checkOutTime?: string | null;
+  formattedCheckIn?: string;
+  formattedCheckOut?: string | null;
+  hoursUsed?: string;
+  amountPaid?: string;
+  paymentStatus?: string;
+}
+
+export interface AdminDashboardSummaryDTO {
+  dailyVisitors: number;
+  currentlyOnSite: number;
+  todayDeparturesCount: number;
+  todayBookingsCount: number;
+  revenueToday: string;
+  totalRevenueMtd: string;
+  occupancyRate: number;
+  occupiedSeats: number;
+  totalSeats: number;
+  peakHourWindow: string;
+  peakOccupancyRate: number;
+  subscriptionPlans: DashboardSubscriptionMetric[];
+  mostUsedFacilities: DashboardFacilityMetric[];
+  recentActivities: DashboardActivityRecord[];
+}
+
+export interface AdminAnalyticsPeriodMetrics {
+  totalRevenue: string;
+  rawTotalRevenue: number;
+  totalBookingsCount: number;
+  paidBookingsCount: number;
+  totalCheckIns: number;
+  totalCustomersCount: number;
+  avgDailyFootfall: string;
+  spaceOccupancyRate: number;
+  totalCapacity: number;
+  repeatRate: string;
+  repeatMembersCount: number;
+  avgBookingValue: string;
+}
+
+export interface DashboardFacilityRankingDTO {
+  id: string;
+  name: string;
+  type: string;
+  category?: string;
+  utilizationRate: number;
+  paidBookingsCount: number;
+  bookingsCount?: number;
+  totalRevenue?: string;
+  activeOccupancy: string;
+  status: "High Demand" | "Active" | "Available";
+  barColorClass: string;
+}
+
+export interface AdminAnalyticsSummaryDTO {
+  periodMetrics: AdminAnalyticsPeriodMetrics;
+  subscriptionPlans: DashboardSubscriptionMetric[];
+  facilityRankings: DashboardFacilityRankingDTO[];
+  bookings: BookingSummary[];
+  transactions: any[];
+}
+
 export interface AdminOverrideBookingDTO {
   resourceId: string;
   customerEmail?: string;
@@ -142,6 +243,11 @@ export interface BookingSummary {
   amount: number;
   currency: string;
   holdExpiresAt?: string | null;
+  checkedInAt?: string | null;
+  checkedOutAt?: string | null;
+  checkedInToday?: boolean;
+  wifiStatus?: WifiAccessStatus;
+  wifiCredentials?: WifiCredentialDTO | null;
   createdAt: string;
   updatedAt?: string;
 }

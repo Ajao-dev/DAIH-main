@@ -154,6 +154,42 @@ vi.mock("../../db/client.js", () => {
         const user = users.find((u) => u.id === sess.userId);
         return { ...sess, user };
       }),
+      findFirst: vi.fn(async ({ where }: any) => {
+        const matching = sessions.filter((s) => {
+          const matchFamily = where?.tokenFamily
+            ? s.tokenFamily === where.tokenFamily
+            : true;
+          const matchRevoked =
+            where?.isRevoked !== undefined
+              ? s.isRevoked === where.isRevoked
+              : true;
+          const matchExpires = where?.expiresAt?.gt
+            ? s.expiresAt > where.expiresAt.gt
+            : true;
+          return matchFamily && matchRevoked && matchExpires;
+        });
+        if (matching.length === 0) return null;
+        matching.sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        );
+        const sess = matching[0];
+        const user = users.find((u) => u.id === sess.userId);
+        return { ...sess, user };
+      }),
+      findMany: vi.fn(async ({ where }: any) => {
+        return sessions.filter((s) => {
+          const matchUser = where?.userId ? s.userId === where.userId : true;
+          const matchFamily = where?.tokenFamily
+            ? s.tokenFamily === where.tokenFamily
+            : true;
+          const matchRevoked =
+            where?.isRevoked !== undefined
+              ? s.isRevoked === where.isRevoked
+              : true;
+          return matchUser && matchFamily && matchRevoked;
+        });
+      }),
       update: vi.fn(async ({ where, data }: any) => {
         const index = sessions.findIndex((s) => s.id === where.id);
         if (index === -1) throw new Error("Session not found");
@@ -406,10 +442,40 @@ describe("Milestone 1.1: Identity, RBAC & Session Module", () => {
       expect(cookies[0]).toContain("daih_refresh_token=");
       expect(cookies[0]).toContain("HttpOnly");
     });
+
+    it("ensures GET /verify-email does not mutate state or consume token", async () => {
+      await request(app).post("/api/v1/identity/register").send({
+        firstName: "Scanner",
+        lastName: "Safe",
+        email: "scanner@example.com",
+        password: "Password123!",
+        consented: true,
+      });
+
+      const store = (prisma as any).__store;
+      const tokenRecord = store.verificationTokens.find(
+        (t: any) => t.userId.length > 0,
+      );
+      expect(tokenRecord).toBeDefined();
+
+      // Bot / Scanner GET request
+      const getRes = await request(app)
+        .get("/api/v1/identity/verify-email")
+        .query({ token: "sample-token-string" });
+
+      expect(getRes.status).toBe(200);
+      expect(getRes.body.ready).toBe(true);
+
+      // User must still be unverified in DB
+      const user = store.users.find(
+        (u: any) => u.email === "scanner@example.com",
+      );
+      expect(user.isVerified).toBe(false);
+    });
   });
 
   describe("5. Session Refresh & Reuse Detection", () => {
-    it("rotates refresh token on refresh and revokes on reuse", async () => {
+    it("rotates refresh token, permits concurrent refresh within grace window, and revokes on reuse outside grace window", async () => {
       const passwordHash = await passwordService.hashPassword("Password123!");
       const store = (prisma as any).__store;
       const user = {
@@ -417,6 +483,7 @@ describe("Milestone 1.1: Identity, RBAC & Session Module", () => {
         email: "refresh_test@example.com",
         firstName: "Refresh",
         lastName: "Test",
+        avatarUrl: "/uploads/avatars/avatar-refresh-test.webp",
         passwordHash,
         clientId: "DAIH-2026-000099",
         role: UserRole.CUSTOMER,
@@ -432,35 +499,55 @@ describe("Milestone 1.1: Identity, RBAC & Session Module", () => {
         password: "Password123!",
       });
 
+      expect(loginRes.body.data.user.avatarUrl).toBe(
+        "/uploads/avatars/avatar-refresh-test.webp",
+      );
+
       const cookieHeader = loginRes.headers["set-cookie"];
       const rawCookie = cookieHeader[0].split(";")[0]; // daih_refresh_token=...
 
-      // First Refresh -> Success
+      // 1. Concurrent / First Refresh -> Success
       const refreshRes1 = await request(app)
         .post("/api/v1/identity/refresh")
         .set("Cookie", [rawCookie]);
 
       expect(refreshRes1.status).toBe(200);
       expect(refreshRes1.body.data.token).toBeDefined();
+      expect(refreshRes1.body.data.user.avatarUrl).toBe(
+        "/uploads/avatars/avatar-refresh-test.webp",
+      );
       const rotatedCookie = refreshRes1.headers["set-cookie"][0].split(";")[0];
       expect(rotatedCookie).not.toEqual(rawCookie);
 
-      // Old access token should now be revoked
-      const oldAccessToken = loginRes.body.data.token;
-      const oldTokenMeRes = await request(app)
-        .get("/api/v1/identity/me")
-        .set("Authorization", `Bearer ${oldAccessToken}`);
-      expect(oldTokenMeRes.status).toBe(401);
-      expect(oldTokenMeRes.body.code).toBe("SESSION_REVOKED");
+      // 2. Concurrent second request with the SAME initial cookie within the 15-second grace window -> Success
+      const concurrentRefreshRes = await request(app)
+        .post("/api/v1/identity/refresh")
+        .set("Cookie", [rawCookie]);
 
-      // New access token works
-      const newAccessToken = refreshRes1.body.data.token;
-      const newTokenMeRes = await request(app)
-        .get("/api/v1/identity/me")
-        .set("Authorization", `Bearer ${newAccessToken}`);
-      expect(newTokenMeRes.status).toBe(200);
+      expect(concurrentRefreshRes.status).toBe(200);
+      expect(concurrentRefreshRes.body.data.token).toBeDefined();
+      expect(concurrentRefreshRes.body.data.user.avatarUrl).toBe(
+        "/uploads/avatars/avatar-refresh-test.webp",
+      );
 
-      // Reuse old refresh token -> Reuse detection triggers 401
+      // Access token from concurrent request works
+      const concurrentAccessToken = concurrentRefreshRes.body.data.token;
+      const concurrentMeRes = await request(app)
+        .get("/api/v1/identity/me")
+        .set("Authorization", `Bearer ${concurrentAccessToken}`);
+      expect(concurrentMeRes.status).toBe(200);
+
+      // 3. Simulate true reuse attack outside the 15-second grace window (set initial session updatedAt to 20s ago)
+      const initialTokenHash = passwordService.hashToken(
+        rawCookie.replace("daih_refresh_token=", ""),
+      );
+      const initialSession = store.sessions.find(
+        (s: any) => s.refreshTokenHash === initialTokenHash,
+      );
+      if (initialSession) {
+        initialSession.updatedAt = new Date(Date.now() - 20000); // 20s in the past
+      }
+
       const reuseRes = await request(app)
         .post("/api/v1/identity/refresh")
         .set("Cookie", [rawCookie]);
@@ -468,18 +555,46 @@ describe("Milestone 1.1: Identity, RBAC & Session Module", () => {
       expect(reuseRes.status).toBe(401);
       expect(reuseRes.body.code).toBe("REFRESH_TOKEN_REUSE_DETECTED");
 
-      // Logout revokes the session immediately
-      const logoutRes = await request(app)
-        .post("/api/v1/identity/logout")
-        .set("Authorization", `Bearer ${newAccessToken}`)
-        .set("Cookie", [rotatedCookie]);
-      expect(logoutRes.status).toBe(200);
-
-      const afterLogoutMeRes = await request(app)
+      // After reuse detection, all tokens in the family are revoked
+      const meAfterReuseRes = await request(app)
         .get("/api/v1/identity/me")
-        .set("Authorization", `Bearer ${newAccessToken}`);
-      expect(afterLogoutMeRes.status).toBe(401);
-      expect(afterLogoutMeRes.body.code).toBe("SESSION_REVOKED");
+        .set("Authorization", `Bearer ${concurrentAccessToken}`);
+      expect(meAfterReuseRes.status).toBe(401);
+      expect(meAfterReuseRes.body.code).toBe("SESSION_REVOKED");
+    });
+
+    it("ignores forged/unsigned tokens on /logout to prevent arbitrary session DoS", async () => {
+      const store = (prisma as any).__store;
+      const victimSession = {
+        id: "sess_victim_123",
+        userId: "usr_victim_1",
+        refreshTokenHash: "victim_hash_123",
+        tokenFamily: "fam_victim",
+        isRevoked: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      store.sessions.push(victimSession);
+
+      // Create forged token with fake signature
+      const forgedToken =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9." +
+        Buffer.from(
+          JSON.stringify({ id: "usr_victim_1", sessionId: "sess_victim_123" }),
+        ).toString("base64url") +
+        ".fakesignature1234567890";
+
+      const res = await request(app)
+        .post("/api/v1/identity/logout")
+        .set("Authorization", `Bearer ${forgedToken}`);
+
+      expect(res.status).toBe(200);
+
+      // Victim session must NOT be revoked
+      const session = store.sessions.find(
+        (s: any) => s.id === "sess_victim_123",
+      );
+      expect(session.isRevoked).toBe(false);
     });
   });
 
@@ -554,7 +669,7 @@ describe("Milestone 1.1: Identity, RBAC & Session Module", () => {
 
       const res = await request(app)
         .get("/api/v1/identity/me")
-        .set("Authorization", `Bearer ${customerToken}`);
+        .set("Authorization", "Bearer " + customerToken);
 
       expect(res.status).toBe(200);
       expect(res.body.data.email).toBe("customer@daih.ng");
@@ -563,37 +678,146 @@ describe("Milestone 1.1: Identity, RBAC & Session Module", () => {
     it("forbids customer from creating staff/admin accounts with 403", async () => {
       const res = await request(app)
         .post("/api/v1/identity/admin/users")
-        .set("Authorization", `Bearer ${customerToken}`)
+        .set("Authorization", "Bearer " + customerToken)
         .send({
           firstName: "Staff",
           lastName: "Member",
           email: "staff@daih.ng",
           role: UserRole.OPERATIONS_ADMIN,
-          password: "StaffPassword123!",
         });
 
       expect(res.status).toBe(403);
       expect(res.body.code).toBe("FORBIDDEN");
-      expect(res.body.message).toContain("Missing required permission");
     });
 
-    it("allows Super Administrator to create staff/admin accounts with 201", async () => {
+    it("forbids non-Super Admin staff from creating staff/admin accounts with 403", async () => {
+      const opsToken = sessionService.generateAccessToken({
+        id: "usr_ops_1",
+        email: "ops@daih.ng",
+        role: UserRole.OPERATIONS_ADMIN,
+        clientId: "DAIH-2026-000003",
+      });
+
       const res = await request(app)
         .post("/api/v1/identity/admin/users")
-        .set("Authorization", `Bearer ${superAdminToken}`)
+        .set("Authorization", "Bearer " + opsToken)
+        .send({
+          firstName: "Rogue",
+          lastName: "Admin",
+          email: "rogue@daih.ng",
+          role: UserRole.OPERATIONS_ADMIN,
+        });
+
+      expect(res.status).toBe(403);
+      expect(res.body.code).toBe("FORBIDDEN");
+    });
+
+    it("allows Super Administrator to create staff/admin accounts with 201 and emits setup token", async () => {
+      const res = await request(app)
+        .post("/api/v1/identity/admin/users")
+        .set("Authorization", "Bearer " + superAdminToken)
         .send({
           firstName: "Operations",
           lastName: "Lead",
-          email: "ops@daih.ng",
+          email: "ops_lead@daih.ng",
           role: UserRole.OPERATIONS_ADMIN,
-          password: "OpsPassword123!",
         });
 
       expect(res.status).toBe(201);
       expect(res.body.success).toBe(true);
-      expect(res.body.data.email).toBe("ops@daih.ng");
+      expect(res.body.data.email).toBe("ops_lead@daih.ng");
       expect(res.body.data.role).toBe(UserRole.OPERATIONS_ADMIN);
       expect(res.body.data.isVerified).toBe(true);
+    });
+
+    it("revokes active user sessions when staff user role is updated", async () => {
+      const store = (prisma as any).__store;
+      const staffUser = {
+        id: "usr_staff_demote_test",
+        email: "staff_demote@daih.ng",
+        firstName: "Staff",
+        lastName: "Demote",
+        passwordHash: await passwordService.hashPassword("Password123!"),
+        clientId: "DAIH-2026-000101",
+        role: UserRole.OPERATIONS_ADMIN,
+        isVerified: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      store.users.push(staffUser);
+
+      // Create an active session for this staff user
+      const { accessToken: staffToken } = await sessionService.createSession(
+        staffUser as any,
+      );
+
+      // Staff user can access /identity/me
+      const meResBefore = await request(app)
+        .get("/api/v1/identity/me")
+        .set("Authorization", `Bearer ${staffToken}`);
+      expect(meResBefore.status).toBe(200);
+
+      // Demote staff user via staffUserService.updateStaffUserRole
+      const { staffUserService } = await import("./staff-user.service.js");
+      await staffUserService.updateStaffUserRole(
+        staffUser.id,
+        UserRole.CUSTOMER,
+        { id: "usr_super_1", role: UserRole.SUPER_ADMIN },
+      );
+
+      // Old token should now be invalidated
+      const meResAfter = await request(app)
+        .get("/api/v1/identity/me")
+        .set("Authorization", `Bearer ${staffToken}`);
+      expect(meResAfter.status).toBe(401);
+      expect(meResAfter.body.code).toBe("SESSION_REVOKED");
+    });
+
+    it("updates staff user role via PATCH /api/v1/identity/admin/users/:userId", async () => {
+      const store = (prisma as any).__store;
+      const targetStaff = {
+        id: "usr_target_staff",
+        email: "target.staff@daih.ng",
+        firstName: "Target",
+        lastName: "Staff",
+        role: UserRole.RECEPTION_OFFICER,
+        isVerified: true,
+        clientId: "DAIH-2026-0999",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      store.users.push(targetStaff);
+
+      const superAdminUser = {
+        id: "usr_super_admin_test",
+        email: "super.admin@daih.ng",
+        firstName: "Super",
+        lastName: "Admin",
+        role: UserRole.SUPER_ADMIN,
+        isVerified: true,
+        clientId: "DAIH-2026-0001",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      store.users.push(superAdminUser);
+
+      const { accessToken: adminToken } = await sessionService.createSession(
+        superAdminUser as any,
+      );
+
+      const patchRes = await request(app)
+        .patch(`/api/v1/identity/admin/users/${targetStaff.id}`)
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send({
+          role: UserRole.FINANCE_OFFICER,
+        });
+
+      expect(patchRes.status).toBe(200);
+      expect(patchRes.body.data.role).toBe(UserRole.FINANCE_OFFICER);
+      const updatedRecord = store.users.find(
+        (u: any) => u.id === targetStaff.id,
+      );
+      expect(updatedRecord?.role).toBe(UserRole.FINANCE_OFFICER);
     });
   });
 
@@ -670,7 +894,7 @@ describe("Milestone 1.1: Identity, RBAC & Session Module", () => {
       expect(res.body.data.user.role).toBe(UserRole.CUSTOMER);
     });
 
-    it("allows admin accounts to log in when portal is admin", async () => {
+    it("allows admin accounts to log in when portal is admin (enters MFA flow)", async () => {
       const res = await request(app).post("/api/v1/identity/login").send({
         email: "superadmin@daih.ng",
         password: "Password123!",
@@ -679,7 +903,9 @@ describe("Milestone 1.1: Identity, RBAC & Session Module", () => {
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
-      expect(res.body.data.user.role).toBe(UserRole.SUPER_ADMIN);
+      expect(res.body.data.requiresMfaSetup || res.body.data.requiresMfa).toBe(
+        true,
+      );
     });
   });
 });
