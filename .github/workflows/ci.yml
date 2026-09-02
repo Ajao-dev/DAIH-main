@@ -12,6 +12,39 @@ jobs:
     name: Lint, Typecheck, Test & Build
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgrespassword
+          POSTGRES_DB: daih_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: "postgresql://postgres:postgrespassword@localhost:5432/daih_db?schema=public"
+      REDIS_URL: "redis://localhost:6379"
+      JWT_SECRET: "ci-super-secret-jwt-key-min-32-chars-long"
+      JWT_REFRESH_SECRET: "ci-super-secret-refresh-key-min-32-chars-long"
+      TOKEN_ENCRYPTION_KEY: "ci-super-secret-encryption-key-min-32-chars"
+      QR_SIGNING_SECRET: "ci-qr-signing-key-1234567890"
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -32,6 +65,15 @@ jobs:
 
       - name: Generate Prisma Client
         run: pnpm --filter @daih/api prisma:generate
+
+      - name: Push Database Schema
+        run: pnpm --filter @daih/api db:push
+
+      - name: Seed Email Templates
+        run: pnpm --filter @daih/api run seed:templates
+
+      - name: Check Code Formatting
+        run: pnpm lint
 
       - name: Typecheck Workspace
         run: pnpm typecheck
