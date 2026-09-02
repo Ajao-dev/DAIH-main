@@ -19,8 +19,9 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgrespassword
           POSTGRES_DB: daih_db
+          POSTGRES_HOST_AUTH_METHOD: trust
         ports:
-          - 5432:5432
+          - 5433:5432
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -38,7 +39,7 @@ jobs:
           --health-retries 5
 
     env:
-      DATABASE_URL: "postgresql://postgres:postgrespassword@localhost:5432/daih_db?schema=public"
+      DATABASE_URL: "postgresql://postgres:postgrespassword@localhost:5433/daih_db?schema=public"
       REDIS_URL: "redis://localhost:6379"
       JWT_SECRET: "ci-super-secret-jwt-key-min-32-chars-long"
       JWT_REFRESH_SECRET: "ci-super-secret-refresh-key-min-32-chars-long"
