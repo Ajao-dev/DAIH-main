@@ -1,4 +1,12 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import {
+  describe,
+  it,
+  expect,
+  vi,
+  beforeAll,
+  beforeEach,
+  afterEach,
+} from "vitest";
 import { EmailService } from "./email.service.js";
 import {
   emailTemplateService,
@@ -11,10 +19,15 @@ describe("EmailService & Dynamic Database Templates", () => {
   let emailService: EmailService;
   const originalProvider = config.email.provider;
 
-  beforeEach(() => {
+  beforeAll(async () => {
+    await emailTemplateService.invalidateCache();
+  });
+
+  beforeEach(async () => {
     vi.clearAllMocks();
     config.email.provider = "mock";
     emailService = new EmailService();
+    await emailTemplateService.invalidateCache();
   });
 
   afterEach(() => {

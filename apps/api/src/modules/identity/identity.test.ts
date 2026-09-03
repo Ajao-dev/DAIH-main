@@ -6,6 +6,7 @@ import { passwordService } from "./password.service.js";
 import { clientIdService } from "./client-id.service.js";
 import { sessionService } from "./session.service.js";
 import { prisma } from "../../db/client.js";
+import { emailService } from "../email/email.service.js";
 
 // Mock prisma for isolated, reliable test execution
 vi.mock("../../db/client.js", () => {
@@ -240,14 +241,24 @@ vi.mock("../../db/client.js", () => {
       }),
     },
     emailTemplate: {
-      findUnique: vi.fn(async ({ where }: any) => ({
-        id: `tmpl_${where.type}`,
-        type: where.type,
-        subject: "Mock Email Subject",
-        htmlBody: "<p>Hello {{name}} {{verification_url}} {{reset_url}}</p>",
-        textBody: "Hello {{name}} {{verification_url}} {{reset_url}}",
-        isActive: true,
-      })),
+      findUnique: vi.fn(async ({ where }: any) => {
+        const canonicalSubjects: Record<string, string> = {
+          verification: "Verify your DAIH Hub Account",
+          password_reset: "Reset Your DAIH Password",
+          staff_welcome:
+            "Welcome to DAIH Staff & Admin Console — Set Up Your Account",
+        };
+        return {
+          id: `tmpl_${where.type}`,
+          type: where.type,
+          subject: canonicalSubjects[where.type] || "DAIH Notification",
+          htmlBody:
+            "<p>Hello {{name}} {{verification_url}} {{reset_url}} {{setup_url}}</p>",
+          textBody:
+            "Hello {{name}} {{verification_url}} {{reset_url}} {{setup_url}}",
+          isActive: true,
+        };
+      }),
     },
   };
 
@@ -271,6 +282,16 @@ vi.mock("../../db/client.js", () => {
 
 describe("Milestone 1.1: Identity, RBAC & Session Module", () => {
   beforeEach(() => {
+    vi.spyOn(emailService, "sendVerificationEmail").mockResolvedValue({
+      success: true,
+    } as any);
+    vi.spyOn(emailService, "sendPasswordResetEmail").mockResolvedValue({
+      success: true,
+    } as any);
+    vi.spyOn(emailService, "sendStaffWelcomeEmail").mockResolvedValue({
+      success: true,
+    } as any);
+
     const store = (prisma as any).__store;
     if (store) {
       store.users.length = 0;

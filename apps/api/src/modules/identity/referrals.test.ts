@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { identityService, generateReferralCode } from "./identity.service.js";
 import { customerService } from "./customer.service.js";
 import { prisma } from "../../db/client.js";
+import { emailService } from "../email/email.service.js";
 import { UserRole, BookingState } from "@daih/types";
 
 // In-memory mock storage for testing
@@ -123,7 +124,7 @@ vi.mock("../../db/client.js", () => {
         findUnique: vi.fn(async ({ where }: any) => ({
           id: `tmpl_${where.type}`,
           type: where.type,
-          subject: "Verification Email",
+          subject: "Verify your DAIH Hub Account",
           htmlBody: "<p>Hello {{name}} {{verification_url}}</p>",
           textBody: "Hello {{name}} {{verification_url}}",
           isActive: true,
@@ -138,6 +139,9 @@ vi.mock("../../db/client.js", () => {
 
 describe("Customer Referral System Module", () => {
   beforeEach(() => {
+    vi.spyOn(emailService, "sendVerificationEmail").mockResolvedValue({
+      success: true,
+    } as any);
     mockUsers.length = 0;
     mockBookings.length = 0;
   });
