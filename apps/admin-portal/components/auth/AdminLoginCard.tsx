@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import React from 'react';
-import Link from 'next/link';
-import { Lock, ShieldCheck } from 'lucide-react';
-import { AdminLoginForm } from './AdminLoginForm';
+import React from "react";
+import Link from "next/link";
+import { Lock, ShieldCheck } from "lucide-react";
+import { AdminLoginForm } from "./AdminLoginForm";
 
 export const AdminLoginCard: React.FC = () => {
   return (

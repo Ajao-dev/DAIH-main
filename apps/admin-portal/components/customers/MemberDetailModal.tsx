@@ -1,8 +1,18 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { X, ShieldCheck, Mail, Phone, Calendar, Clock, CreditCard, User } from 'lucide-react';
-import { MemberRecord } from './MemberDirectoryTable';
+import React from "react";
+import {
+  X,
+  ShieldCheck,
+  Mail,
+  Phone,
+  Calendar,
+  Clock,
+  CreditCard,
+  User,
+  Users,
+} from "lucide-react";
+import { MemberRecord } from "./MemberDirectoryTable";
 
 export interface MemberDetailModalProps {
   isOpen: boolean;
@@ -27,7 +37,9 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
               <User className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-900">Member Details</h2>
+              <h2 className="text-base font-bold text-slate-900">
+                Member Details
+              </h2>
               <p className="text-xs text-slate-500 font-mono font-semibold text-[#23055c]">
                 {member.id}
               </p>
@@ -57,7 +69,9 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
               </div>
             )}
             <div>
-              <div className="text-base font-bold text-slate-900">{member.name}</div>
+              <div className="text-base font-bold text-slate-900">
+                {member.name}
+              </div>
               <div className="text-slate-500 mt-0.5">{member.email}</div>
               <div className="mt-1.5 flex items-center gap-2">
                 <span className="px-2 py-0.5 rounded-md bg-purple-100 text-[#23055c] font-bold text-[10px]">
@@ -76,28 +90,48 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
               <div className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1.5 mb-1">
                 <Phone className="w-3.5 h-3.5 text-[#23055c]" /> Phone
               </div>
-              <div className="font-semibold text-slate-900">{member.phone || '+234 (Not provided)'}</div>
+              <div className="font-semibold text-slate-900">
+                {member.phone || "+234 (Not provided)"}
+              </div>
             </div>
 
             <div className="p-3 rounded-xl border border-slate-100 bg-white">
               <div className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1.5 mb-1">
                 <Clock className="w-3.5 h-3.5 text-[#23055c]" /> Last Checked In
               </div>
-              <div className="font-semibold text-slate-900">{member.lastVisit}</div>
+              <div className="font-semibold text-slate-900">
+                {member.lastVisit}
+              </div>
             </div>
 
             <div className="p-3 rounded-xl border border-slate-100 bg-white">
               <div className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1.5 mb-1">
                 <Calendar className="w-3.5 h-3.5 text-[#23055c]" /> Joined Date
               </div>
-              <div className="font-semibold text-slate-900">{member.joinedDate || 'August 2026'}</div>
+              <div className="font-semibold text-slate-900">
+                {member.joinedDate || "August 2026"}
+              </div>
             </div>
 
             <div className="p-3 rounded-xl border border-slate-100 bg-white">
               <div className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1.5 mb-1">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> Policy Consent
+                <Users className="w-3.5 h-3.5 text-[#23055c]" /> Referrals
               </div>
-              <div className="font-semibold text-emerald-700">Captured (v1.0)</div>
+              <div className="font-semibold text-slate-900">
+                {member.referralCode
+                  ? `${member.referralCode} (${member.referralCount ?? 0} referred)`
+                  : `${member.referralCount ?? 0} referred`}
+              </div>
+            </div>
+
+            <div className="p-3 rounded-xl border border-slate-100 bg-white">
+              <div className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1.5 mb-1">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> Policy
+                Consent
+              </div>
+              <div className="font-semibold text-emerald-700">
+                Captured (v1.0)
+              </div>
             </div>
           </div>
         </div>

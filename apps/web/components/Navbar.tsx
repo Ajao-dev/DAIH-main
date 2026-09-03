@@ -1,6 +1,9 @@
-import React from 'react';
-import Link from 'next/link';
-import { ArrowRight, Sparkles, MapPin, Phone } from 'lucide-react';
+"use client";
+
+import React from "react";
+import Link from "next/link";
+import { ArrowRight, Sparkles, MapPin, Phone } from "lucide-react";
+import { getPortalBookingUrl } from "../lib/config";
 
 export const Navbar = () => {
   return (
@@ -27,42 +30,52 @@ export const Navbar = () => {
             <Link href="/" className="hover:text-amber-300 transition-colors">
               Home
             </Link>
-            <Link href="/plans" className="hover:text-amber-300 transition-colors">
+            <Link
+              href="/our-plans"
+              className="hover:text-amber-300 transition-colors"
+            >
               Our Plans
             </Link>
-            <Link href="/about" className="hover:text-amber-300 transition-colors">
+            <Link
+              href="/about-us"
+              className="hover:text-amber-300 transition-colors"
+            >
               About Us
             </Link>
-            <Link href="/events" className="hover:text-amber-300 transition-colors">
+            <Link
+              href="/events"
+              className="hover:text-amber-300 transition-colors"
+            >
               Events
             </Link>
-            <Link href="/gallery" className="hover:text-amber-300 transition-colors">
+            <Link
+              href="/gallery"
+              className="hover:text-amber-300 transition-colors"
+            >
               Gallery
             </Link>
-            <Link href="/jobs" className="hover:text-amber-300 transition-colors">
+            <Link
+              href="/jobs"
+              className="hover:text-amber-300 transition-colors"
+            >
               Careers
             </Link>
-            <Link href="/contact" className="hover:text-amber-300 transition-colors">
+            <Link
+              href="/contact"
+              className="hover:text-amber-300 transition-colors"
+            >
               Contact
             </Link>
           </nav>
 
-          {/* Action CTAs */}
-          <div className="flex items-center gap-4">
+          {/* Action CTA */}
+          <div className="flex items-center gap-3">
             <a
-              href="http://localhost:3001"
-              target="_blank"
-              rel="noreferrer"
-              className="hidden sm:inline-flex items-center justify-center px-4 py-2 text-xs font-semibold text-white bg-[#d56c04] hover:bg-[#ab4a07] rounded-lg shadow-sm transition-all duration-200"
-            >
-              Customer Portal
-            </a>
-            <Link
-              href="/plans"
-              className="inline-flex items-center justify-center px-4 py-2 text-xs font-semibold text-slate-900 bg-amber-400 hover:bg-amber-300 rounded-lg shadow-sm transition-all duration-200"
+              href={getPortalBookingUrl()}
+              className="inline-flex items-center justify-center px-4 py-2.5 text-xs font-semibold text-slate-900 bg-amber-400 hover:bg-amber-300 rounded-lg shadow-sm transition-all duration-200"
             >
               Book Space
-            </Link>
+            </a>
           </div>
         </div>
       </div>

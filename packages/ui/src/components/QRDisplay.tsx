@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { cn } from '../utils/cn';
+import React from "react";
+import { cn } from "../utils/cn";
 
 export interface QRDisplayProps {
   token: string;
@@ -19,14 +19,14 @@ export const QRDisplay: React.FC<QRDisplayProps> = ({
   className,
 }) => {
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(
-    token
+    token,
   )}`;
 
   return (
     <div
       className={cn(
-        'flex flex-col items-center justify-center p-6 bg-white rounded-2xl border border-slate-200 shadow-md max-w-sm mx-auto text-center',
-        className
+        "flex flex-col items-center justify-center p-6 bg-white rounded-2xl border border-slate-200 shadow-md max-w-sm mx-auto text-center",
+        className,
       )}
     >
       <div className="w-12 h-1 bg-[#1f3a68] rounded-full mb-4"></div>
@@ -40,7 +40,7 @@ export const QRDisplay: React.FC<QRDisplayProps> = ({
       <div className="my-5 p-3 bg-slate-50 rounded-xl border border-slate-200">
         <img
           src={qrUrl}
-          alt={`QR Code Access for ${bookingRef || 'booking'}`}
+          alt={`QR Code Access for ${bookingRef || "booking"}`}
           className="w-48 h-48 object-contain rounded-lg"
         />
       </div>

@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import React from 'react';
-import Link from 'next/link';
-import { Building2, Wifi } from 'lucide-react';
+import React from "react";
+import Link from "next/link";
+import { Building2, Wifi } from "lucide-react";
 
 interface AuthShowcasePanelProps {
   title?: string;
@@ -13,8 +13,8 @@ interface AuthShowcasePanelProps {
 }
 
 export const AuthShowcasePanel: React.FC<AuthShowcasePanelProps> = ({
-  title = 'Elevate Your Work Environment',
-  description = 'Join a premier community of professionals. Access meticulously designed spaces that foster focus, collaboration, and high-tier productivity.',
+  title = "Elevate Your Work Environment",
+  description = "Join a premier community of professionals. Access meticulously designed spaces that foster focus, collaboration, and high-tier productivity.",
   bgImage,
   showLogo = false,
   showFeatures = false,
@@ -66,14 +66,18 @@ export const AuthShowcasePanel: React.FC<AuthShowcasePanelProps> = ({
               <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center backdrop-blur-sm border border-white/10">
                 <Building2 className="w-5 h-5 text-purple-200" />
               </div>
-              <span className="text-sm font-medium text-white">Premium architectural spaces</span>
+              <span className="text-sm font-medium text-white">
+                Premium architectural spaces
+              </span>
             </div>
 
             <div className="flex items-center gap-3.5">
               <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center backdrop-blur-sm border border-white/10">
                 <Wifi className="w-5 h-5 text-purple-200" />
               </div>
-              <span className="text-sm font-medium text-white">Enterprise-grade connectivity</span>
+              <span className="text-sm font-medium text-white">
+                Enterprise-grade connectivity
+              </span>
             </div>
           </div>
         )}

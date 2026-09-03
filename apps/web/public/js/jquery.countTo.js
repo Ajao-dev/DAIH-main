@@ -2,12 +2,12 @@
   function e(t, e) {
     return t.toFixed(e.decimals);
   }
-  (t.fn.countTo = function (e) {
+  ((t.fn.countTo = function (e) {
     return (
       (e = e || {}),
       t(this).each(function () {
         function a() {
-          (s += l),
+          ((s += l),
             c++,
             n(s),
             "function" == typeof o.onUpdate && o.onUpdate.call(f, s),
@@ -15,7 +15,7 @@
               (i.removeData("countTo"),
               clearInterval(d.interval),
               (s = o.to),
-              "function" == typeof o.onComplete && o.onComplete.call(f, s));
+              "function" == typeof o.onComplete && o.onComplete.call(f, s)));
         }
         function n(t) {
           var e = o.formatter.call(f, t, o);
@@ -31,7 +31,7 @@
               refreshInterval: t(this).data("refresh-interval"),
               decimals: t(this).data("decimals"),
             },
-            e
+            e,
           ),
           r = Math.ceil(o.speed / o.refreshInterval),
           l = (o.to - o.from) / r,
@@ -40,10 +40,10 @@
           c = 0,
           s = o.from,
           d = i.data("countTo") || {};
-        i.data("countTo", d),
+        (i.data("countTo", d),
           d.interval && clearInterval(d.interval),
           (d.interval = setInterval(a, o.refreshInterval)),
-          n(s);
+          n(s));
       })
     );
   }),
@@ -56,5 +56,5 @@
       formatter: e,
       onUpdate: null,
       onComplete: null,
-    });
+    }));
 })(jQuery);

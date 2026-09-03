@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { Button, Card } from '@daih/ui';
-import * as Sentry from '@sentry/nextjs';
-import { Bug, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import React, { useState } from "react";
+import { Button, Card } from "@daih/ui";
+import * as Sentry from "@sentry/nextjs";
+import { Bug, AlertTriangle, CheckCircle2 } from "lucide-react";
 
 export default function DebugSentryPage() {
   const [triggered, setTriggered] = useState(false);
@@ -11,7 +11,9 @@ export default function DebugSentryPage() {
   const triggerClientError = () => {
     setTriggered(true);
     try {
-      throw new Error('DAIH Customer PWA Test Sentry Exception (Staging Smoke Check)');
+      throw new Error(
+        "DAIH Customer PWA Test Sentry Exception (Staging Smoke Check)",
+      );
     } catch (error) {
       Sentry.captureException(error);
       throw error;
@@ -26,14 +28,21 @@ export default function DebugSentryPage() {
             <Bug className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-lg font-bold">Frontend Observability Smoke Test</h1>
-            <p className="text-xs text-slate-400">Gated for Staging / Non-Production Validation</p>
+            <h1 className="text-lg font-bold">
+              Frontend Observability Smoke Test
+            </h1>
+            <p className="text-xs text-slate-400">
+              Gated for Staging / Non-Production Validation
+            </p>
           </div>
         </div>
 
         <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 text-xs text-amber-300 flex items-start gap-2 mb-6">
           <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-          <span>Clicking the button below will trigger a deliberate React test exception to verify Sentry event capture.</span>
+          <span>
+            Clicking the button below will trigger a deliberate React test
+            exception to verify Sentry event capture.
+          </span>
         </div>
 
         <Button

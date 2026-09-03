@@ -1,7 +1,13 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { Users, UserCheck, UserPlus, TrendingUp, DollarSign } from 'lucide-react';
+import React from "react";
+import {
+  Users,
+  UserCheck,
+  UserPlus,
+  TrendingUp,
+  DollarSign,
+} from "lucide-react";
 
 export interface MemberMetricsProps {
   totalMembers?: number;
@@ -14,34 +20,34 @@ export const MemberMetricsGrid: React.FC<MemberMetricsProps> = ({
   totalMembers = 1248,
   activeNow = 156,
   newThisMonth = 42,
-  mrrGrowth = '$24.5k',
+  mrrGrowth = "$24.5k",
 }) => {
   const metrics = [
     {
-      label: 'Total Members',
+      label: "Total Members",
       value: totalMembers.toLocaleString(),
-      change: '+12% this month',
+      change: "+12% this month",
       isPositive: true,
       icon: Users,
     },
     {
-      label: 'Active Now',
+      label: "Active Now",
       value: activeNow.toLocaleString(),
-      change: 'Checked in today',
+      change: "Checked in today",
       isPositive: null,
       icon: UserCheck,
     },
     {
-      label: 'New this Month',
+      label: "New this Month",
       value: newThisMonth.toLocaleString(),
-      change: '+5% vs last month',
+      change: "+5% vs last month",
       isPositive: true,
       icon: UserPlus,
     },
     {
-      label: 'Subscription Growth',
+      label: "Subscription Growth",
       value: mrrGrowth,
-      change: 'MRR increase',
+      change: "MRR increase",
       isPositive: true,
       icon: DollarSign,
     },
@@ -78,7 +84,9 @@ export const MemberMetricsGrid: React.FC<MemberMetricsProps> = ({
                 </>
               )}
               {metric.isPositive === null && (
-                <span className="text-slate-500 font-medium">{metric.change}</span>
+                <span className="text-slate-500 font-medium">
+                  {metric.change}
+                </span>
               )}
             </div>
           </div>

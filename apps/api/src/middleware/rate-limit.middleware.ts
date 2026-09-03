@@ -1,11 +1,15 @@
-import { Request, Response } from 'express';
-import rateLimit from 'express-rate-limit';
-import { RedisStore } from 'rate-limit-redis';
-import { redis } from '../config/redis.js';
-import { config } from '../config/env.js';
+import { Request, Response, NextFunction } from "express";
+import rateLimit from "express-rate-limit";
+import { RedisStore } from "rate-limit-redis";
+import { redis } from "../config/redis.js";
+import { config } from "../config/env.js";
 
 function createRedisStore(prefix: string) {
-  if (config.env === 'test' || !config.redisUrl || config.redisUrl.includes('********')) {
+  if (
+    config.env === "test" ||
+    !config.redisUrl ||
+    config.redisUrl.includes("********")
+  ) {
     return undefined;
   }
   try {
@@ -21,28 +25,63 @@ function createRedisStore(prefix: string) {
 
 const standardHandler = (_req: Request, res: Response) => {
   res.status(429).json({
-    code: 'RATE_LIMIT_EXCEEDED',
-    message: 'Too many requests. Please slow down and try again later.',
+    code: "RATE_LIMIT_EXCEEDED",
+    message: "Too many requests. Please slow down and try again later.",
   });
 };
 
+const skipInTest = () => config.env === "test" || Boolean(process.env.VITEST);
+
 /**
- * Rate Limiter for Login Endpoint (5 attempts per 15 mins by default)
+ * 1. IP-based Login Rate Limiter (20 attempts per 15 mins per IP)
+ * Protects against credential spraying from a single IP
  */
-export const loginRateLimiter = rateLimit({
+export const loginIpRateLimiter = rateLimit({
+  windowMs: config.rateLimit.loginWindowMinutes * 60 * 1000,
+  max: Math.max(20, config.rateLimit.loginMax * 4),
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: createRedisStore("login-ip"),
+  keyGenerator: (req: Request) => {
+    return req.ip || req.socket.remoteAddress || "unknown";
+  },
+  handler: standardHandler,
+  skip: skipInTest,
+});
+
+/**
+ * 2. Account-based Login Rate Limiter (5 attempts per 15 mins per email)
+ * Protects against distributed botnet brute-forcing of a single victim account
+ */
+export const loginAccountRateLimiter = rateLimit({
   windowMs: config.rateLimit.loginWindowMinutes * 60 * 1000,
   max: config.rateLimit.loginMax,
   standardHeaders: true,
   legacyHeaders: false,
-  store: createRedisStore('login'),
+  store: createRedisStore("login-acct"),
   keyGenerator: (req: Request) => {
-    const email = req.body?.email ? String(req.body.email).toLowerCase().trim() : '';
-    const ip = req.ip || req.socket.remoteAddress || 'unknown';
-    return `${ip}:${email}`;
+    const email = req.body?.email
+      ? String(req.body.email).toLowerCase().trim()
+      : "";
+    return email || req.ip || req.socket.remoteAddress || "unknown";
   },
   handler: standardHandler,
-  skip: () => config.env === 'test', // Skip in automated tests unless explicitly testing rate limits
+  skip: skipInTest,
 });
+
+/**
+ * Composite Dual-Layer Login Rate Limiter (runs IP check then Account check)
+ */
+export const loginRateLimiter = (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  loginIpRateLimiter(req, res, (err) => {
+    if (err) return next(err);
+    loginAccountRateLimiter(req, res, next);
+  });
+};
 
 /**
  * Rate Limiter for Registration Endpoint (10 per hour by default)
@@ -52,12 +91,12 @@ export const registrationRateLimiter = rateLimit({
   max: config.rateLimit.registerMax,
   standardHeaders: true,
   legacyHeaders: false,
-  store: createRedisStore('reg'),
+  store: createRedisStore("reg"),
   keyGenerator: (req: Request) => {
-    return req.ip || req.socket.remoteAddress || 'unknown';
+    return req.ip || req.socket.remoteAddress || "unknown";
   },
   handler: standardHandler,
-  skip: () => config.env === 'test',
+  skip: skipInTest,
 });
 
 /**
@@ -68,14 +107,15 @@ export const verificationResendRateLimiter = rateLimit({
   max: config.rateLimit.verifyResendMax,
   standardHeaders: true,
   legacyHeaders: false,
-  store: createRedisStore('vresend'),
+  store: createRedisStore("vresend"),
   keyGenerator: (req: Request) => {
-    const email = req.body?.email ? String(req.body.email).toLowerCase().trim() : '';
-    const ip = req.ip || req.socket.remoteAddress || 'unknown';
-    return `${ip}:${email}`;
+    const email = req.body?.email
+      ? String(req.body.email).toLowerCase().trim()
+      : "";
+    return email || req.ip || req.socket.remoteAddress || "unknown";
   },
   handler: standardHandler,
-  skip: () => config.env === 'test',
+  skip: skipInTest,
 });
 
 /**
@@ -86,14 +126,15 @@ export const passwordResetRateLimiter = rateLimit({
   max: config.rateLimit.passwordResetMax,
   standardHeaders: true,
   legacyHeaders: false,
-  store: createRedisStore('pwreset'),
+  store: createRedisStore("pwreset"),
   keyGenerator: (req: Request) => {
-    const email = req.body?.email ? String(req.body.email).toLowerCase().trim() : '';
-    const ip = req.ip || req.socket.remoteAddress || 'unknown';
-    return `${ip}:${email}`;
+    const email = req.body?.email
+      ? String(req.body.email).toLowerCase().trim()
+      : "";
+    return email || req.ip || req.socket.remoteAddress || "unknown";
   },
   handler: standardHandler,
-  skip: () => config.env === 'test',
+  skip: skipInTest,
 });
 
 /**
@@ -104,10 +145,10 @@ export const refreshRateLimiter = rateLimit({
   max: 30,
   standardHeaders: true,
   legacyHeaders: false,
-  store: createRedisStore('refresh'),
+  store: createRedisStore("refresh"),
   keyGenerator: (req: Request) => {
-    return req.ip || req.socket.remoteAddress || 'unknown';
+    return req.ip || req.socket.remoteAddress || "unknown";
   },
   handler: standardHandler,
-  skip: () => config.env === 'test',
+  skip: skipInTest,
 });

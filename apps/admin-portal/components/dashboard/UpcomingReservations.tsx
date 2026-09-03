@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { CalendarDays, Users, MapPin, Clock, ArrowRight } from 'lucide-react';
-import Link from 'next/link';
+import React from "react";
+import { CalendarDays, Users, MapPin, Clock, ArrowRight } from "lucide-react";
+import Link from "next/link";
 
 export interface ReservationItem {
   id: string;
@@ -11,42 +11,42 @@ export interface ReservationItem {
   organizer: string;
   timeSlot: string;
   attendees: number;
-  status: 'Confirmed' | 'In-Progress' | 'Scheduled';
+  status: "Confirmed" | "In-Progress" | "Scheduled";
 }
 
 const defaultReservations: ReservationItem[] = [
   {
-    id: 'ev-1',
-    title: 'Ogun Tech Founders Demo Day 2026',
-    venue: 'Conference Hall (Auditorium)',
-    organizer: 'Ogun Innovate Ecosystem',
-    timeSlot: '02:00 PM - 05:30 PM',
+    id: "ev-1",
+    title: "Ogun Tech Founders Demo Day 2026",
+    venue: "Conference Hall (Auditorium)",
+    organizer: "Ogun Innovate Ecosystem",
+    timeSlot: "02:00 PM - 05:30 PM",
     attendees: 110,
-    status: 'Confirmed',
+    status: "Confirmed",
   },
   {
-    id: 'ev-2',
-    title: 'Fullstack AI & Next.js Masterclass',
-    venue: 'Innovation Training Room',
-    organizer: 'DAIH Tech Academy',
-    timeSlot: '10:00 AM - 01:00 PM',
+    id: "ev-2",
+    title: "Fullstack AI & Next.js Masterclass",
+    venue: "Innovation Training Room",
+    organizer: "DAIH Tech Academy",
+    timeSlot: "10:00 AM - 01:00 PM",
     attendees: 28,
-    status: 'In-Progress',
+    status: "In-Progress",
   },
   {
-    id: 'ev-3',
-    title: 'Fintech Board Strategy Meeting',
-    venue: 'Executive Boardroom A',
-    organizer: 'Vertex Capital Africa',
-    timeSlot: '03:30 PM - 05:00 PM',
+    id: "ev-3",
+    title: "Fintech Board Strategy Meeting",
+    venue: "Executive Boardroom A",
+    organizer: "Vertex Capital Africa",
+    timeSlot: "03:30 PM - 05:00 PM",
     attendees: 10,
-    status: 'Scheduled',
+    status: "Scheduled",
   },
 ];
 
-export const UpcomingReservations: React.FC<{ reservations?: ReservationItem[] }> = ({
-  reservations = defaultReservations,
-}) => {
+export const UpcomingReservations: React.FC<{
+  reservations?: ReservationItem[];
+}> = ({ reservations = defaultReservations }) => {
   return (
     <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col justify-between">
       <div>
@@ -55,7 +55,9 @@ export const UpcomingReservations: React.FC<{ reservations?: ReservationItem[] }
             <CalendarDays className="w-5 h-5 text-[#23055c]" />
             Today\'s Hall & Training Room Events
           </h2>
-          <span className="text-xs text-slate-500 font-medium">Daily Schedule</span>
+          <span className="text-xs text-slate-500 font-medium">
+            Daily Schedule
+          </span>
         </div>
 
         <div className="space-y-3">
@@ -65,7 +67,9 @@ export const UpcomingReservations: React.FC<{ reservations?: ReservationItem[] }
               className="p-4 rounded-xl border border-slate-200 bg-slate-50/60 hover:bg-slate-50 transition-all hover:border-slate-300"
             >
               <div className="flex items-start justify-between gap-2 mb-1">
-                <h3 className="text-xs sm:text-sm font-bold text-slate-900">{item.title}</h3>
+                <h3 className="text-xs sm:text-sm font-bold text-slate-900">
+                  {item.title}
+                </h3>
                 <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-purple-100 text-[#23055c] shrink-0">
                   {item.status}
                 </span>

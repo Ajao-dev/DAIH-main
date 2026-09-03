@@ -1,8 +1,14 @@
-'use client';
+"use client";
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { UserProfile } from '@daih/types';
-import { api, DaihApiClient, ApiError } from './client';
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+} from "react";
+import { UserProfile, LoginApiResponse } from "@daih/types";
+import { api, DaihApiClient } from "./client";
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -12,9 +18,10 @@ interface AuthContextType {
   login: (credentials: {
     email: string;
     password: string;
-    portal?: 'customer' | 'admin' | string;
-    audience?: 'CUSTOMER' | 'ADMIN' | string;
-  }) => Promise<UserProfile>;
+    portal?: "customer" | "admin" | string;
+    audience?: "CUSTOMER" | "ADMIN" | string;
+  }) => Promise<LoginApiResponse>;
+  setSession: (token: string, user: UserProfile) => void;
   register: (payload: {
     email: string;
     password: string;
@@ -23,9 +30,11 @@ interface AuthContextType {
     phoneNumber?: string;
     policyVersion?: string;
     consented: boolean;
+    referralCode?: string;
   }) => Promise<{ user: UserProfile; verificationSent: boolean }>;
   logout: () => Promise<void>;
   refreshSession: () => Promise<UserProfile | null>;
+  updateUser: (user: UserProfile) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -37,36 +46,84 @@ export function AuthProvider({
   children: React.ReactNode;
   apiClient?: DaihApiClient;
 }) {
-  const [user, setUser] = useState<UserProfile | null>(null);
+  const [user, setUser] = useState<UserProfile | null>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem("daih_user_profile");
+        if (cached) return JSON.parse(cached);
+      } catch {}
+    }
+    return null;
+  });
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const inFlightRefreshRef = React.useRef<Promise<UserProfile | null> | null>(
+    null,
+  );
+
+  const updateUserState = useCallback((newUser: UserProfile | null) => {
+    setUser(newUser);
+    if (typeof window !== "undefined") {
+      try {
+        if (newUser) {
+          localStorage.setItem("daih_user_profile", JSON.stringify(newUser));
+        } else {
+          localStorage.removeItem("daih_user_profile");
+        }
+      } catch {}
+    }
+  }, []);
+
+  useEffect(() => {
+    apiClient.setOnSessionExpired(() => {
+      updateUserState(null);
+      setAccessToken(null);
+      if (
+        typeof window !== "undefined" &&
+        !window.location.pathname.includes("/login")
+      ) {
+        window.location.href = "/login";
+      }
+    });
+  }, [apiClient, updateUserState]);
 
   const refreshSession = useCallback(async (): Promise<UserProfile | null> => {
-    try {
-      const res = await apiClient.auth.refresh();
-      setUser(res.user);
-      const token = res.accessToken || (res as any).token || null;
-      setAccessToken(token);
-      return res.user;
-    } catch {
-      // If refresh cookie failed, check if we have a valid stored token & fetch profile
-      try {
-        const storedToken = await apiClient.getAccessToken();
-        if (storedToken) {
-          const profile = await apiClient.auth.getProfile();
-          setUser(profile);
-          setAccessToken(storedToken);
-          return profile;
-        }
-      } catch {
-        // Stored token is invalid or expired
-      }
-
-      setUser(null);
-      setAccessToken(null);
-      return null;
+    if (inFlightRefreshRef.current) {
+      return inFlightRefreshRef.current;
     }
-  }, [apiClient]);
+
+    const promise = (async () => {
+      try {
+        const res = await apiClient.auth.refresh();
+        updateUserState(res.user);
+        const token = res.accessToken || (res as any).token || null;
+        setAccessToken(token);
+        return res.user;
+      } catch {
+        // If refresh cookie failed, check if we have a valid stored token & fetch profile
+        try {
+          const storedToken = await apiClient.getAccessToken();
+          if (storedToken) {
+            const profile = await apiClient.auth.getProfile();
+            updateUserState(profile);
+            setAccessToken(storedToken);
+            return profile;
+          }
+        } catch {
+          // Stored token is invalid or expired
+        }
+
+        updateUserState(null);
+        setAccessToken(null);
+        return null;
+      } finally {
+        inFlightRefreshRef.current = null;
+      }
+    })();
+
+    inFlightRefreshRef.current = promise;
+    return promise;
+  }, [apiClient, updateUserState]);
 
   // Initial session restoration on load
   useEffect(() => {
@@ -85,19 +142,30 @@ export function AuthProvider({
     };
   }, [refreshSession]);
 
+  const setSession = useCallback(
+    (token: string, newUser: UserProfile) => {
+      setAccessToken(token);
+      updateUserState(newUser);
+      apiClient.setAccessToken(token);
+    },
+    [apiClient, updateUserState],
+  );
+
   const login = async (credentials: {
     email: string;
     password: string;
-    portal?: 'customer' | 'admin' | string;
-    audience?: 'CUSTOMER' | 'ADMIN' | string;
-  }): Promise<UserProfile> => {
+    portal?: "customer" | "admin" | string;
+    audience?: "CUSTOMER" | "ADMIN" | string;
+  }): Promise<LoginApiResponse> => {
     setIsLoading(true);
     try {
       const res = await apiClient.auth.login(credentials);
-      setUser(res.user);
-      const token = res.accessToken || (res as any).token || null;
-      setAccessToken(token);
-      return res.user;
+      if ("user" in res && "token" in res) {
+        updateUserState(res.user as UserProfile);
+        const token = (res as any).token || (res as any).accessToken || null;
+        setAccessToken(token);
+      }
+      return res;
     } finally {
       setIsLoading(false);
     }
@@ -111,6 +179,7 @@ export function AuthProvider({
     phoneNumber?: string;
     policyVersion?: string;
     consented: boolean;
+    referralCode?: string;
   }) => {
     setIsLoading(true);
     try {
@@ -125,7 +194,7 @@ export function AuthProvider({
     try {
       await apiClient.auth.logout();
     } finally {
-      setUser(null);
+      updateUserState(null);
       setAccessToken(null);
       setIsLoading(false);
     }
@@ -139,9 +208,11 @@ export function AuthProvider({
         isLoading,
         isAuthenticated: !!user,
         login,
+        setSession,
         register,
         logout,
         refreshSession,
+        updateUser: updateUserState,
       }}
     >
       {children}
@@ -152,7 +223,7 @@ export function AuthProvider({
 export function useAuth() {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 }

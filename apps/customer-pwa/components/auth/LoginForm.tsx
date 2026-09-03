@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useAuth, api } from '@daih/api-client';
-import { useToast } from '@daih/ui';
-import { UserRole } from '@daih/types';
+import React, { useState } from "react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useAuth, api } from "@daih/api-client";
+import { useToast } from "@daih/ui";
+import { UserRole } from "@daih/types";
 import {
   Mail,
   Lock,
@@ -14,36 +14,52 @@ import {
   AlertCircle,
   CheckCircle2,
   KeyRound,
-} from 'lucide-react';
+} from "lucide-react";
 
 export const LoginForm: React.FC = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { login, logout } = useAuth();
   const toast = useToast();
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const rawRedirect = searchParams?.get("redirectTo") || "";
+  const targetDestination =
+    rawRedirect && rawRedirect.startsWith("/") && !rawRedirect.startsWith("//")
+      ? rawRedirect
+      : "/dashboard";
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [errorCode, setErrorCode] = useState<string | null>(null);
-  const [resendStatus, setResendStatus] = useState<'idle' | 'loading' | 'sent'>('idle');
+  const [resendStatus, setResendStatus] = useState<"idle" | "loading" | "sent">(
+    "idle",
+  );
 
   const validateForm = (): boolean => {
     if (!email.trim()) {
-      toast.warning('Please enter your email address.', { title: 'Email Required' });
+      toast.warning("Please enter your email address.", {
+        title: "Email Required",
+      });
       return false;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email.trim())) {
-      toast.warning('Please enter a valid email address (e.g. name@company.com).', {
-        title: 'Invalid Email Format',
-      });
+      toast.warning(
+        "Please enter a valid email address (e.g. name@company.com).",
+        {
+          title: "Invalid Email Format",
+        },
+      );
       return false;
     }
 
     if (!password) {
-      toast.warning('Please enter your password.', { title: 'Password Required' });
+      toast.warning("Please enter your password.", {
+        title: "Password Required",
+      });
       return false;
     }
 
@@ -62,39 +78,49 @@ export const LoginForm: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const user = await login({
+      const res = await login({
         email: email.trim().toLowerCase(),
         password,
-        portal: 'customer',
+        portal: "customer",
       });
 
-      // Enforce Customer role access: block staff/admins from logging in as customers
-      if (user.role !== UserRole.CUSTOMER) {
+      if ("requiresMfaSetup" in res || "requiresMfa" in res) {
         await logout();
         const msg =
-          'Access Restricted: Staff and Administrator accounts cannot sign in through the Customer PWA. Please use the Admin Portal.';
+          "Access Restricted: Staff and Administrator accounts must use the Admin Portal.";
         setErrorMessage(msg);
-        toast.error(msg, { title: 'Staff Access Restricted' });
+        toast.error(msg, { title: "Staff Access Restricted" });
         return;
       }
 
-      toast.success('Welcome back! Redirecting to your dashboard...', {
-        title: 'Sign In Successful',
+      // Enforce Customer role access: block staff/admins from logging in as customers
+      if (res.user.role !== UserRole.CUSTOMER) {
+        await logout();
+        const msg =
+          "Access Restricted: Staff and Administrator accounts cannot sign in through the Customer PWA. Please use the Admin Portal.";
+        setErrorMessage(msg);
+        toast.error(msg, { title: "Staff Access Restricted" });
+        return;
+      }
+
+      toast.success("Welcome back! Redirecting...", {
+        title: "Sign In Successful",
       });
-      router.push('/dashboard');
+      router.push(targetDestination);
     } catch (err: any) {
-      const code = err?.code || 'AUTH_ERROR';
-      const msg = err?.message || 'Failed to sign in. Please verify your credentials.';
+      const code = err?.code || "AUTH_ERROR";
+      const msg =
+        err?.message || "Failed to sign in. Please verify your credentials.";
       setErrorCode(code);
       setErrorMessage(msg);
 
-      if (code === 'EMAIL_NOT_VERIFIED') {
+      if (code === "EMAIL_NOT_VERIFIED") {
         toast.warning(
-          'Your email address is not verified yet. Please check your inbox or click resend below.',
-          { title: 'Email Verification Required' }
+          "Your email address is not verified yet. Please check your inbox or click resend below.",
+          { title: "Email Verification Required" },
         );
       } else {
-        toast.error(msg, { title: 'Authentication Failed' });
+        toast.error(msg, { title: "Authentication Failed" });
       }
     } finally {
       setIsLoading(false);
@@ -103,24 +129,30 @@ export const LoginForm: React.FC = () => {
 
   const handleResendVerification = async () => {
     if (!email.trim()) {
-      toast.warning('Please enter your email address to receive a verification link.', {
-        title: 'Email Required',
-      });
+      toast.warning(
+        "Please enter your email address to receive a verification link.",
+        {
+          title: "Email Required",
+        },
+      );
       return;
     }
 
-    setResendStatus('loading');
+    setResendStatus("loading");
     try {
       await api.auth.resendVerification(email.trim().toLowerCase());
-      setResendStatus('sent');
-      toast.success(`Verification email sent to ${email.trim().toLowerCase()}`, {
-        title: 'Verification Link Sent',
-      });
+      setResendStatus("sent");
+      toast.success(
+        `Verification email sent to ${email.trim().toLowerCase()}`,
+        {
+          title: "Verification Link Sent",
+        },
+      );
     } catch (err: any) {
-      const msg = err?.message || 'Failed to resend verification email.';
+      const msg = err?.message || "Failed to resend verification email.";
       setErrorMessage(msg);
-      toast.error(msg, { title: 'Resend Failed' });
-      setResendStatus('idle');
+      toast.error(msg, { title: "Resend Failed" });
+      setResendStatus("idle");
     }
   };
 
@@ -147,30 +179,34 @@ export const LoginForm: React.FC = () => {
             <span className="font-medium flex-1">{errorMessage}</span>
           </div>
 
-          {errorCode === 'EMAIL_NOT_VERIFIED' && (
+          {errorCode === "EMAIL_NOT_VERIFIED" && (
             <div className="pt-2 border-t border-rose-200 flex items-center justify-between text-xs">
-              <span className="text-slate-600">Need a new verification link?</span>
+              <span className="text-slate-600">
+                Need a new verification link?
+              </span>
               <button
                 type="button"
                 onClick={handleResendVerification}
-                disabled={resendStatus === 'loading'}
+                disabled={resendStatus === "loading"}
                 className="font-bold text-[#23055c] hover:underline cursor-pointer disabled:opacity-50"
               >
-                {resendStatus === 'loading'
-                  ? 'Sending...'
-                  : resendStatus === 'sent'
-                  ? 'Sent! Check Inbox'
-                  : 'Resend Email'}
+                {resendStatus === "loading"
+                  ? "Sending..."
+                  : resendStatus === "sent"
+                    ? "Sent! Check Inbox"
+                    : "Resend Email"}
               </button>
             </div>
           )}
         </div>
       )}
 
-      {resendStatus === 'sent' && (
+      {resendStatus === "sent" && (
         <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-700 flex items-center gap-2.5">
           <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-          <span>Verification email sent. Please check your inbox or spam folder.</span>
+          <span>
+            Verification email sent. Please check your inbox or spam folder.
+          </span>
         </div>
       )}
 
@@ -178,7 +214,10 @@ export const LoginForm: React.FC = () => {
       <form noValidate onSubmit={handleLogin} className="space-y-4">
         {/* Email Field */}
         <div className="space-y-1.5">
-          <label className="block text-xs font-bold text-slate-700" htmlFor="email">
+          <label
+            className="block text-xs font-bold text-slate-700"
+            htmlFor="email"
+          >
             Email Address
           </label>
           <div className="relative">
@@ -201,7 +240,10 @@ export const LoginForm: React.FC = () => {
         {/* Password Field */}
         <div className="space-y-1.5">
           <div className="flex justify-between items-center">
-            <label className="block text-xs font-bold text-slate-700" htmlFor="password">
+            <label
+              className="block text-xs font-bold text-slate-700"
+              htmlFor="password"
+            >
               Password
             </label>
             <Link

@@ -1,18 +1,79 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import Link from 'next/link';
+import React, { useState, useEffect } from "react";
+import Link from "next/link";
+import { api } from "@daih/api-client";
+import { FacilityResource } from "@daih/types";
 
 export default function HomePage() {
   const [isMonthly, setIsMonthly] = useState(false);
+  const [resources, setResources] = useState<FacilityResource[]>([]);
+
+  useEffect(() => {
+    api.catalogue
+      .getResources()
+      .then((data) => {
+        if (data && data.length > 0) {
+          setResources(data);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const getPlanPrice = (
+    slugKeywords: string[],
+    isMonth: boolean,
+    fallbackDaily: number,
+    fallbackMonthly: number,
+  ) => {
+    const res = resources.find((r) =>
+      slugKeywords.some((k) => (r.slug || r.name).toLowerCase().includes(k)),
+    );
+    if (!res)
+      return isMonth
+        ? fallbackMonthly.toLocaleString()
+        : fallbackDaily.toLocaleString();
+
+    if (isMonth) {
+      const monthPlan = res.pricing?.find((p) => p.durationMonths === 1);
+      const price = monthPlan?.price || res.monthlyRate || fallbackMonthly;
+      return Number(price).toLocaleString();
+    } else {
+      const dailyPlan = res.pricing?.find((p) => p.durationDays === 1);
+      const price = dailyPlan?.price || res.dailyRate || fallbackDaily;
+      return Number(price).toLocaleString();
+    }
+  };
+
+  const flexDeskPrice = getPlanPrice(["flex", "hot"], isMonthly, 4000, 60000);
+  const dedicatedDeskPrice = getPlanPrice(
+    ["dedicated"],
+    isMonthly,
+    6000,
+    68000,
+  );
+  const officeSuitePrice = getPlanPrice(
+    ["office", "suite", "private"],
+    isMonthly,
+    8000,
+    180000,
+  );
 
   return (
     <>
-      {/* Carousel wrapper */}
-      <section id="de-carousel" className="no-top no-bottom carousel slide carousel-fade shadow-2-strong" data-mdb-ride="carousel">
+      {/* Carousel Wrapper */}
+      <section
+        id="de-carousel"
+        className="no-top no-bottom carousel slide carousel-fade shadow-2-strong"
+        data-mdb-ride="carousel"
+      >
         {/* Indicators */}
         <ol className="carousel-indicators">
-          <li data-mdb-target="#de-carousel" data-mdb-slide-to="0" className="active"></li>
+          <li
+            data-mdb-target="#de-carousel"
+            data-mdb-slide-to="0"
+            className="active"
+          ></li>
           <li data-mdb-target="#de-carousel" data-mdb-slide-to="1"></li>
           <li data-mdb-target="#de-carousel" data-mdb-slide-to="2"></li>
         </ol>
@@ -23,9 +84,9 @@ export default function HomePage() {
           <div
             className="carousel-item active"
             style={{
-              backgroundImage: 'url(/images/slider/1.jpg)',
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
+              backgroundImage: "url(/images/slider/1.jpg)",
+              backgroundSize: "cover",
+              backgroundPosition: "center",
             }}
           >
             <div className="mask">
@@ -33,13 +94,20 @@ export default function HomePage() {
                 <div className="container text-white text-center">
                   <div className="row">
                     <div className="col-md-6 offset-md-3">
-                      <h1 className="mb-3 wow fadeInUp">Work. Meet. Create. Grow.</h1>
+                      <h1 className="mb-3 wow fadeInUp">
+                        Work. Meet. Create. Grow.
+                      </h1>
                       <p className="lead wow fadeInUp" data-wow-delay=".3s">
-                        Welcome to Dare Adeboye Innovation Hub (DAIH) — flexible workspaces designed for focus,
-                        collaboration, and productivity in Redemption City, Ogun State.
+                        Welcome to Dare Adeboye Innovation Hub (DAIH) — flexible
+                        workspaces designed for focus, collaboration, and
+                        productivity in Redemption City, Ogun State.
                       </p>
                       <div className="spacer-10"></div>
-                      <Link href="/our-plans" className="btn-main wow fadeInUp" data-wow-delay=".6s">
+                      <Link
+                        href="/our-plans"
+                        className="btn-main wow fadeInUp"
+                        data-wow-delay=".6s"
+                      >
                         View Our Plans
                       </Link>
                     </div>
@@ -53,9 +121,9 @@ export default function HomePage() {
           <div
             className="carousel-item"
             style={{
-              backgroundImage: 'url(/images/slider/2.jpg)',
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
+              backgroundImage: "url(/images/slider/2.jpg)",
+              backgroundSize: "cover",
+              backgroundPosition: "center",
             }}
           >
             <div className="mask">
@@ -63,13 +131,20 @@ export default function HomePage() {
                 <div className="container text-white text-center">
                   <div className="row">
                     <div className="col-md-6 offset-md-3">
-                      <h1 className="mb-3 wow fadeInUp">Modern &amp; comfortable spaces to work</h1>
+                      <h1 className="mb-3 wow fadeInUp">
+                        Modern &amp; comfortable spaces to work
+                      </h1>
                       <p className="lead wow fadeInUp" data-wow-delay=".3s">
-                        Enjoy ergonomic furniture, serene common areas, and reliable facilities that keep you comfortable
-                        and productive throughout the day.
+                        Enjoy ergonomic furniture, serene common areas, and
+                        reliable facilities that keep you comfortable and
+                        productive throughout the day.
                       </p>
                       <div className="spacer-10"></div>
-                      <Link href="/our-plans" className="btn-main wow fadeInUp" data-wow-delay=".6s">
+                      <Link
+                        href="/our-plans"
+                        className="btn-main wow fadeInUp"
+                        data-wow-delay=".6s"
+                      >
                         View Our Plans
                       </Link>
                     </div>
@@ -83,9 +158,9 @@ export default function HomePage() {
           <div
             className="carousel-item"
             style={{
-              backgroundImage: 'url(/images/slider/3.jpg)',
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
+              backgroundImage: "url(/images/slider/3.jpg)",
+              backgroundSize: "cover",
+              backgroundPosition: "center",
             }}
           >
             <div className="mask">
@@ -93,13 +168,20 @@ export default function HomePage() {
                 <div className="container text-white text-center">
                   <div className="row">
                     <div className="col-md-6 offset-md-3">
-                      <h1 className="mb-3 wow fadeInUp">A workspace for every need</h1>
+                      <h1 className="mb-3 wow fadeInUp">
+                        A workspace for every need
+                      </h1>
                       <p className="lead wow fadeInUp" data-wow-delay=".3s">
-                        From hot desks and dedicated desks to private offices, conference rooms, and training rooms —
+                        From flex desks and dedicated desks to private offices,
+                        training rooms, rooftop lounges, and creative studios —
                         choose what fits your work style.
                       </p>
                       <div className="spacer-10"></div>
-                      <Link href="/our-plans" className="btn-main wow fadeInUp" data-wow-delay=".6s">
+                      <Link
+                        href="/our-plans"
+                        className="btn-main wow fadeInUp"
+                        data-wow-delay=".6s"
+                      >
                         View Our Plans
                       </Link>
                     </div>
@@ -111,33 +193,55 @@ export default function HomePage() {
         </div>
 
         {/* Controls */}
-        <a className="carousel-control-prev" href="#de-carousel" role="button" data-mdb-slide="prev">
-          <span className="carousel-control-prev-icon" aria-hidden="true"></span>
+        <a
+          className="carousel-control-prev"
+          href="#de-carousel"
+          role="button"
+          data-mdb-slide="prev"
+        >
+          <span
+            className="carousel-control-prev-icon"
+            aria-hidden="true"
+          ></span>
           <span className="sr-only">Previous</span>
         </a>
-        <a className="carousel-control-next" href="#de-carousel" role="button" data-mdb-slide="next">
-          <span className="carousel-control-next-icon" aria-hidden="true"></span>
+        <a
+          className="carousel-control-next"
+          href="#de-carousel"
+          role="button"
+          data-mdb-slide="next"
+        >
+          <span
+            className="carousel-control-next-icon"
+            aria-hidden="true"
+          ></span>
           <span className="sr-only">Next</span>
         </a>
       </section>
 
-      {/* Pricing Section */}
+      {/* Select Your Plan Section */}
       <section id="section-pricing">
         <div className="container">
           <div className="row">
             <div className="col-md-6 offset-md-3">
               <div className="text-center">
                 <h2>Select Your Plan</h2>
-                <p className="mt10 mb0">Pick a space that fits your work style — and scale as you grow.</p>
+                <p className="mt10 mb0">
+                  Pick a space that fits your work style — and scale as you
+                  grow.
+                </p>
                 <div className="spacer-20"></div>
               </div>
             </div>
           </div>
 
+          {/* Pricing Duration Toggle */}
           <div className="row">
             <div className="col text-center">
               <div className="switch-set">
-                <div>Daily</div>
+                <div className={!isMonthly ? "text-primary font-bold" : ""}>
+                  Daily
+                </div>
                 <div>
                   <input
                     id="sw-1"
@@ -147,7 +251,9 @@ export default function HomePage() {
                     onChange={(e) => setIsMonthly(e.target.checked)}
                   />
                 </div>
-                <div>Monthly</div>
+                <div className={isMonthly ? "text-primary font-bold" : ""}>
+                  Monthly
+                </div>
                 <div className="spacer-20"></div>
               </div>
             </div>
@@ -156,67 +262,58 @@ export default function HomePage() {
           <div className="item pricing">
             <div className="container">
               <div className="row">
-                {/* Office Suite */}
+                {/* Flex Desk */}
                 <div className="col-lg-4 col-md-6 col-sm-12">
                   <div className="pricing-s1 mb30">
                     <div className="top">
-                      <h2>Office Suite</h2>
-                      <p className="plan-tagline">Best for privacy &amp; professional image</p>
-                    </div>
-                    <div className="mid bg-color-secondary text-light">
-                      <p className="price">
-                        <span className="currency">₦</span>
-                        <span className="m opt-1">{isMonthly ? '350,000' : '15,000'}</span>
-                        <span className="month">{isMonthly ? '/month' : '/day'}</span>
+                      <h2>Flex Desk</h2>
+                      <p className="plan-tagline">
+                        Best for flexibility &amp; daily focus
                       </p>
-                    </div>
-
-                    <div className="bottom">
-                      <ul>
-                        <li><i className="fa fa-check"></i>Private, professional workspace</li>
-                        <li><i className="fa fa-check"></i>High-speed internet</li>
-                        <li><i className="fa fa-check"></i>24/7 power supply</li>
-                        <li><i className="fa fa-check"></i>Secure access (CCTV &amp; 24/7 security)</li>
-                        <li><i className="fa fa-check"></i>Access to common areas</li>
-                        <li><i className="fa fa-check"></i>On-site support</li>
-                      </ul>
-                    </div>
-
-                    <div className="action">
-                      <Link href="/office-suite" className="btn-main">Book Now</Link>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Hot Desk */}
-                <div className="col-lg-4 col-md-6 col-sm-12">
-                  <div className="pricing-s1 mb30">
-                    <div className="top">
-                      <h2>Hot Desk</h2>
-                      <p className="plan-tagline">Best for flexibility &amp; daily focus</p>
                     </div>
 
                     <div className="mid bg-color-secondary text-light">
                       <p className="price">
                         <span className="currency">₦</span>
-                        <span className="m opt-1">{isMonthly ? '45,000' : '3,000'}</span>
-                        <span className="month">{isMonthly ? '/month' : '/day'}</span>
+                        <span className="m opt-1">{flexDeskPrice}</span>
+                        <span className="month">
+                          {isMonthly ? "/month" : "/day"}
+                        </span>
                       </p>
                     </div>
 
                     <div className="bottom">
                       <ul>
-                        <li><i className="fa fa-check"></i>Choose your seat daily</li>
-                        <li><i className="fa fa-check"></i>High-speed internet</li>
-                        <li><i className="fa fa-check"></i>Ergonomic furniture</li>
-                        <li><i className="fa fa-check"></i>24/7 power supply</li>
-                        <li><i className="fa fa-check"></i>Secure environment (CCTV)</li>
-                        <li><i className="fa fa-check"></i>Water available</li>
+                        <li>
+                          <i className="fa fa-check"></i>Dedicated workstation
+                          access
+                        </li>
+                        <li>
+                          <i className="fa fa-check"></i>High-speed internet /
+                          Wi-Fi
+                        </li>
+                        <li>
+                          <i className="fa fa-check"></i>Comfortable ergonomic
+                          seating
+                        </li>
+                        <li>
+                          <i className="fa fa-check"></i>24/7 power supply &amp;
+                          charging
+                        </li>
+                        <li>
+                          <i className="fa fa-check"></i>Secure environment
+                          (CCTV)
+                        </li>
+                        <li>
+                          <i className="fa fa-check"></i>Water (hot &amp; cold)
+                        </li>
                       </ul>
                     </div>
 
                     <div className="action">
-                      <Link href="/hot-desk" className="btn-main">Book Now</Link>
+                      <Link href="/flex-desk" className="btn-main">
+                        Book Now
+                      </Link>
                     </div>
                   </div>
                 </div>
@@ -226,47 +323,128 @@ export default function HomePage() {
                   <div className="pricing-s1 mb30">
                     <div className="top">
                       <h2>Dedicated Desk</h2>
-                      <p className="plan-tagline">Best for consistency &amp; productivity</p>
+                      <p className="plan-tagline">
+                        Best for consistency &amp; productivity
+                      </p>
                     </div>
 
                     <div className="mid bg-color-secondary text-light">
                       <p className="price">
                         <span className="currency">₦</span>
-                        <span className="m opt-1">{isMonthly ? '75,000' : '5,000'}</span>
-                        <span className="month">{isMonthly ? '/month' : '/day'}</span>
+                        <span className="m opt-1">{dedicatedDeskPrice}</span>
+                        <span className="month">
+                          {isMonthly ? "/month" : "/day"}
+                        </span>
                       </p>
                     </div>
 
                     <div className="bottom">
                       <ul>
-                        <li><i className="fa fa-check"></i>Your reserved desk</li>
-                        <li><i className="fa fa-check"></i>High-speed internet</li>
-                        <li><i className="fa fa-check"></i>Ergonomic furniture</li>
-                        <li><i className="fa fa-check"></i>24/7 power supply</li>
-                        <li><i className="fa fa-check"></i>Call &amp; Deal room access</li>
-                        <li><i className="fa fa-check"></i>Secure access (CCTV &amp; 24/7 security)</li>
+                        <li>
+                          <i className="fa fa-check"></i>Assigned personal
+                          workstation
+                        </li>
+                        <li>
+                          <i className="fa fa-check"></i>High-speed internet /
+                          Wi-Fi
+                        </li>
+                        <li>
+                          <i className="fa fa-check"></i>Ergonomic office chair
+                        </li>
+                        <li>
+                          <i className="fa fa-check"></i>Personal desk drawer /
+                          storage
+                        </li>
+                        <li>
+                          <i className="fa fa-check"></i>24/7 power supply
+                        </li>
+                        <li>
+                          <i className="fa fa-check"></i>Daily dedicated access
+                        </li>
                       </ul>
                     </div>
 
                     <div className="action">
-                      <Link href="/dedicated-desk" className="btn-main">Book Now</Link>
+                      <Link href="/dedicated-desk" className="btn-main">
+                        Book Now
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Private Office / Suite */}
+                <div className="col-lg-4 col-md-6 col-sm-12">
+                  <div className="pricing-s1 mb30">
+                    <div className="top">
+                      <h2>Private Office</h2>
+                      <p className="plan-tagline">
+                        Best for privacy &amp; executive teams
+                      </p>
+                    </div>
+
+                    <div className="mid bg-color-secondary text-light">
+                      <p className="price">
+                        <span className="currency">₦</span>
+                        <span className="m opt-1">{officeSuitePrice}</span>
+                        <span className="month">
+                          {isMonthly ? "/month" : "/day"}
+                        </span>
+                      </p>
+                    </div>
+
+                    <div className="bottom">
+                      <ul>
+                        <li>
+                          <i className="fa fa-check"></i>Private,
+                          air-conditioned team suite
+                        </li>
+                        <li>
+                          <i className="fa fa-check"></i>High-speed internet /
+                          Wi-Fi
+                        </li>
+                        <li>
+                          <i className="fa fa-check"></i>Presentation screen /
+                          TV
+                        </li>
+                        <li>
+                          <i className="fa fa-check"></i>24/7 power supply
+                        </li>
+                        <li>
+                          <i className="fa fa-check"></i>Comfortable team
+                          seating
+                        </li>
+                        <li>
+                          <i className="fa fa-check"></i>On-site dedicated
+                          support
+                        </li>
+                      </ul>
+                    </div>
+
+                    <div className="action">
+                      <Link href="/private-office" className="btn-main">
+                        Book Now
+                      </Link>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <div className="d-flex justify-content-center align-items-center h-100 mt-4">
-          <div className="container text-white text-center">
-            <div className="row">
-              <div className="col-md-6 offset-md-3">
-                <h1 className="mb-3 wow fadeInUp">DAIH</h1>
-                <Link href="/our-plans" className="btn-main wow fadeInUp" data-wow-delay=".6s">
-                  View All
-                </Link>
-                <div className="spacer-10"></div>
+          <div className="d-flex justify-content-center align-items-center h-100 mt-4">
+            <div className="container text-white text-center">
+              <div className="row">
+                <div className="col-md-6 offset-md-3">
+                  <h1 className="mb-3 wow fadeInUp">DAIH</h1>
+                  <Link
+                    href="/our-plans"
+                    className="btn-main wow fadeInUp"
+                    data-wow-delay=".6s"
+                  >
+                    View All Plans &amp; Facilities
+                  </Link>
+                  <div className="spacer-10"></div>
+                </div>
               </div>
             </div>
           </div>
@@ -282,13 +460,18 @@ export default function HomePage() {
                 <h2>Why Choose Us?</h2>
                 <div className="small-border bg-color"></div>
                 <p className="mt10 mb0">
-                  Everything you need to work, meet, train, and grow — in one inspiring hub.
+                  Everything you need to work, meet, train, and grow — in one
+                  inspiring hub.
                 </p>
               </div>
             </div>
 
             <div className="col-md-6 why-media">
-              <img src="/images/misc/images-set-2.png" className="lazy img-fluid" alt="DAIH workspaces" />
+              <img
+                src="/images/misc/images-set-2.png"
+                className="lazy img-fluid"
+                alt="DAIH workspaces"
+              />
             </div>
 
             <div className="col-md-6">
@@ -296,34 +479,53 @@ export default function HomePage() {
                 <div className="col-12 col-lg-6 d-flex">
                   <div className="w-100">
                     <h4>Flexible Workspaces</h4>
-                    <p>Choose from hot desks to dedicated desks, private offices, conference rooms, or training halls — find the workspace that perfectly suits your needs.</p>
+                    <p>
+                      Choose from flex desks to dedicated desks, private
+                      offices, conference rooms, or training halls — find the
+                      workspace that perfectly suits your needs.
+                    </p>
                   </div>
                 </div>
 
                 <div className="col-12 col-lg-6 d-flex">
                   <div className="w-100">
                     <h4>High-Speed Connectivity</h4>
-                    <p>Our state-of-the-art infrastructure ensures seamless, reliable internet connectivity to keep you productive and connected.</p>
+                    <p>
+                      Our state-of-the-art infrastructure ensures seamless,
+                      reliable internet connectivity to keep you productive and
+                      connected.
+                    </p>
                   </div>
                 </div>
 
                 <div className="col-12 col-lg-6 d-flex">
                   <div className="w-100">
                     <h4>Productivity &amp; Comfort</h4>
-                    <p>Inspiring private spaces, serene common areas, and modern training rooms — ergonomically designed to support focus and well-being.</p>
+                    <p>
+                      Inspiring private spaces, serene common areas, and modern
+                      training rooms — ergonomically designed to support focus
+                      and well-being.
+                    </p>
                   </div>
                 </div>
 
                 <div className="col-12 col-lg-6 d-flex">
                   <div className="w-100">
                     <h4>24/7 Power Supply</h4>
-                    <p>Work whenever inspiration hits — with reliable power available around the clock.</p>
+                    <p>
+                      Work whenever inspiration hits — with reliable power
+                      available around the clock.
+                    </p>
                   </div>
                 </div>
 
                 <div className="col-12">
                   <h4>Collaborative Environment</h4>
-                  <p className="mb-0">Communal areas and conference rooms make it easy to brainstorm, host team meetings, and network with other professionals.</p>
+                  <p className="mb-0">
+                    Communal areas and conference rooms make it easy to
+                    brainstorm, host team meetings, and network with other
+                    professionals.
+                  </p>
                 </div>
               </div>
             </div>
@@ -363,31 +565,58 @@ export default function HomePage() {
 
             <div className="col-md-4">
               <div className="de-image-text">
-                <a href="#" className="d-text">
-                  <h3><span className="id-color">01</span> Podcast</h3>
-                  <p>Record with clarity in a focused space designed for great audio and smooth sessions.</p>
-                </a>
-                <img src="/images/misc/space-type-podcast.jpg" className="img-fluid" alt="Podcast space" />
+                <Link href="/studio" className="d-text">
+                  <h3>
+                    <span className="id-color">01</span> Podcast
+                  </h3>
+                  <p>
+                    Record with clarity in a focused space designed for great
+                    audio and smooth sessions.
+                  </p>
+                </Link>
+                <img
+                  src="/images/misc/space-type-podcast.jpg"
+                  className="img-fluid"
+                  alt="Podcast space"
+                />
               </div>
             </div>
 
             <div className="col-md-4">
               <div className="de-image-text">
-                <a href="#" className="d-text">
-                  <h3><span className="id-color">02</span> Live Streaming</h3>
-                  <p>Stream confidently with reliable power and a professional environment.</p>
-                </a>
-                <img src="/images/misc/space-type-streaming.jpg" className="img-fluid" alt="Live streaming space" />
+                <Link href="/studio" className="d-text">
+                  <h3>
+                    <span className="id-color">02</span> Live Streaming
+                  </h3>
+                  <p>
+                    Stream confidently with reliable power and a professional
+                    environment.
+                  </p>
+                </Link>
+                <img
+                  src="/images/misc/space-type-streaming.jpg"
+                  className="img-fluid"
+                  alt="Live streaming space"
+                />
               </div>
             </div>
 
             <div className="col-md-4">
               <div className="de-image-text">
-                <a href="#" className="d-text">
-                  <h3><span className="id-color">03</span> Photo &amp; Video Shoot</h3>
-                  <p>Create standout content with a clean setup that supports your production needs.</p>
-                </a>
-                <img src="/images/misc/space-type-photo.jpg" className="img-fluid" alt="Photo and video space" />
+                <Link href="/rooftop-lounge" className="d-text">
+                  <h3>
+                    <span className="id-color">03</span> Photo &amp; Video Shoot
+                  </h3>
+                  <p>
+                    Create standout content with a clean setup that supports
+                    your production needs.
+                  </p>
+                </Link>
+                <img
+                  src="/images/misc/space-type-photo.jpg"
+                  className="img-fluid"
+                  alt="Photo and video space"
+                />
               </div>
             </div>
           </div>

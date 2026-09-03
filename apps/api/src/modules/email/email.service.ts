@@ -1,8 +1,13 @@
-import { IEmailProvider, SendEmailOptions, SendEmailResult } from './email.interface.js';
-import { ResendEmailProvider } from './providers/resend.provider.js';
-import { ZeptoMailEmailProvider } from './providers/zeptomail.provider.js';
-import { MockEmailProvider } from './providers/mock.provider.js';
-import { config } from '../../config/env.js';
+import {
+  IEmailProvider,
+  SendEmailOptions,
+  SendEmailResult,
+} from "./email.interface.js";
+import { ResendEmailProvider } from "./providers/resend.provider.js";
+import { ZeptoMailEmailProvider } from "./providers/zeptomail.provider.js";
+import { MockEmailProvider } from "./providers/mock.provider.js";
+import { emailTemplateService } from "./email-template.service.js";
+import { config } from "../../config/env.js";
 
 export class EmailService {
   private primaryProvider: IEmailProvider;
@@ -22,20 +27,20 @@ export class EmailService {
   async sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
     // If explicitly set to mock or running in test without keys, use Mock Provider
     if (
-      config.email.provider === 'mock' ||
+      config.email.provider === "mock" ||
       (!config.email.resendApiKey && !config.email.zeptomailApiKey)
     ) {
       return this.mockProvider.sendEmail(options);
     }
 
     // 1. Attempt Primary (Resend)
-    if (config.email.resendApiKey && config.email.provider !== 'zeptomail') {
+    if (config.email.resendApiKey && config.email.provider !== "zeptomail") {
       const primaryResult = await this.primaryProvider.sendEmail(options);
       if (primaryResult.success) {
         return primaryResult;
       }
       console.warn(
-        `⚠️ Primary email provider (Resend) failed: ${primaryResult.error}. Attempting ZeptoMail fallback...`
+        `⚠️ Primary email provider (Resend) failed: ${primaryResult.error}. Attempting ZeptoMail fallback...`,
       );
     }
 
@@ -46,22 +51,22 @@ export class EmailService {
         return fallbackResult;
       }
       console.error(
-        `❌ Fallback email provider (ZeptoMail) failed: ${fallbackResult.error}`
+        `❌ Fallback email provider (ZeptoMail) failed: ${fallbackResult.error}`,
       );
     }
 
     // 3. If in non-production, fallback to mock so flows don't crash
-    if (config.env !== 'production') {
+    if (config.env !== "production") {
       console.warn(
-        '⚠️ Both live email providers failed or were unconfigured; falling back to Mock provider in development'
+        "⚠️ Both live email providers failed or were unconfigured; falling back to Mock provider in development",
       );
       return this.mockProvider.sendEmail(options);
     }
 
     return {
       success: false,
-      provider: 'none',
-      error: 'All email providers failed to deliver message',
+      provider: "none",
+      error: "All email providers failed to deliver message",
     };
   }
 
@@ -71,52 +76,21 @@ export class EmailService {
   async sendVerificationEmail(
     to: string,
     name: string,
-    rawToken: string
+    rawToken: string,
   ): Promise<SendEmailResult> {
     const verifyUrl = `${config.frontendUrls.customer}/verify-email?token=${encodeURIComponent(rawToken)}`;
 
-    const html = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>Verify your DAIH Hub Account</title>
-</head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 40px 20px;">
-  <div style="max-width: 560px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
-    <div style="background-color: #1f3a68; padding: 28px 32px; text-align: center;">
-      <h1 style="color: #ffffff; margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.5px;">DAIH Workspace Hub</h1>
-    </div>
-    <div style="padding: 32px;">
-      <h2 style="color: #0f172a; font-size: 18px; margin-top: 0; font-weight: 700;">Verify Your Email Address</h2>
-      <p style="color: #475569; font-size: 14px; line-height: 1.6;">Hello ${name},</p>
-      <p style="color: #475569; font-size: 14px; line-height: 1.6;">
-        Welcome to DAIH! Please confirm your email address to activate your account and start booking workspaces, private offices, and conference rooms.
-      </p>
-      <div style="margin: 28px 0; text-align: center;">
-        <a href="${verifyUrl}" style="background-color: #d56c04; color: #ffffff; padding: 14px 28px; font-size: 14px; font-weight: 700; text-decoration: none; border-radius: 8px; display: inline-block;">
-          Verify Email & Activate Account
-        </a>
-      </div>
-      <p style="color: #64748b; font-size: 12px; line-height: 1.5;">
-        This verification link will expire in ${config.jwt.verificationExpiresInHours} hours. If you did not create an account on DAIH, you can safely ignore this email.
-      </p>
-      <hr style="border: none; border-top: 1px solid #f1f5f9; margin: 24px 0;" />
-      <p style="color: #94a3b8; font-size: 11px; margin: 0;">
-        Or copy and paste this link into your browser:<br/>
-        <span style="color: #1f3a68; word-break: break-all;">${verifyUrl}</span>
-      </p>
-    </div>
-  </div>
-</body>
-</html>
-    `;
+    const rendered = await emailTemplateService.renderTemplate("verification", {
+      name,
+      verifyUrl,
+      expiresInHours: config.jwt.verificationExpiresInHours,
+    });
 
     return this.sendEmail({
       to,
-      subject: 'Verify your DAIH Hub Account',
-      html,
-      text: `Hello ${name},\n\nPlease verify your email by clicking: ${verifyUrl}\n\nThis link expires in ${config.jwt.verificationExpiresInHours} hours.`,
+      subject: rendered.subject,
+      html: rendered.html,
+      text: rendered.text,
     });
   }
 
@@ -126,101 +100,343 @@ export class EmailService {
   async sendPasswordResetEmail(
     to: string,
     name: string,
-    rawToken: string
+    rawToken: string,
   ): Promise<SendEmailResult> {
     const resetUrl = `${config.frontendUrls.customer}/reset-password?token=${encodeURIComponent(rawToken)}`;
 
-    const html = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>Reset Your DAIH Password</title>
-</head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 40px 20px;">
-  <div style="max-width: 560px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
-    <div style="background-color: #1f3a68; padding: 28px 32px; text-align: center;">
-      <h1 style="color: #ffffff; margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.5px;">DAIH Workspace Hub</h1>
-    </div>
-    <div style="padding: 32px;">
-      <h2 style="color: #0f172a; font-size: 18px; margin-top: 0; font-weight: 700;">Password Reset Request</h2>
-      <p style="color: #475569; font-size: 14px; line-height: 1.6;">Hello ${name},</p>
-      <p style="color: #475569; font-size: 14px; line-height: 1.6;">
-        We received a request to reset the password for your DAIH account. Click the button below to choose a new password.
-      </p>
-      <div style="margin: 28px 0; text-align: center;">
-        <a href="${resetUrl}" style="background-color: #1f3a68; color: #ffffff; padding: 14px 28px; font-size: 14px; font-weight: 700; text-decoration: none; border-radius: 8px; display: inline-block;">
-          Reset Your Password
-        </a>
-      </div>
-      <p style="color: #64748b; font-size: 12px; line-height: 1.5;">
-        This password reset link will expire in ${config.jwt.passwordResetExpiresInHours} hour(s). If you did not request a password reset, you can safely ignore this email; your password will remain unchanged.
-      </p>
-      <hr style="border: none; border-top: 1px solid #f1f5f9; margin: 24px 0;" />
-      <p style="color: #94a3b8; font-size: 11px; margin: 0;">
-        Direct link: <span style="color: #1f3a68; word-break: break-all;">${resetUrl}</span>
-      </p>
-    </div>
-  </div>
-</body>
-</html>
-    `;
+    const rendered = await emailTemplateService.renderTemplate(
+      "password_reset",
+      {
+        name,
+        resetUrl,
+        expiresInHours: config.jwt.passwordResetExpiresInHours,
+      },
+    );
 
     return this.sendEmail({
       to,
-      subject: 'Reset Your DAIH Password',
-      html,
-      text: `Hello ${name},\n\nReset your password here: ${resetUrl}\n\nExpires in ${config.jwt.passwordResetExpiresInHours} hour(s).`,
+      subject: rendered.subject,
+      html: rendered.html,
+      text: rendered.text,
     });
   }
 
   /**
-   * Sends Staff / Admin Account Setup Notice
+   * Sends Staff / Admin Account Setup Invitation with 1-hour one-time link
    */
   async sendStaffWelcomeEmail(
     to: string,
     name: string,
     role: string,
-    setupToken?: string
+    setupUrl: string,
   ): Promise<SendEmailResult> {
-    const setupUrl = setupToken
-      ? `${config.frontendUrls.admin}/reset-password?token=${encodeURIComponent(setupToken)}`
-      : `${config.frontendUrls.admin}/login`;
-
-    const html = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>Welcome to DAIH Staff Portal</title>
-</head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 40px 20px;">
-  <div style="max-width: 560px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0;">
-    <div style="background-color: #0f1d35; padding: 28px 32px; text-align: center;">
-      <h1 style="color: #ffffff; margin: 0; font-size: 22px; font-weight: 800;">DAIH Admin Console</h1>
-    </div>
-    <div style="padding: 32px;">
-      <h2 style="color: #0f172a; font-size: 18px; margin-top: 0;">Staff Account Invitation</h2>
-      <p style="color: #475569; font-size: 14px; line-height: 1.6;">Hello ${name},</p>
-      <p style="color: #475569; font-size: 14px; line-height: 1.6;">
-        You have been granted access to the DAIH Operations & Admin Console with the role: <strong>${role}</strong>.
-      </p>
-      <div style="margin: 28px 0; text-align: center;">
-        <a href="${setupUrl}" style="background-color: #d56c04; color: #ffffff; padding: 14px 28px; font-size: 14px; font-weight: 700; text-decoration: none; border-radius: 8px; display: inline-block;">
-          Access Admin Portal
-        </a>
-      </div>
-    </div>
-  </div>
-</body>
-</html>
-    `;
+    const rendered = await emailTemplateService.renderTemplate(
+      "staff_welcome",
+      {
+        name,
+        role,
+        setupUrl,
+      },
+    );
 
     return this.sendEmail({
       to,
-      subject: 'Welcome to DAIH Operations & Admin Console',
-      html,
-      text: `Hello ${name},\n\nYou have been assigned the role ${role} on the DAIH Admin Console. Access: ${setupUrl}`,
+      subject: rendered.subject,
+      html: rendered.html,
+      text: rendered.text,
+    });
+  }
+
+  /**
+   * Sends Payment Receipt & Booking Confirmation Email
+   */
+  async sendPaymentReceiptEmail(
+    to: string,
+    customerName: string,
+    bookingReference: string,
+    resourceName: string,
+    amount: number,
+    currency: string = "NGN",
+    invoiceNumber?: string,
+  ): Promise<SendEmailResult> {
+    const dashboardUrl = `${config.frontendUrls.customer}/bookings`;
+    const formattedAmount = `${currency} ${amount.toLocaleString()}`;
+
+    const rendered = await emailTemplateService.renderTemplate(
+      "payment_receipt",
+      {
+        customerName,
+        bookingReference,
+        resourceName,
+        formattedAmount,
+        invoiceNumber,
+        dashboardUrl,
+      },
+    );
+
+    return this.sendEmail({
+      to,
+      subject: rendered.subject,
+      html: rendered.html,
+      text: rendered.text,
+    });
+  }
+
+  /**
+   * Sends Booking Confirmation with Access Pass Link
+   */
+  async sendBookingConfirmationEmail(
+    to: string,
+    customerName: string,
+    bookingReference: string,
+    resourceName: string,
+    startTime: string,
+    endTime: string,
+    qrToken?: string,
+  ): Promise<SendEmailResult> {
+    const passUrl = `${config.frontendUrls.customer}/qr`;
+    const formattedStart = new Date(startTime).toLocaleString("en-NG", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+    const formattedEnd = new Date(endTime).toLocaleString("en-NG", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+
+    const rendered = await emailTemplateService.renderTemplate(
+      "booking_confirmation",
+      {
+        customerName,
+        bookingReference,
+        resourceName,
+        formattedStart,
+        formattedEnd,
+        passUrl,
+        qrToken,
+      },
+    );
+
+    return this.sendEmail({
+      to,
+      subject: rendered.subject,
+      html: rendered.html,
+      text: rendered.text,
+    });
+  }
+
+  /**
+   * Sends Booking Rescheduled Notification
+   */
+  async sendBookingRescheduledEmail(
+    to: string,
+    customerName: string,
+    bookingReference: string,
+    resourceName: string,
+    startTime: string,
+    endTime: string,
+    qrToken?: string,
+  ): Promise<SendEmailResult> {
+    const passUrl = `${config.frontendUrls.customer}/qr`;
+    const formattedStart = new Date(startTime).toLocaleString("en-NG", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+    const formattedEnd = new Date(endTime).toLocaleString("en-NG", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+
+    const rendered = await emailTemplateService.renderTemplate(
+      "booking_rescheduled",
+      {
+        customerName,
+        bookingReference,
+        resourceName,
+        formattedStart,
+        formattedEnd,
+        passUrl,
+        qrToken,
+      },
+    );
+
+    return this.sendEmail({
+      to,
+      subject: rendered.subject,
+      html: rendered.html,
+      text: rendered.text,
+    });
+  }
+
+  /**
+   * Sends Check-In Welcome Notice with Wi-Fi Credentials
+   */
+  async sendCheckInWelcomeEmail(
+    to: string,
+    customerName: string,
+    bookingReference: string,
+    resourceName: string,
+    wifiCredentials?: {
+      ssid?: string;
+      username?: string;
+      pin?: string;
+      networkName?: string;
+      password?: string;
+      validUntil?: string;
+    },
+    endTime?: string,
+  ): Promise<SendEmailResult> {
+    const formattedEnd = endTime
+      ? new Date(endTime).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : "End of booked window";
+
+    const wifiSsid =
+      wifiCredentials?.ssid ||
+      wifiCredentials?.networkName ||
+      "DAIH-Member-HighSpeed";
+    const wifiUsername = wifiCredentials?.username || "Guest";
+    const wifiPin = wifiCredentials?.pin || wifiCredentials?.password || "N/A";
+
+    const rendered = await emailTemplateService.renderTemplate(
+      "check_in_welcome",
+      {
+        customerName,
+        bookingReference,
+        resourceName,
+        wifiSsid,
+        wifiUsername,
+        wifiPin,
+        formattedEnd,
+      },
+    );
+
+    return this.sendEmail({
+      to,
+      subject: rendered.subject,
+      html: rendered.html,
+      text: rendered.text,
+    });
+  }
+
+  /**
+   * Sends Check-Out Departure Summary
+   */
+  async sendCheckOutSummaryEmail(
+    to: string,
+    customerName: string,
+    bookingReference: string,
+    resourceName: string,
+    departureTime: string,
+  ): Promise<SendEmailResult> {
+    const formattedDeparture = new Date(departureTime).toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+    const rendered = await emailTemplateService.renderTemplate(
+      "check_out_summary",
+      {
+        customerName,
+        bookingReference,
+        resourceName,
+        formattedDeparture,
+      },
+    );
+
+    return this.sendEmail({
+      to,
+      subject: rendered.subject,
+      html: rendered.html,
+      text: rendered.text,
+    });
+  }
+
+  /**
+   * Sends Booking Reminder Email
+   */
+  async sendBookingReminderEmail(
+    to: string,
+    customerName: string,
+    bookingReference: string,
+    resourceName: string,
+    startTime: string,
+  ): Promise<SendEmailResult> {
+    const formattedStart = new Date(startTime).toLocaleString("en-NG", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+    const passUrl = `${config.frontendUrls.customer}/qr`;
+
+    const rendered = await emailTemplateService.renderTemplate(
+      "booking_reminder",
+      {
+        customerName,
+        bookingReference,
+        resourceName,
+        formattedStart,
+        passUrl,
+      },
+    );
+
+    return this.sendEmail({
+      to,
+      subject: rendered.subject,
+      html: rendered.html,
+      text: rendered.text,
+    });
+  }
+
+  /**
+   * Sends Booking Cancellation Notice
+   */
+  async sendBookingCancelledEmail(
+    to: string,
+    customerName: string,
+    bookingReference: string,
+    resourceName: string,
+    reason?: string,
+  ): Promise<SendEmailResult> {
+    const rendered = await emailTemplateService.renderTemplate(
+      "booking_cancelled",
+      {
+        customerName,
+        bookingReference,
+        resourceName,
+        reason,
+      },
+    );
+
+    return this.sendEmail({
+      to,
+      subject: rendered.subject,
+      html: rendered.html,
+      text: rendered.text,
+    });
+  }
+
+  /**
+   * Sends a 6-digit MFA OTP code to a staff user.
+   * Template key: "mfa_otp"
+   */
+  async sendMfaOtpEmail(
+    to: string,
+    name: string,
+    otpCode: string,
+  ): Promise<SendEmailResult> {
+    const rendered = await emailTemplateService.renderTemplate("mfa_otp", {
+      name,
+      otpCode,
+      expiresInMinutes: "10",
+    });
+
+    return this.sendEmail({
+      to,
+      subject: rendered.subject,
+      html: rendered.html,
+      text: rendered.text,
     });
   }
 

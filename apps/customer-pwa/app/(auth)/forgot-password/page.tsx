@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { ForgotPasswordCard } from '../../../components/auth';
+import React from "react";
+import { ForgotPasswordCard } from "../../../components/auth";
 
 export default function ForgotPasswordPage() {
   return (

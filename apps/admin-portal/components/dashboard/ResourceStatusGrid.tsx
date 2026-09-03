@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import React from 'react';
-import Link from 'next/link';
+import React from "react";
+import Link from "next/link";
 
 export const ResourceStatusGrid: React.FC = () => {
   return (
@@ -24,14 +24,20 @@ export const ResourceStatusGrid: React.FC = () => {
           <div className="border border-accent-soft p-4 rounded-DEFAULT bg-workspace-surface relative overflow-hidden group hover:border-primary-container transition-colors">
             <div className="absolute top-0 left-0 w-1 h-full bg-error" />
             <div className="flex justify-between items-start mb-2 pl-2">
-              <h4 className="font-label-md text-label-md text-on-surface font-semibold">Photo Studio A</h4>
+              <h4 className="font-label-md text-label-md text-on-surface font-semibold">
+                Photo Studio A
+              </h4>
               <span className="font-label-sm text-label-sm bg-error-container text-on-error-container px-2 py-0.5 rounded-full font-medium">
                 Occupied
               </span>
             </div>
             <div className="pl-2 flex items-center gap-2 text-on-surface-variant">
-              <span className="material-symbols-outlined text-[16px]">schedule</span>
-              <span className="font-label-sm text-label-sm">Until 14:00 (1h left)</span>
+              <span className="material-symbols-outlined text-[16px]">
+                schedule
+              </span>
+              <span className="font-label-sm text-label-sm">
+                Until 14:00 (1h left)
+              </span>
             </div>
           </div>
 
@@ -39,14 +45,20 @@ export const ResourceStatusGrid: React.FC = () => {
           <div className="border border-accent-soft p-4 rounded-DEFAULT bg-workspace-surface relative overflow-hidden group hover:border-primary-container transition-colors">
             <div className="absolute top-0 left-0 w-1 h-full bg-[#10b981]" />
             <div className="flex justify-between items-start mb-2 pl-2">
-              <h4 className="font-label-md text-label-md text-on-surface font-semibold">Podcast Room 1</h4>
+              <h4 className="font-label-md text-label-md text-on-surface font-semibold">
+                Podcast Room 1
+              </h4>
               <span className="font-label-sm text-label-sm bg-[#d1fae5] text-[#065f46] px-2 py-0.5 rounded-full font-medium">
                 Available
               </span>
             </div>
             <div className="pl-2 flex items-center gap-2 text-on-surface-variant">
-              <span className="material-symbols-outlined text-[16px]">cleaning_services</span>
-              <span className="font-label-sm text-label-sm">Cleaned 30m ago</span>
+              <span className="material-symbols-outlined text-[16px]">
+                cleaning_services
+              </span>
+              <span className="font-label-sm text-label-sm">
+                Cleaned 30m ago
+              </span>
             </div>
           </div>
 
@@ -54,14 +66,20 @@ export const ResourceStatusGrid: React.FC = () => {
           <div className="border border-accent-soft p-4 rounded-DEFAULT bg-workspace-surface relative overflow-hidden group hover:border-primary-container transition-colors">
             <div className="absolute top-0 left-0 w-1 h-full bg-[#f59e0b]" />
             <div className="flex justify-between items-start mb-2 pl-2">
-              <h4 className="font-label-md text-label-md text-on-surface font-semibold">Streaming Pod B</h4>
+              <h4 className="font-label-md text-label-md text-on-surface font-semibold">
+                Streaming Pod B
+              </h4>
               <span className="font-label-sm text-label-sm bg-[#fef3c7] text-[#92400e] px-2 py-0.5 rounded-full font-medium">
                 Maintenance
               </span>
             </div>
             <div className="pl-2 flex items-center gap-2 text-on-surface-variant">
-              <span className="material-symbols-outlined text-[16px]">build</span>
-              <span className="font-label-sm text-label-sm">Tech Issue Reported</span>
+              <span className="material-symbols-outlined text-[16px]">
+                build
+              </span>
+              <span className="font-label-sm text-label-sm">
+                Tech Issue Reported
+              </span>
             </div>
           </div>
 
@@ -69,14 +87,20 @@ export const ResourceStatusGrid: React.FC = () => {
           <div className="border border-accent-soft p-4 rounded-DEFAULT bg-workspace-surface relative overflow-hidden group hover:border-primary-container transition-colors">
             <div className="absolute top-0 left-0 w-1 h-full bg-[#10b981]" />
             <div className="flex justify-between items-start mb-2 pl-2">
-              <h4 className="font-label-md text-label-md text-on-surface font-semibold">Meeting Room C</h4>
+              <h4 className="font-label-md text-label-md text-on-surface font-semibold">
+                Meeting Room C
+              </h4>
               <span className="font-label-sm text-label-sm bg-[#d1fae5] text-[#065f46] px-2 py-0.5 rounded-full font-medium">
                 Available
               </span>
             </div>
             <div className="pl-2 flex items-center gap-2 text-on-surface-variant">
-              <span className="material-symbols-outlined text-[16px]">event</span>
-              <span className="font-label-sm text-label-sm">Next booking: 16:00</span>
+              <span className="material-symbols-outlined text-[16px]">
+                event
+              </span>
+              <span className="font-label-sm text-label-sm">
+                Next booking: 16:00
+              </span>
             </div>
           </div>
         </div>

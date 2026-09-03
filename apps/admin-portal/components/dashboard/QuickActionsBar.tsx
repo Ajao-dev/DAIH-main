@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import React from 'react';
-import Link from 'next/link';
+import React from "react";
+import Link from "next/link";
 import {
   UserPlus,
   QrCode,
@@ -9,13 +9,15 @@ import {
   Building,
   FileSpreadsheet,
   Users,
-} from 'lucide-react';
+} from "lucide-react";
 
 interface QuickActionsBarProps {
   onOpenWalkInModal?: () => void;
 }
 
-export const QuickActionsBar: React.FC<QuickActionsBarProps> = ({ onOpenWalkInModal }) => {
+export const QuickActionsBar: React.FC<QuickActionsBarProps> = ({
+  onOpenWalkInModal,
+}) => {
   return (
     <div className="bg-surface-container-lowest rounded-2xl p-6 border border-accent-soft elevation-1 mb-8">
       <h2 className="text-sm font-bold text-on-surface mb-4 flex items-center gap-2 uppercase tracking-wider text-outline">
@@ -32,7 +34,9 @@ export const QuickActionsBar: React.FC<QuickActionsBarProps> = ({ onOpenWalkInMo
           </div>
           <div>
             <p className="text-xs font-bold text-on-surface">Issue Walk-In</p>
-            <p className="text-[10px] text-on-surface-variant mt-0.5">Day pass receipt</p>
+            <p className="text-[10px] text-on-surface-variant mt-0.5">
+              Day pass receipt
+            </p>
           </div>
         </button>
 
@@ -45,7 +49,9 @@ export const QuickActionsBar: React.FC<QuickActionsBarProps> = ({ onOpenWalkInMo
           </div>
           <div>
             <p className="text-xs font-bold text-on-surface">Scan QR Key</p>
-            <p className="text-[10px] text-on-surface-variant mt-0.5">Verify badge</p>
+            <p className="text-[10px] text-on-surface-variant mt-0.5">
+              Verify badge
+            </p>
           </div>
         </Link>
 
@@ -58,7 +64,9 @@ export const QuickActionsBar: React.FC<QuickActionsBarProps> = ({ onOpenWalkInMo
           </div>
           <div>
             <p className="text-xs font-bold text-on-surface">Paystack Lookup</p>
-            <p className="text-[10px] text-on-surface-variant mt-0.5">Verify payment</p>
+            <p className="text-[10px] text-on-surface-variant mt-0.5">
+              Verify payment
+            </p>
           </div>
         </Link>
 
@@ -70,8 +78,12 @@ export const QuickActionsBar: React.FC<QuickActionsBarProps> = ({ onOpenWalkInMo
             <Users className="w-4 h-4" />
           </div>
           <div>
-            <p className="text-xs font-bold text-on-surface">Members Directory</p>
-            <p className="text-[10px] text-on-surface-variant mt-0.5">Profiles & IDs</p>
+            <p className="text-xs font-bold text-on-surface">
+              Members Directory
+            </p>
+            <p className="text-[10px] text-on-surface-variant mt-0.5">
+              Profiles & IDs
+            </p>
           </div>
         </Link>
 
@@ -84,7 +96,9 @@ export const QuickActionsBar: React.FC<QuickActionsBarProps> = ({ onOpenWalkInMo
           </div>
           <div>
             <p className="text-xs font-bold text-on-surface">Desk Inventory</p>
-            <p className="text-[10px] text-on-surface-variant mt-0.5">Seat allotment</p>
+            <p className="text-[10px] text-on-surface-variant mt-0.5">
+              Seat allotment
+            </p>
           </div>
         </Link>
 
@@ -97,7 +111,9 @@ export const QuickActionsBar: React.FC<QuickActionsBarProps> = ({ onOpenWalkInMo
           </div>
           <div>
             <p className="text-xs font-bold text-on-surface">Audit Reports</p>
-            <p className="text-[10px] text-on-surface-variant mt-0.5">Export metrics</p>
+            <p className="text-[10px] text-on-surface-variant mt-0.5">
+              Export metrics
+            </p>
           </div>
         </Link>
       </div>

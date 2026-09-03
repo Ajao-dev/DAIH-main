@@ -2,21 +2,66 @@ import {
   BookingHoldDTO,
   BookingSummary,
   CreateBookingDTO,
+  AvailabilityQueryDTO,
+  AvailabilityResultDTO,
+  CalendarAvailabilityQueryDTO,
+  CalendarAvailabilityResultDTO,
+  AdminOverrideBookingDTO,
+  AdminNoShowRescheduleDTO,
+  BookingFilterDTO,
+  CancelBookingDTO,
   FacilityResource,
+  ResourcePricingPlan,
+  ResourceSchedule,
+  ResourceBlackout,
+  CreateResourceDTO,
+  UpdateResourceDTO,
+  CreatePricingPlanDTO,
+  UpdatePricingPlanDTO,
+  CreateBlackoutDTO,
+  UpsertScheduleDTO,
+  UploadResourceImageDTO,
+  UploadImageResponse,
   PaystackInitializeResponse,
   UserProfile,
   UserRole,
-} from '@daih/types';
+  CustomerRecord,
+  CustomerListResponse,
+  CustomerFilterDTO,
+  CreateCustomerDTO,
+  CustomerMetrics,
+  PaymentTransaction,
+  InvoiceDTO,
+  RefundRequestDTO,
+  ReconciliationSummary,
+  DailyPaymentSummary,
+  VerifyAccessPassResponse,
+  CheckInResultDTO,
+  CheckOutResultDTO,
+  AccessPassDetails,
+  TerminalActivityRecord,
+  LiveOccupancyDTO,
+  AdminDashboardSummaryDTO,
+  AdminAnalyticsSummaryDTO,
+  ReceptionTerminalSummaryDTO,
+  LoginApiResponse,
+  MfaSetupInitResponse,
+  MfaMethod,
+  SetupAccountResponse,
+  CustomerReferralsResponse,
+  AdminCustomerReferralsResponse,
+} from "@daih/types";
+import { apiCacheManager } from "./cache";
 
 export class ApiError extends Error {
   constructor(
     public status: number,
     public code: string,
     message: string,
-    public details?: any
+    public details?: any,
   ) {
     super(message);
-    this.name = 'ApiError';
+    this.name = "ApiError";
   }
 }
 
@@ -39,25 +84,28 @@ export class DaihApiClient {
   constructor(config: ApiClientConfig = {}) {
     const rawUrl =
       config.baseUrl ||
-      (typeof window !== 'undefined'
-        ? process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
-        : 'http://localhost:4000');
-    const cleanUrl = rawUrl.replace(/\/$/, '');
-    this.baseUrl = cleanUrl.endsWith('/api/v1') ? cleanUrl : `${cleanUrl}/api/v1`;
+      (typeof window !== "undefined"
+        ? process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"
+        : "http://localhost:4000");
+    const cleanUrl = rawUrl.replace(/\/$/, "");
+    this.baseUrl = cleanUrl.endsWith("/api/v1")
+      ? cleanUrl
+      : `${cleanUrl}/api/v1`;
     this.getTokenFn = config.getToken;
     this.setTokenFn = config.setToken;
     this.onSessionExpiredFn = config.onSessionExpired;
   }
 
+  setOnSessionExpired(fn: () => void): void {
+    this.onSessionExpiredFn = fn;
+  }
+
   setAccessToken(token: string | null): void {
     this.inMemoryToken = token;
-    if (typeof window !== 'undefined') {
+    // Clean up legacy localStorage token if previously stored to prevent lingering XSS exposure
+    if (typeof window !== "undefined") {
       try {
-        if (token) {
-          localStorage.setItem('daih_access_token', token);
-        } else {
-          localStorage.removeItem('daih_access_token');
-        }
+        localStorage.removeItem("daih_access_token");
       } catch {}
     }
     if (this.setTokenFn) {
@@ -70,17 +118,7 @@ export class DaihApiClient {
       const customToken = await this.getTokenFn();
       if (customToken !== undefined) return customToken;
     }
-    if (this.inMemoryToken) return this.inMemoryToken;
-    if (typeof window !== 'undefined') {
-      try {
-        const stored = localStorage.getItem('daih_access_token');
-        if (stored) {
-          this.inMemoryToken = stored;
-          return stored;
-        }
-      } catch {}
-    }
-    return null;
+    return this.inMemoryToken;
   }
 
   private onTokenRefreshed(token: string | null) {
@@ -95,26 +133,26 @@ export class DaihApiClient {
   private async request<T>(
     endpoint: string,
     options: RequestInit = {},
-    retryOnAuthFailure: boolean = true
+    retryOnAuthFailure: boolean = true,
   ): Promise<T> {
-    const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
     const url = `${this.baseUrl}${cleanEndpoint}`;
     const headers = new Headers(options.headers || {});
 
-    if (!headers.has('Content-Type') && !(options.body instanceof FormData)) {
-      headers.set('Content-Type', 'application/json');
+    if (!headers.has("Content-Type") && !(options.body instanceof FormData)) {
+      headers.set("Content-Type", "application/json");
     }
 
     const token = await this.getAccessToken();
-    if (token && !headers.has('Authorization')) {
-      headers.set('Authorization', `Bearer ${token}`);
+    if (token && !headers.has("Authorization")) {
+      headers.set("Authorization", `Bearer ${token}`);
     }
 
     // Always include credentials to ensure HttpOnly refresh cookies are sent
     const fetchOptions: RequestInit = {
       ...options,
       headers,
-      credentials: 'include',
+      credentials: "include",
     };
 
     let response: Response;
@@ -123,8 +161,8 @@ export class DaihApiClient {
     } catch (networkError: any) {
       throw new ApiError(
         0,
-        'NETWORK_ERROR',
-        networkError?.message || 'Unable to connect to the server'
+        "NETWORK_ERROR",
+        networkError?.message || "Unable to connect to the server",
       );
     }
 
@@ -132,16 +170,32 @@ export class DaihApiClient {
     if (
       response.status === 401 &&
       retryOnAuthFailure &&
-      !cleanEndpoint.includes('/identity/login') &&
-      !cleanEndpoint.includes('/identity/refresh')
+      !cleanEndpoint.includes("/identity/login") &&
+      !cleanEndpoint.includes("/identity/register") &&
+      !cleanEndpoint.includes("/identity/refresh")
     ) {
-      if (!this.isRefreshing) {
+      if (this.isRefreshing) {
+        // Wait for active in-flight refresh to finish
+        const retryToken = await new Promise<string | null>((resolve) => {
+          this.addRefreshSubscriber((newToken) => resolve(newToken));
+        });
+
+        if (retryToken) {
+          headers.set("Authorization", `Bearer ${retryToken}`);
+          return this.request<T>(endpoint, { ...options, headers }, false);
+        }
+      } else {
         this.isRefreshing = true;
         try {
           const refreshRes = await this.auth.refresh();
-          this.isRefreshing = false;
           const newToken = refreshRes.accessToken || refreshRes.token || null;
+          this.isRefreshing = false;
           this.onTokenRefreshed(newToken);
+
+          if (newToken) {
+            headers.set("Authorization", `Bearer ${newToken}`);
+            return this.request<T>(endpoint, { ...options, headers }, false);
+          }
         } catch (refreshErr) {
           this.isRefreshing = false;
           this.setAccessToken(null);
@@ -149,18 +203,7 @@ export class DaihApiClient {
           if (this.onSessionExpiredFn) {
             this.onSessionExpiredFn();
           }
-          throw refreshErr;
         }
-      }
-
-      // Wait for the active refresh to finish
-      const retryToken = await new Promise<string | null>((resolve) => {
-        this.addRefreshSubscriber((newToken) => resolve(newToken));
-      });
-
-      if (retryToken) {
-        headers.set('Authorization', `Bearer ${retryToken}`);
-        return this.request<T>(endpoint, { ...options, headers }, false);
       }
     }
 
@@ -169,76 +212,101 @@ export class DaihApiClient {
     if (!response.ok) {
       const detailMsg =
         data.details && Array.isArray(data.details) && data.details.length > 0
-          ? `: ${data.details.map((d: any) => `${d.field ? d.field + ': ' : ''}${d.message}`).join(', ')}`
-          : '';
+          ? `: ${data.details.map((d: any) => `${d.field ? d.field + ": " : ""}${d.message}`).join(", ")}`
+          : "";
       throw new ApiError(
         response.status,
-        data.code || 'API_ERROR',
-        (data.message || 'An unexpected API error occurred') + detailMsg,
-        data.details
+        data.code || "API_ERROR",
+        (data.message || "An unexpected API error occurred") + detailMsg,
+        data.details,
       );
     }
 
     return data.data !== undefined ? data.data : data;
   }
 
-  // Catalogue Module
-  catalogue = {
-    getResources: () => this.request<FacilityResource[]>('/catalogue/resources'),
-    getResourceBySlug: (slug: string) =>
-      this.request<FacilityResource>(`/catalogue/resources/${slug}`),
-  };
+  // Identity / Auth API
+  public auth = {
+    login: async (credentials: {
+      email: string;
+      password: string;
+      portal?: "customer" | "admin" | string;
+      audience?: "CUSTOMER" | "ADMIN" | string;
+    }): Promise<LoginApiResponse> => {
+      const res = await this.request<any>("/identity/login", {
+        method: "POST",
+        body: JSON.stringify(credentials),
+      });
+      if (res.requiresMfaSetup || res.requiresMfa) {
+        return res as LoginApiResponse;
+      }
+      const jwt = res.accessToken || res.token || null;
+      if (jwt) {
+        this.setAccessToken(jwt);
+      }
+      return { ...res, token: jwt || "" };
+    },
 
-  // Bookings Module
-  bookings = {
-    createHold: (dto: CreateBookingDTO) =>
-      this.request<BookingHoldDTO>('/bookings/hold', {
-        method: 'POST',
-        body: JSON.stringify(dto),
+    setupMfa: (payload: { setupToken: string; method: MfaMethod }) =>
+      this.request<MfaSetupInitResponse>("/identity/mfa/setup", {
+        method: "POST",
+        body: JSON.stringify(payload),
       }),
-    confirmBooking: (bookingId: string) =>
-      this.request<BookingSummary>(`/bookings/${bookingId}/confirm`, {
-        method: 'POST',
-      }),
-    getMyBookings: () => this.request<BookingSummary[]>('/bookings/my'),
-    getBookingById: (id: string) =>
-      this.request<BookingSummary>(`/bookings/${id}`),
-    initializePayment: (bookingId: string) =>
-      this.request<PaystackInitializeResponse>(
-        `/payments/initialize/${bookingId}`,
-        { method: 'POST' }
-      ),
-  };
 
-  // Access / QR Module
-  access = {
-    getQRToken: (bookingId: string) =>
-      this.request<{ token: string; expiresAt: string }>(
-        `/access/qr/${bookingId}`
-      ),
-    verifyQR: (token: string) =>
-      this.request<{ valid: boolean; booking: BookingSummary }>(
-        '/access/verify-qr',
+    confirmMfaSetup: async (payload: {
+      setupToken: string;
+      method: MfaMethod;
+      code: string;
+      ephemeralSecret?: string;
+    }) => {
+      const res = await this.request<{ token: string; user: UserProfile }>(
+        "/identity/mfa/verify-setup",
         {
-          method: 'POST',
-          body: JSON.stringify({ token }),
-        }
-      ),
-    checkIn: (bookingId: string) =>
-      this.request<{ success: boolean; timestamp: string }>(
-        `/access/checkin/${bookingId}`,
-        { method: 'POST' }
-      ),
-    checkOut: (bookingId: string) =>
-      this.request<{ success: boolean; timestamp: string }>(
-        `/access/checkout/${bookingId}`,
-        { method: 'POST' }
-      ),
-  };
+          method: "POST",
+          body: JSON.stringify(payload),
+        },
+      );
+      if (res.token) {
+        this.setAccessToken(res.token);
+      }
+      return res;
+    },
 
-  // Authentication & Identity Module
-  auth = {
-    register: async (payload: {
+    verifyMfaChallenge: async (payload: {
+      mfaChallengeToken: string;
+      code: string;
+    }) => {
+      const res = await this.request<{ token: string; user: UserProfile }>(
+        "/identity/mfa/verify",
+        {
+          method: "POST",
+          body: JSON.stringify(payload),
+        },
+      );
+      if (res.token) {
+        this.setAccessToken(res.token);
+      }
+      return res;
+    },
+
+    sendMfaOtp: (payload: { mfaChallengeToken: string }) =>
+      this.request<{ success: boolean; message: string }>(
+        "/identity/mfa/send-otp",
+        {
+          method: "POST",
+          body: JSON.stringify(payload),
+        },
+      ),
+
+    disableUserMfa: (userId: string) =>
+      this.request<{ success: boolean; message: string }>(
+        `/identity/admin/users/${userId}/mfa`,
+        {
+          method: "DELETE",
+        },
+      ),
+
+    register: (payload: {
       email: string;
       password: string;
       firstName: string;
@@ -246,120 +314,665 @@ export class DaihApiClient {
       phoneNumber?: string;
       policyVersion?: string;
       consented: boolean;
-    }) => {
-      return this.request<{
-        user: UserProfile;
-        verificationSent: boolean;
-      }>('/identity/register', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
-    },
-
-    login: async (credentials: {
-      email: string;
-      password: string;
-      portal?: 'customer' | 'admin' | string;
-      audience?: 'CUSTOMER' | 'ADMIN' | string;
-    }) => {
-      const res = await this.request<{
-        accessToken?: string;
-        token?: string;
-        user: UserProfile;
-      }>('/identity/login', {
-        method: 'POST',
-        body: JSON.stringify(credentials),
-      });
-      const token = res.accessToken || res.token || null;
-      if (token) {
-        this.setAccessToken(token);
-      }
-      return {
-        accessToken: token || '',
-        token: token || '',
-        user: res.user,
-      };
-    },
+      referralCode?: string;
+    }) =>
+      this.request<{ user: UserProfile; verificationSent: boolean }>(
+        "/identity/register",
+        {
+          method: "POST",
+          body: JSON.stringify(payload),
+        },
+      ),
 
     refresh: async () => {
       const res = await this.request<{
-        accessToken?: string;
-        token?: string;
+        accessToken: string;
         user: UserProfile;
-      }>(
-        '/identity/refresh',
-        {
-          method: 'POST',
-        },
-        false
-      );
-      const token = res.accessToken || res.token || null;
+        token?: string;
+      }>("/identity/refresh", {
+        method: "POST",
+      });
+      const token = res.accessToken || res.token;
       if (token) {
         this.setAccessToken(token);
       }
-      return {
-        accessToken: token || '',
-        token: token || '',
-        user: res.user,
-      };
+      return res;
     },
 
     logout: async () => {
       try {
-        await this.request<{ success: boolean }>(
-          '/identity/logout',
-          {
-            method: 'POST',
-          },
-          false
-        );
+        await this.request("/identity/logout", { method: "POST" });
       } finally {
         this.setAccessToken(null);
       }
     },
 
-    verifyEmail: (token: string) => {
-      return this.request<UserProfile>(
-        `/identity/verify-email?token=${encodeURIComponent(token)}`
-      );
-    },
+    getProfile: () => this.request<UserProfile>("/identity/me"),
 
-    resendVerification: (email: string) => {
-      return this.request<{ success: boolean; message: string }>(
-        '/identity/resend-verification',
+    updateProfile: (data: {
+      firstName?: string;
+      lastName?: string;
+      phoneNumber?: string;
+      birthday?: string | null;
+    }) =>
+      this.request<UserProfile>("/identity/me", {
+        method: "PUT",
+        body: JSON.stringify(data),
+      }),
+
+    changePassword: (data: { currentPassword: string; newPassword: string }) =>
+      this.request<{ success: boolean; message: string }>(
+        "/identity/me/change-password",
         {
-          method: 'POST',
+          method: "POST",
+          body: JSON.stringify(data),
+        },
+      ),
+
+    uploadAvatar: (data: {
+      data: string;
+      fileName?: string;
+      contentType?: string;
+    }) =>
+      this.request<{ avatarUrl: string; user: UserProfile }>(
+        "/identity/me/avatar",
+        {
+          method: "POST",
+          body: JSON.stringify(data),
+        },
+      ),
+
+    deleteAvatar: () =>
+      this.request<{ success: boolean; user: UserProfile }>(
+        "/identity/me/avatar",
+        {
+          method: "DELETE",
+        },
+      ),
+
+    verifyEmail: (token: string) =>
+      this.request<{ success: boolean; message: string }>(
+        "/identity/verify-email",
+        {
+          method: "POST",
+          body: JSON.stringify({ token }),
+        },
+      ),
+
+    resendVerification: (email: string) =>
+      this.request<{ success: boolean; message: string }>(
+        "/identity/resend-verification",
+        {
+          method: "POST",
           body: JSON.stringify({ email }),
-        }
-      );
-    },
+        },
+      ),
 
-    requestPasswordReset: (email: string) => {
-      return this.request<{ success: boolean; message: string }>(
-        '/identity/password-reset/request',
+    requestPasswordReset: (email: string) =>
+      this.request<{ success: boolean; message: string }>(
+        "/identity/password-reset/request",
         {
-          method: 'POST',
+          method: "POST",
           body: JSON.stringify({ email }),
-        }
-      );
-    },
+        },
+      ),
 
-    confirmPasswordReset: (payload: { token: string; newPassword: string }) => {
-      return this.request<{ success: boolean; message: string }>(
-        '/identity/password-reset/confirm',
+    resetPassword: (payload: { token: string; newPassword: string }) =>
+      this.request<{ success: boolean; message: string }>(
+        "/identity/password-reset/confirm",
         {
-          method: 'POST',
+          method: "POST",
           body: JSON.stringify(payload),
-        }
+        },
+      ),
+
+    confirmPasswordReset: (payload: { token: string; newPassword: string }) =>
+      this.auth.resetPassword(payload),
+
+    setupAccount: (payload: { token: string; password: string }) =>
+      this.request<SetupAccountResponse>("/identity/setup-account", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
+
+    getStaffUsers: () => this.adminUsers.getStaffUsers(),
+
+    createStaffUser: (payload: {
+      email: string;
+      firstName: string;
+      lastName: string;
+      phoneNumber?: string;
+      role: UserRole;
+    }) => this.adminUsers.createStaffUser(payload),
+
+    updateStaffUser: (
+      userId: string,
+      payload: {
+        role?: UserRole;
+        firstName?: string;
+        lastName?: string;
+        phoneNumber?: string;
+        isVerified?: boolean;
+      },
+    ) => this.adminUsers.updateStaffUser(userId, payload),
+  };
+
+  // Catalogue & Resources API
+  public catalogue = {
+    getResources: (options?: { forceRefresh?: boolean }) =>
+      apiCacheManager.fetchWithCache<FacilityResource[]>(
+        "catalogue_resources",
+        () => this.request<FacilityResource[]>("/catalogue/resources"),
+        60000,
+        options,
+      ),
+
+    getResourceBySlug: (slug: string, options?: { forceRefresh?: boolean }) =>
+      apiCacheManager.fetchWithCache<FacilityResource>(
+        `catalogue_resource_${slug}`,
+        () => this.request<FacilityResource>(`/catalogue/resources/${slug}`),
+        60000,
+        options,
+      ),
+
+    getResourceById: (id: string, options?: { forceRefresh?: boolean }) =>
+      this.catalogue.getResourceBySlug(id, options),
+
+    getAdminResources: () =>
+      this.request<FacilityResource[]>("/catalogue/admin/resources"),
+
+    createResource: async (dto: CreateResourceDTO) => {
+      const res = await this.request<FacilityResource>(
+        "/catalogue/admin/resources",
+        {
+          method: "POST",
+          body: JSON.stringify(dto),
+        },
+      );
+      apiCacheManager.invalidate("catalogue");
+      return res;
+    },
+
+    updateResource: async (id: string, dto: UpdateResourceDTO) => {
+      const res = await this.request<FacilityResource>(
+        `/catalogue/admin/resources/${id}`,
+        {
+          method: "PUT",
+          body: JSON.stringify(dto),
+        },
+      );
+      apiCacheManager.invalidate("catalogue");
+      return res;
+    },
+
+    deleteResource: async (id: string) => {
+      const res = await this.request<{ success: boolean }>(
+        `/catalogue/admin/resources/${id}`,
+        {
+          method: "DELETE",
+        },
+      );
+      apiCacheManager.invalidate("catalogue");
+      return res;
+    },
+
+    addPricingPlan: async (resourceId: string, dto: CreatePricingPlanDTO) => {
+      const res = await this.request<ResourcePricingPlan>(
+        `/catalogue/admin/resources/${resourceId}/pricing`,
+        {
+          method: "POST",
+          body: JSON.stringify(dto),
+        },
+      );
+      apiCacheManager.invalidate("catalogue");
+      return res;
+    },
+
+    createPricingPlan: (resourceId: string, dto: CreatePricingPlanDTO) =>
+      this.catalogue.addPricingPlan(resourceId, dto),
+
+    updatePricingPlan: async (pricingId: string, dto: UpdatePricingPlanDTO) => {
+      const res = await this.request<ResourcePricingPlan>(
+        `/catalogue/admin/pricing/${pricingId}`,
+        {
+          method: "PUT",
+          body: JSON.stringify(dto),
+        },
+      );
+      apiCacheManager.invalidate("catalogue");
+      return res;
+    },
+
+    deletePricingPlan: async (pricingId: string) => {
+      const res = await this.request<{ success: boolean }>(
+        `/catalogue/admin/pricing/${pricingId}`,
+        { method: "DELETE" },
+      );
+      apiCacheManager.invalidate("catalogue");
+      return res;
+    },
+
+    upsertSchedules: async (
+      resourceId: string,
+      schedules: UpsertScheduleDTO[],
+    ) => {
+      const res = await this.request<ResourceSchedule[]>(
+        `/catalogue/admin/resources/${resourceId}/schedules`,
+        {
+          method: "POST",
+          body: JSON.stringify({ schedules }),
+        },
+      );
+      apiCacheManager.invalidate("catalogue");
+      return res;
+    },
+
+    updateSchedules: (resourceId: string, schedules: UpsertScheduleDTO[]) =>
+      this.catalogue.upsertSchedules(resourceId, schedules),
+
+    addBlackout: async (resourceId: string, dto: CreateBlackoutDTO) => {
+      const res = await this.request<ResourceBlackout>(
+        `/catalogue/admin/resources/${resourceId}/blackouts`,
+        {
+          method: "POST",
+          body: JSON.stringify(dto),
+        },
+      );
+      apiCacheManager.invalidate("catalogue");
+      return res;
+    },
+
+    createBlackout: (resourceId: string, dto: CreateBlackoutDTO) =>
+      this.catalogue.addBlackout(resourceId, dto),
+
+    deleteBlackout: async (blackoutId: string) => {
+      const res = await this.request<{ success: boolean }>(
+        `/catalogue/admin/blackouts/${blackoutId}`,
+        { method: "DELETE" },
+      );
+      apiCacheManager.invalidate("catalogue");
+      return res;
+    },
+
+    uploadImage: async (dto: UploadResourceImageDTO) => {
+      const res = await this.request<UploadImageResponse>(
+        "/catalogue/admin/upload-image",
+        {
+          method: "POST",
+          body: JSON.stringify(dto),
+        },
+      );
+      apiCacheManager.invalidate("catalogue");
+      return res;
+    },
+
+    updateResourceImage: async (
+      resourceId: string,
+      imagePayload: { data: string; fileName?: string } | string,
+    ) => {
+      let imageUrl: string;
+      if (typeof imagePayload === "string") {
+        imageUrl = imagePayload;
+        const res = await this.catalogue.updateResource(resourceId, {
+          imageUrl,
+        });
+        return res;
+      } else {
+        const uploadRes = await this.catalogue.uploadImage({
+          ...imagePayload,
+          resourceId,
+        });
+        imageUrl = uploadRes.url;
+        const res = await this.catalogue.getResourceById(resourceId, {
+          forceRefresh: true,
+        });
+        return res;
+      }
+    },
+  };
+
+  // Bookings API
+  public bookings = {
+    checkAvailability: (
+      query: AvailabilityQueryDTO,
+      options?: { forceRefresh?: boolean },
+    ) => {
+      const params = new URLSearchParams({
+        resourceId: query.resourceId,
+        startTime: query.startTime,
+        endTime: query.endTime,
+      });
+      const cacheKey = `avail_${query.resourceId}_${query.startTime}_${query.endTime}`;
+      return apiCacheManager.fetchWithCache<AvailabilityResultDTO>(
+        cacheKey,
+        () =>
+          this.request<AvailabilityResultDTO>(
+            `/bookings/availability?${params.toString()}`,
+          ),
+        15000,
+        options,
       );
     },
 
-    getProfile: () => {
-      return this.request<UserProfile>('/identity/me');
+    getCalendarAvailability: (
+      query: CalendarAvailabilityQueryDTO,
+      options?: { forceRefresh?: boolean },
+    ) => {
+      const params = new URLSearchParams({
+        resourceId: query.resourceId,
+        ...(query.month ? { month: query.month } : {}),
+      });
+      const cacheKey = `cal_avail_${query.resourceId}_${query.month || ""}`;
+      return apiCacheManager.fetchWithCache<CalendarAvailabilityResultDTO>(
+        cacheKey,
+        () =>
+          this.request<CalendarAvailabilityResultDTO>(
+            `/bookings/calendar-availability?${params.toString()}`,
+          ),
+        30000,
+        options,
+      );
     },
 
+    createHold: async (dto: CreateBookingDTO) => {
+      const res = await this.request<BookingHoldDTO>("/bookings/hold", {
+        method: "POST",
+        body: JSON.stringify(dto),
+      });
+      apiCacheManager.invalidate("my_bookings");
+      apiCacheManager.invalidate("cal_avail");
+      return res;
+    },
+
+    extendHold: (bookingId: string) =>
+      this.request<{ success: boolean; holdExpiresAt: string }>(
+        `/bookings/${bookingId}/extend-hold`,
+        { method: "POST" },
+      ),
+
+    getMyBookings: (options?: { forceRefresh?: boolean }) =>
+      apiCacheManager.fetchWithCache<BookingSummary[]>(
+        "my_bookings",
+        () => this.request<BookingSummary[]>("/bookings/my"),
+        30000,
+        options,
+      ),
+
+    getBookingById: (id: string) =>
+      this.request<BookingSummary>(`/bookings/${id}`),
+
+    cancelBooking: async (id: string, reason?: string) => {
+      const res = await this.request<{
+        success: boolean;
+        message: string;
+        booking: BookingSummary;
+      }>(`/bookings/${id}/cancel`, {
+        method: "POST",
+        body: JSON.stringify({ reason }),
+      });
+      apiCacheManager.invalidate("my_bookings");
+      apiCacheManager.invalidate("cal_avail");
+      return res;
+    },
+
+    confirmBooking: async (bookingId: string) => {
+      const res = await this.request<BookingSummary>(
+        `/bookings/${bookingId}/confirm`,
+        {
+          method: "POST",
+        },
+      );
+      apiCacheManager.invalidate("my_bookings");
+      apiCacheManager.invalidate("cal_avail");
+      return res;
+    },
+
+    adminReleaseHold: async (bookingId: string, reason?: string) => {
+      const res = await this.request<{ success: boolean; message: string }>(
+        `/bookings/admin/${bookingId}/release`,
+        {
+          method: "POST",
+          body: JSON.stringify({ reason }),
+        },
+      );
+      apiCacheManager.invalidate("my_bookings");
+      apiCacheManager.invalidate("cal_avail");
+      return res;
+    },
+
+    getAdminBookings: async (filter?: BookingFilterDTO) => {
+      const params = new URLSearchParams();
+      if (filter?.status || filter?.state)
+        params.set("state", (filter.status || filter.state) as string);
+      if (filter?.search) params.set("search", filter.search);
+      if (filter?.dateFrom || filter?.startDate)
+        params.set(
+          "startDate",
+          (filter.dateFrom || filter.startDate) as string,
+        );
+      if (filter?.dateTo || filter?.endDate)
+        params.set("endDate", (filter.dateTo || filter.endDate) as string);
+      if (filter?.page) params.set("page", String(filter.page));
+      if (filter?.limit) params.set("limit", String(filter.limit));
+      const queryStr = params.toString() ? `?${params.toString()}` : "";
+      const res = await this.request<any>(`/bookings/admin${queryStr}`);
+      if (Array.isArray(res)) {
+        return { bookings: res, total: res.length };
+      }
+      return {
+        bookings: res.bookings || res.items || [],
+        total: res.total ?? (res.bookings?.length || 0),
+      };
+    },
+
+    getDashboardSummary: async (options?: { forceRefresh?: boolean }) => {
+      return apiCacheManager.fetchWithCache<AdminDashboardSummaryDTO>(
+        "admin_dashboard_summary",
+        () =>
+          this.request<AdminDashboardSummaryDTO>(
+            "/bookings/admin/dashboard-summary",
+          ),
+        30000,
+        options,
+      );
+    },
+
+    getAnalyticsSummary: async (filter?: {
+      startDate?: string;
+      endDate?: string;
+      preset?: string;
+      forceRefresh?: boolean;
+    }) => {
+      const params = new URLSearchParams();
+      if (filter?.startDate) params.set("startDate", filter.startDate);
+      if (filter?.endDate) params.set("endDate", filter.endDate);
+      if (filter?.preset) params.set("preset", filter.preset);
+      const queryStr = params.toString() ? `?${params.toString()}` : "";
+      const cacheKey = `admin_analytics_summary_${filter?.preset || "custom"}_${filter?.startDate || ""}_${filter?.endDate || ""}`;
+
+      return apiCacheManager.fetchWithCache<AdminAnalyticsSummaryDTO>(
+        cacheKey,
+        () =>
+          this.request<AdminAnalyticsSummaryDTO>(
+            `/bookings/admin/analytics-summary${queryStr}`,
+          ),
+        30000,
+        { forceRefresh: filter?.forceRefresh },
+      );
+    },
+
+    adminOverrideBooking: async (
+      bookingId: string,
+      dto: AdminOverrideBookingDTO,
+    ) => {
+      const res = await this.request<BookingSummary>(
+        `/bookings/admin/${bookingId}/override`,
+        {
+          method: "POST",
+          body: JSON.stringify(dto),
+        },
+      );
+      apiCacheManager.invalidate("my_bookings");
+      apiCacheManager.invalidate("cal_avail");
+      return res;
+    },
+
+    adminOverride: (dto: AdminOverrideBookingDTO) =>
+      this.bookings.adminOverrideBooking(dto.resourceId, dto),
+
+    rescheduleNoShow: async (
+      bookingId: string,
+      dto: AdminNoShowRescheduleDTO,
+    ) => {
+      const res = await this.request<{
+        success: boolean;
+        message: string;
+        data: BookingSummary;
+      }>(`/bookings/admin/${bookingId}/reschedule-noshow`, {
+        method: "POST",
+        body: JSON.stringify(dto),
+      });
+      apiCacheManager.invalidate("my_bookings");
+      apiCacheManager.invalidate("cal_avail");
+      return res.data || res;
+    },
+
+    initializePayment: (bookingId: string, callbackUrl?: string) =>
+      this.payments.initializePayment(bookingId, callbackUrl),
+  };
+
+  // Payments & Ledger API
+  public payments = {
+    initializePayment: async (bookingId: string, callbackUrl?: string) => {
+      const res = await this.request<PaystackInitializeResponse>(
+        `/payments/initialize/${bookingId}`,
+        {
+          method: "POST",
+          body: JSON.stringify({ callbackUrl }),
+        },
+      );
+      apiCacheManager.invalidate("my_bookings");
+      apiCacheManager.invalidate("payment_history");
+      return res;
+    },
+
+    getHistory: (options?: {
+      page?: number;
+      limit?: number;
+      forceRefresh?: boolean;
+    }) => {
+      const params = new URLSearchParams();
+      if (options?.page) params.set("page", String(options.page));
+      if (options?.limit) params.set("limit", String(options.limit));
+      const queryStr = params.toString() ? `?${params.toString()}` : "";
+
+      return apiCacheManager.fetchWithCache<PaymentTransaction[]>(
+        `payment_history_${options?.page || 1}`,
+        () =>
+          this.request<PaymentTransaction[]>(`/payments/history${queryStr}`),
+        15000,
+        options,
+      );
+    },
+
+    getTransaction: (transactionId: string) =>
+      this.request<PaymentTransaction>(`/payments/${transactionId}`),
+
+    verifyPayment: async (transactionId: string) => {
+      const res = await this.request<PaymentTransaction>(
+        `/payments/${transactionId}/verify`,
+        {
+          method: "POST",
+        },
+      );
+      apiCacheManager.invalidate("my_bookings");
+      apiCacheManager.invalidate("payment_history");
+      apiCacheManager.invalidate("cal_avail");
+      apiCacheManager.invalidate("avail_");
+      return res;
+    },
+
+    getInvoice: (transactionId: string) =>
+      this.request<InvoiceDTO>(`/payments/${transactionId}/invoice`),
+
+    requestRefund: (bookingId: string, reason?: string) =>
+      this.request<{ success: boolean; message: string; bookingId: string }>(
+        `/payments/bookings/${bookingId}/refund-request`,
+        {
+          method: "POST",
+          body: JSON.stringify({ reason }),
+        },
+      ),
+
+    processRefund: (transactionId: string, dto: RefundRequestDTO) =>
+      this.request<{
+        success: boolean;
+        message: string;
+        data: PaymentTransaction;
+      }>(`/payments/${transactionId}/refund`, {
+        method: "POST",
+        body: JSON.stringify(dto),
+      }),
+
+    getAdminTransactions: async (filters?: {
+      status?: string;
+      method?: string;
+      search?: string;
+      startDate?: string;
+      endDate?: string;
+      page?: number;
+      limit?: number;
+    }) => {
+      const params = new URLSearchParams();
+      if (filters?.status) params.set("status", filters.status);
+      if (filters?.method) params.set("method", filters.method);
+      if (filters?.search) params.set("search", filters.search);
+      if (filters?.startDate) params.set("startDate", filters.startDate);
+      if (filters?.endDate) params.set("endDate", filters.endDate);
+      if (filters?.page) params.set("page", String(filters.page));
+      if (filters?.limit) params.set("limit", String(filters.limit));
+      const queryStr = params.toString() ? `?${params.toString()}` : "";
+
+      const res = await this.request<any>(
+        `/payments/admin/transactions${queryStr}`,
+      );
+      if (Array.isArray(res)) {
+        return { transactions: res, total: res.length };
+      }
+      return {
+        transactions: res.transactions || res.data || [],
+        total: res.total ?? (res.transactions?.length || 0),
+        page: res.page || 1,
+        limit: res.limit || 20,
+      };
+    },
+
+    getReconciliation: (query?: { startDate?: string; endDate?: string }) => {
+      const params = new URLSearchParams();
+      if (query?.startDate) params.set("startDate", query.startDate);
+      if (query?.endDate) params.set("endDate", query.endDate);
+      const queryStr = params.toString() ? `?${params.toString()}` : "";
+
+      return this.request<ReconciliationSummary>(
+        `/payments/admin/reconciliation${queryStr}`,
+      );
+    },
+
+    getDailySummary: (date?: string) => {
+      const params = new URLSearchParams();
+      if (date) params.set("date", date);
+      const queryStr = params.toString() ? `?${params.toString()}` : "";
+
+      return this.request<DailyPaymentSummary>(
+        `/payments/admin/daily-summary${queryStr}`,
+      );
+    },
+  };
+
+  // Staff / User Management API
+  public adminUsers = {
     getStaffUsers: () => {
-      return this.request<UserProfile[]>('/identity/admin/users');
+      return this.request<UserProfile[]>("/identity/admin/users");
     },
 
     createStaffUser: async (payload: {
@@ -368,15 +981,271 @@ export class DaihApiClient {
       lastName: string;
       phoneNumber?: string;
       role: UserRole;
-      password?: string;
     }) => {
-      const res = await this.request<any>('/identity/admin/users', {
-        method: 'POST',
+      const res = await this.request<any>("/identity/admin/users", {
+        method: "POST",
         body: JSON.stringify(payload),
       });
-      return (res?.user || res) as UserProfile;
+      return (res?.user || res?.data || res) as UserProfile;
+    },
+
+    resendSetupLink: (userId: string) => {
+      return this.request<{ success: boolean; message: string }>(
+        `/identity/admin/users/${userId}/resend-setup`,
+        {
+          method: "POST",
+        },
+      );
+    },
+
+    updateStaffUser: async (
+      userId: string,
+      payload: {
+        role?: UserRole;
+        firstName?: string;
+        lastName?: string;
+        phoneNumber?: string;
+        isVerified?: boolean;
+      },
+    ) => {
+      const res = await this.request<any>(`/identity/admin/users/${userId}`, {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      });
+      return (res?.user || res?.data?.user || res?.data || res) as UserProfile;
     },
   };
+
+  // Email Template Management API (Super Admin)
+  public emailTemplates = {
+    listTemplates: () => {
+      return this.request<
+        Array<{
+          type: string;
+          subject: string;
+          htmlBody: string;
+          textBody?: string;
+          description: string;
+          variables: string[];
+          isCustomized: boolean;
+          isActive: boolean;
+          updatedAt?: string;
+        }>
+      >("/email-templates");
+    },
+
+    getTemplate: (type: string) => {
+      return this.request<{
+        type: string;
+        subject: string;
+        htmlBody: string;
+        textBody?: string;
+        isActive: boolean;
+      }>(`/email-templates/${type}`);
+    },
+
+    updateTemplate: (
+      type: string,
+      data: {
+        subject: string;
+        htmlBody: string;
+        textBody?: string;
+        isActive?: boolean;
+      },
+    ) => {
+      return this.request<{ success: boolean; type: string }>(
+        `/email-templates/${type}`,
+        {
+          method: "PUT",
+          body: JSON.stringify(data),
+        },
+      );
+    },
+  };
+
+  // Customer Directory API
+  public customers = {
+    getCustomers: async (
+      filter?: CustomerFilterDTO,
+    ): Promise<CustomerListResponse> => {
+      const params = new URLSearchParams();
+      if (filter?.search) params.set("search", filter.search);
+      if (filter?.status) params.set("status", filter.status);
+      if (filter?.tier) params.set("tier", filter.tier);
+      if (filter?.page) params.set("page", String(filter.page));
+      if (filter?.limit) params.set("limit", String(filter.limit));
+      const queryStr = params.toString() ? `?${params.toString()}` : "";
+      const res = await this.request<any>(
+        `/identity/admin/customers${queryStr}`,
+      );
+      return (res?.data || res) as CustomerListResponse;
+    },
+
+    createCustomer: async (dto: CreateCustomerDTO): Promise<CustomerRecord> => {
+      const res = await this.request<any>("/identity/admin/customers", {
+        method: "POST",
+        body: JSON.stringify(dto),
+      });
+      return (res?.data || res) as CustomerRecord;
+    },
+  };
+
+  // Customer & Admin Referrals API
+  public referrals = {
+    getMyReferrals: () =>
+      this.request<CustomerReferralsResponse>("/identity/me/referrals"),
+
+    getCustomerReferrals: (customerId: string) =>
+      this.request<AdminCustomerReferralsResponse>(
+        `/identity/admin/customers/${customerId}/referrals`,
+      ),
+  };
+
+  // Access & Reception Scanner API
+  public access = {
+    getAccessPass: (bookingId: string) =>
+      this.request<{
+        token: string;
+        bookingId: string;
+        reference: string;
+        resourceName: string;
+        customerName: string;
+        startTime: string;
+        expiresAt: string;
+        state: string;
+        checkedInAt?: string | null;
+      }>(`/access/qr/${bookingId}`),
+
+    verifyQr: (token: string) =>
+      this.request<VerifyAccessPassResponse>("/access/verify-qr", {
+        method: "POST",
+        body: JSON.stringify({ token }),
+      }),
+
+    verifyPass: (tokenOrRef: string) => this.access.verifyQr(tokenOrRef),
+
+    checkIn: (
+      bookingId: string,
+      payload?: { terminalId?: string; notes?: string },
+    ) =>
+      this.request<CheckInResultDTO>(`/access/checkin/${bookingId}`, {
+        method: "POST",
+        body: JSON.stringify(payload || {}),
+      }),
+
+    checkOut: (
+      bookingId: string,
+      payload?: { terminalId?: string; notes?: string },
+    ) =>
+      this.request<CheckOutResultDTO>(`/access/checkout/${bookingId}`, {
+        method: "POST",
+        body: JSON.stringify(payload || {}),
+      }),
+
+    searchBookings: (query: string) =>
+      this.request<AccessPassDetails[]>(
+        `/access/search?q=${encodeURIComponent(query)}`,
+      ),
+
+    getTerminalActivity: (params?: {
+      terminalId?: string;
+      limit?: number;
+      offset?: number;
+    }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.terminalId) searchParams.set("terminalId", params.terminalId);
+      if (params?.limit) searchParams.set("limit", String(params.limit));
+      if (params?.offset) searchParams.set("offset", String(params.offset));
+      const queryStr = searchParams.toString()
+        ? `?${searchParams.toString()}`
+        : "";
+      return this.request<TerminalActivityRecord[]>(
+        `/access/activity${queryStr}`,
+      );
+    },
+
+    getLiveOccupancy: () => this.request<LiveOccupancyDTO>("/access/occupancy"),
+
+    getTerminalSummary: async (options?: {
+      terminalId?: string;
+      forceRefresh?: boolean;
+    }) => {
+      const queryStr = options?.terminalId
+        ? `?terminalId=${options.terminalId}`
+        : "";
+      const cacheKey = `reception_terminal_summary_${options?.terminalId || "all"}`;
+      return apiCacheManager.fetchWithCache<ReceptionTerminalSummaryDTO>(
+        cacheKey,
+        () =>
+          this.request<ReceptionTerminalSummaryDTO>(
+            `/access/terminal-summary${queryStr}`,
+          ),
+        15000,
+        { forceRefresh: options?.forceRefresh },
+      );
+    },
+  };
+
+  // Reports & Analytics Export API
+  public reports = {
+    downloadExport: async (query: {
+      type: "revenue" | "bookings" | "occupancy" | "financial_audit";
+      format: "csv" | "xlsx" | "pdf";
+      startDate?: string;
+      endDate?: string;
+      preset?: string;
+    }): Promise<void> => {
+      const searchParams = new URLSearchParams();
+      searchParams.set("type", query.type);
+      searchParams.set("format", query.format);
+      if (query.startDate) searchParams.set("startDate", query.startDate);
+      if (query.endDate) searchParams.set("endDate", query.endDate);
+      if (query.preset) searchParams.set("preset", query.preset);
+
+      const url = `${this.baseUrl}/reports/export?${searchParams.toString()}`;
+      const token = await this.getAccessToken();
+
+      const headers: HeadersInit = {};
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(url, {
+        headers,
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to download report (HTTP ${response.status})`);
+      }
+
+      const blob = await response.blob();
+      const contentDisposition =
+        response.headers.get("Content-Disposition") || "";
+      const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+      const filename =
+        filenameMatch?.[1] ||
+        `DAIH_${query.type.toUpperCase()}_REPORT.${query.format}`;
+
+      if (typeof window !== "undefined") {
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = downloadUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(downloadUrl);
+      }
+    },
+  };
+
+  /**
+   * Manually clear client-side API cache
+   */
+  clearCache(pattern?: string): void {
+    apiCacheManager.invalidate(pattern);
+  }
 }
 
 export const api = new DaihApiClient();

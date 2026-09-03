@@ -1,10 +1,16 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import Link from 'next/link';
-import { Mail, ArrowLeft, ExternalLink, Loader2, CheckCircle2 } from 'lucide-react';
-import { api } from '@daih/api-client';
-import { useToast } from '@daih/ui';
+import React, { useState } from "react";
+import Link from "next/link";
+import {
+  Mail,
+  ArrowLeft,
+  ExternalLink,
+  Loader2,
+  CheckCircle2,
+} from "lucide-react";
+import { api } from "@daih/api-client";
+import { useToast } from "@daih/ui";
 
 interface VerifyEmailCardProps {
   email: string;
@@ -21,12 +27,15 @@ export const VerifyEmailCard: React.FC<VerifyEmailCardProps> = ({
 
   const handleOpenEmailApp = () => {
     const lowerEmail = email.toLowerCase();
-    if (lowerEmail.includes('@gmail.com')) {
-      window.open('https://mail.google.com', '_blank');
-    } else if (lowerEmail.includes('@outlook.com') || lowerEmail.includes('@hotmail.com')) {
-      window.open('https://outlook.live.com', '_blank');
-    } else if (lowerEmail.includes('@yahoo.com')) {
-      window.open('https://mail.yahoo.com', '_blank');
+    if (lowerEmail.includes("@gmail.com")) {
+      window.open("https://mail.google.com", "_blank");
+    } else if (
+      lowerEmail.includes("@outlook.com") ||
+      lowerEmail.includes("@hotmail.com")
+    ) {
+      window.open("https://outlook.live.com", "_blank");
+    } else if (lowerEmail.includes("@yahoo.com")) {
+      window.open("https://mail.yahoo.com", "_blank");
     } else {
       window.location.href = `mailto:${email}`;
     }
@@ -34,7 +43,9 @@ export const VerifyEmailCard: React.FC<VerifyEmailCardProps> = ({
 
   const handleResend = async () => {
     if (!email) {
-      toast.warning('No email address found to resend to.', { title: 'Email Required' });
+      toast.warning("No email address found to resend to.", {
+        title: "Email Required",
+      });
       return;
     }
     setIsResending(true);
@@ -42,11 +53,11 @@ export const VerifyEmailCard: React.FC<VerifyEmailCardProps> = ({
       await api.auth.resendVerification(email.trim().toLowerCase());
       setResendSent(true);
       toast.success(`Verification link sent to ${email}`, {
-        title: 'Verification Resent',
+        title: "Verification Resent",
       });
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to resend verification link.', {
-        title: 'Resend Failed',
+      toast.error(err?.message || "Failed to resend verification link.", {
+        title: "Resend Failed",
       });
     } finally {
       setIsResending(false);
@@ -68,12 +79,13 @@ export const VerifyEmailCard: React.FC<VerifyEmailCardProps> = ({
       <p className="text-sm text-slate-600 mb-4 leading-relaxed">
         We've sent a verification link to <br />
         <span className="font-semibold text-[#23055c] mt-1 inline-block break-all">
-          {email || 'your email address'}
+          {email || "your email address"}
         </span>
       </p>
 
       <p className="text-xs text-slate-500 mb-8 max-w-xs mx-auto leading-relaxed opacity-85">
-        To maintain the security of the DAIH Workspace ecosystem, please verify your address to access your executive suite.
+        To maintain the security of the DAIH Workspace ecosystem, please verify
+        your address to access your executive suite.
       </p>
 
       {/* Resend feedback banner */}
@@ -107,7 +119,7 @@ export const VerifyEmailCard: React.FC<VerifyEmailCardProps> = ({
               Resending Link...
             </>
           ) : (
-            'Resend Verification Link'
+            "Resend Verification Link"
           )}
         </button>
       </div>

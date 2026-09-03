@@ -1,103 +1,371 @@
-import React from 'react';
-import { Card, Button } from '@daih/ui';
-import { Download, RefreshCw } from 'lucide-react';
+"use client";
 
-export default function FinancePage() {
-  const transactions = [
-    {
-      ref: 'DAIH-PAY-88219',
-      customer: 'Tunde Adeleke (DAIH-2026-0042)',
-      resource: 'Hot Desk - Monthly Unlimited',
-      amount: '₦45,000',
-      paystackRef: 'pstk_tr_993821094',
-      date: '19 Aug 2026, 14:32',
-      status: 'SUCCESSFUL',
-    },
-    {
-      ref: 'DAIH-PAY-88218',
-      customer: 'Grace Nwosu (DAIH-2026-0019)',
-      resource: 'Dedicated Desk - Monthly',
-      amount: '₦75,000',
-      paystackRef: 'pstk_tr_882910394',
-      date: '19 Aug 2026, 11:15',
-      status: 'SUCCESSFUL',
-    },
-  ];
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import {
+  FinanceHeader,
+  DateRangeOption,
+  FinanceKpiGrid,
+  RevenueTrendChart,
+  RevenueBreakdown,
+  TransactionLedgerTable,
+  ReconciliationHealthCard,
+  BreakdownItem,
+} from "../../components/finance";
+import { useToast } from "@daih/ui";
+import { api } from "@daih/api-client";
+import {
+  PaymentTransaction,
+  PaymentStatus,
+  BookingSummary,
+  BookingState,
+  ReconciliationSummary,
+} from "@daih/types";
+
+function getDateRangeBounds(range: DateRangeOption): {
+  startDate: Date;
+  endDate: Date;
+  startDateStr: string;
+  endDateStr: string;
+} {
+  const now = new Date();
+  const endDate = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+    23,
+    59,
+    59,
+    999,
+  );
+  let startDate = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+    0,
+    0,
+    0,
+    0,
+  );
+
+  switch (range) {
+    case "Today": {
+      startDate = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate(),
+        0,
+        0,
+        0,
+        0,
+      );
+      break;
+    }
+    case "Last 7 Days": {
+      startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      startDate.setHours(0, 0, 0, 0);
+      break;
+    }
+    case "Last 30 Days": {
+      startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      startDate.setHours(0, 0, 0, 0);
+      break;
+    }
+    case "This Quarter": {
+      const currentMonth = now.getMonth();
+      const quarterStartMonth = Math.floor(currentMonth / 3) * 3;
+      startDate = new Date(now.getFullYear(), quarterStartMonth, 1, 0, 0, 0, 0);
+      break;
+    }
+    case "Year to Date": {
+      startDate = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
+      break;
+    }
+  }
+
+  return {
+    startDate,
+    endDate,
+    startDateStr: startDate.toISOString(),
+    endDateStr: endDate.toISOString(),
+  };
+}
+
+export default function FinancialReportsPage() {
+  const [selectedRange, setSelectedRange] =
+    useState<DateRangeOption>("Last 30 Days");
+  const [transactions, setTransactions] = useState<PaymentTransaction[]>([]);
+  const [bookings, setBookings] = useState<BookingSummary[]>([]);
+  const [reconciliation, setReconciliation] =
+    useState<ReconciliationSummary | null>(null);
+  const isFirstMount = React.useRef(true);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const toast = useToast();
+
+  const rangeBounds = useMemo(
+    () => getDateRangeBounds(selectedRange),
+    [selectedRange],
+  );
+
+  const loadFinancialTelemetry = useCallback(async () => {
+    if (isFirstMount.current) {
+      setInitialLoading(true);
+    } else {
+      setIsRefreshing(true);
+    }
+
+    try {
+      const [txRes, bkRes, reconRes] = await Promise.allSettled([
+        api.payments.getAdminTransactions({
+          startDate: rangeBounds.startDateStr,
+          endDate: rangeBounds.endDateStr,
+          limit: 100,
+        }),
+        api.bookings.getAdminBookings({
+          startDate: rangeBounds.startDateStr,
+          endDate: rangeBounds.endDateStr,
+          limit: 100,
+        }),
+        api.payments.getReconciliation({
+          startDate: rangeBounds.startDateStr,
+          endDate: rangeBounds.endDateStr,
+        }),
+      ]);
+
+      if (txRes.status === "fulfilled") {
+        setTransactions(txRes.value.transactions || []);
+      }
+      if (bkRes.status === "fulfilled") {
+        setBookings(bkRes.value.bookings || []);
+      }
+      if (reconRes.status === "fulfilled") {
+        setReconciliation(reconRes.value);
+      }
+    } catch (err) {
+      console.warn("Could not load financial telemetry:", err);
+    } finally {
+      setInitialLoading(false);
+      setIsRefreshing(false);
+      isFirstMount.current = false;
+    }
+  }, [rangeBounds]);
+
+  useEffect(() => {
+    loadFinancialTelemetry();
+  }, [loadFinancialTelemetry]);
+
+  // Calculate live KPIs
+  const kpiData = useMemo(() => {
+    const successful = transactions.filter(
+      (t) =>
+        t.status === PaymentStatus.SUCCESSFUL ||
+        (t.status as any) === "SUCCESS",
+    );
+    const totalCollected = successful.reduce(
+      (sum, t) => sum + (Number(t.amount) || 0),
+      0,
+    );
+
+    const refunded = transactions.filter(
+      (t) =>
+        t.status === PaymentStatus.REFUNDED ||
+        t.status === PaymentStatus.PARTIALLY_REFUNDED ||
+        (t.status as any) === "REFUNDED",
+    );
+    const totalRefunded = refunded.reduce(
+      (sum, t) => sum + (Number(t.amount) || 0),
+      0,
+    );
+
+    const netRevenue = Math.max(0, totalCollected - totalRefunded);
+
+    const pending = transactions.filter(
+      (t) => t.status === PaymentStatus.PENDING,
+    );
+    const outstandingAmount = pending.reduce(
+      (sum, t) => sum + (Number(t.amount) || 0),
+      0,
+    );
+
+    const retentionPct =
+      totalCollected > 0
+        ? Math.round((netRevenue / totalCollected) * 100)
+        : 100;
+
+    return {
+      totalCollected: `₦${totalCollected.toLocaleString("en-NG", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}`,
+      collectedBadge: `${successful.length} paid txs`,
+      isCollectedUp: true,
+      collectedSubtext: `Gross settlements in ${selectedRange}`,
+
+      totalRefunded: `₦${totalRefunded.toLocaleString("en-NG", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}`,
+      refundedBadge: `${refunded.length} refunds`,
+      isRefundedUp: refunded.length > 0,
+      refundedSubtext: `Processed in ${selectedRange}`,
+
+      netRevenue: `₦${netRevenue.toLocaleString("en-NG", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}`,
+      netRevenueBadge: `${retentionPct}% retained`,
+      isNetRevenueUp: true,
+      netRevenueSubtext: `Gross minus refunds in ${selectedRange}`,
+
+      outstandingAmount: `₦${outstandingAmount.toLocaleString("en-NG", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}`,
+      pendingCount: pending.length,
+      pendingSubtext: `${pending.length} pending in ${selectedRange}`,
+    };
+  }, [transactions, selectedRange]);
+
+  // Calculate Revenue Breakdown by Resource
+  const breakdownItems: BreakdownItem[] = useMemo(() => {
+    const resourceMap = new Map<string, number>();
+    let grandTotal = 0;
+
+    transactions.forEach((tx: any) => {
+      const isSuccess =
+        tx.status === PaymentStatus.SUCCESSFUL || tx.status === "SUCCESS";
+      if (!isSuccess) return;
+
+      const amt = Number(tx.amount || 0);
+      const name =
+        tx.resourceName ||
+        tx.booking?.resourceName ||
+        tx.booking?.category ||
+        "General Hub Access";
+
+      resourceMap.set(name, (resourceMap.get(name) || 0) + amt);
+      grandTotal += amt;
+    });
+
+    if (grandTotal === 0) return [];
+
+    const colors = [
+      { colorClass: "bg-[#392271]", dotColor: "#392271" },
+      { colorClass: "bg-[#65519f]", dotColor: "#65519f" },
+      { colorClass: "bg-[#d56c04]", dotColor: "#d56c04" },
+      { colorClass: "bg-[#10b981]", dotColor: "#10b981" },
+      { colorClass: "bg-[#0ea5e9]", dotColor: "#0ea5e9" },
+    ];
+
+    return Array.from(resourceMap.entries())
+      .map(([name, amount], idx) => {
+        const percentage = Math.round((amount / grandTotal) * 100);
+        const palette = colors[idx % colors.length];
+        return {
+          name,
+          amount: `₦${amount.toLocaleString("en-NG", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })}`,
+          percentage,
+          colorClass: palette.colorClass,
+          dotColor: palette.dotColor,
+        };
+      })
+      .sort((a, b) => b.percentage - a.percentage)
+      .slice(0, 5);
+  }, [transactions]);
+
+  const handleExport = () => {
+    if (transactions.length === 0) {
+      toast.info("No transaction records available to export for this range.", {
+        title: "Export Empty",
+      });
+      return;
+    }
+
+    const headers = "Reference,Date,Amount,Status,Method\n";
+    const rows = transactions
+      .map(
+        (t) =>
+          `"${t.reference}","${new Date(t.createdAt).toISOString()}","${t.amount}","${t.status}","${t.method || "PAYSTACK"}"`,
+      )
+      .join("\n");
+
+    const blob = new Blob([headers + rows], {
+      type: "text/csv;charset=utf-8;",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute(
+      "download",
+      `DAIH_Financial_Ledger_${selectedRange.replace(/\s+/g, "_")}.csv`,
+    );
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast.success(
+      `Exported ${transactions.length} records to CSV successfully.`,
+      {
+        title: "Ledger Exported",
+      },
+    );
+  };
+
+  const handleViewPendingInvoices = () => {
+    toast.info("Filtering ledger for Pending items.", {
+      title: "Filter Applied",
+    });
+  };
 
   return (
-    <div className="space-y-8 max-w-6xl">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
-            Finance & Payment Reconciliation
-          </h1>
-          <p className="text-xs text-slate-500 mt-1">
-            Paystack automated webhooks, settlement logs, and transaction audit
-          </p>
+    <div className="space-y-6">
+      {/* Financial Reports Header & Date Filter */}
+      <FinanceHeader
+        selectedRange={selectedRange}
+        onSelectRange={setSelectedRange}
+        onExportLedger={handleExport}
+      />
+
+      {/* Gateway & Ledger Reconciliation Health & Discrepancies Alert */}
+      <ReconciliationHealthCard
+        summary={reconciliation}
+        loading={initialLoading || isRefreshing}
+        onRefresh={loadFinancialTelemetry}
+      />
+
+      {/* KPI Metric Cards */}
+      <FinanceKpiGrid
+        loading={initialLoading}
+        data={kpiData}
+        onViewPendingInvoices={handleViewPendingInvoices}
+      />
+
+      {/* Charts & Analytics Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Revenue Trend Area Chart with smooth spline curve */}
+        <div className="lg:col-span-2">
+          <RevenueTrendChart
+            loading={initialLoading}
+            transactions={transactions}
+            dateRange={selectedRange}
+          />
         </div>
-        <div className="flex gap-3">
-          <Button variant="outline" size="sm">
-            <RefreshCw className="h-3.5 w-3.5 mr-1.5" /> Reconcile Paystack
-          </Button>
-          <Button variant="primary" size="sm" className="bg-[#23055c] hover:bg-[#392271] text-white">
-            <Download className="h-3.5 w-3.5 mr-1.5" /> Export Ledger CSV
-          </Button>
+
+        {/* Revenue by Resource Breakdown */}
+        <div className="lg:col-span-1">
+          <RevenueBreakdown loading={initialLoading} items={breakdownItems} />
         </div>
       </div>
 
-      <div id="summary" className="grid grid-cols-1 sm:grid-cols-3 gap-6 scroll-mt-20">
-        <Card className="p-5">
-          <p className="text-xs text-slate-500 font-medium">Today’s Settled Revenue</p>
-          <p className="text-3xl font-extrabold text-slate-900 mt-2">₦120,000</p>
-          <p className="text-[11px] text-emerald-600 font-semibold mt-1">100% Webhook confirmed</p>
-        </Card>
-        <Card className="p-5">
-          <p className="text-xs text-slate-500 font-medium">August Total Revenue</p>
-          <p className="text-3xl font-extrabold text-[#1f3a68] mt-2">₦2,450,000</p>
-          <p className="text-[11px] text-slate-400 mt-1">Across 42 subscriptions</p>
-        </Card>
-        <Card className="p-5">
-          <p className="text-xs text-slate-500 font-medium">Pending Webhooks</p>
-          <p className="text-3xl font-extrabold text-emerald-600 mt-2">0</p>
-          <p className="text-[11px] text-slate-400 mt-1">All events processed idempotently</p>
-        </Card>
-      </div>
-
-      <Card id="transactions" className="p-6 scroll-mt-20">
-        <h3 className="font-bold text-sm text-slate-900 mb-4">Live Transaction Log</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead>
-              <tr className="border-b border-slate-100 text-slate-400">
-                <th className="pb-3 font-semibold">Reference</th>
-                <th className="pb-3 font-semibold">Customer</th>
-                <th className="pb-3 font-semibold">Workspace Plan</th>
-                <th className="pb-3 font-semibold">Amount</th>
-                <th className="pb-3 font-semibold">Paystack Trace</th>
-                <th className="pb-3 font-semibold">Date & Time</th>
-                <th className="pb-3 font-semibold">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {transactions.map((tx) => (
-                <tr key={tx.ref}>
-                  <td className="py-3 font-mono font-bold text-slate-800">{tx.ref}</td>
-                  <td className="py-3 font-medium text-slate-900">{tx.customer}</td>
-                  <td className="py-3 text-slate-600">{tx.resource}</td>
-                  <td className="py-3 font-bold text-slate-900">{tx.amount}</td>
-                  <td className="py-3 font-mono text-slate-500">{tx.paystackRef}</td>
-                  <td className="py-3 text-slate-500">{tx.date}</td>
-                  <td className="py-3">
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold text-[10px] border border-emerald-200">
-                      {tx.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+      {/* Transaction Ledger Table with live date range filtering */}
+      <TransactionLedgerTable
+        startDate={rangeBounds.startDateStr}
+        endDate={rangeBounds.endDateStr}
+        dateRangeLabel={selectedRange}
+      />
     </div>
   );
 }

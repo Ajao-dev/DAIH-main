@@ -1,14 +1,10 @@
-'use client';
+"use client";
 
-import React from 'react';
-import Link from 'next/link';
-import { useAuth } from '@daih/api-client';
-import {
-  Search,
-  Bell,
-  HelpCircle,
-  Menu,
-} from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import Link from "next/link";
+import { useAuth } from "@daih/api-client";
+import { resolveAvatarUrl } from "../../lib/image-utils";
+import { Search, Bell, HelpCircle, Menu } from "lucide-react";
 
 interface TopAppBarProps {
   title?: string;
@@ -16,10 +12,17 @@ interface TopAppBarProps {
 }
 
 export const TopAppBar: React.FC<TopAppBarProps> = ({
-  title = 'Executive Flux',
+  title,
   onMobileMenuToggle,
 }) => {
   const { user } = useAuth();
+  const [avatarError, setAvatarError] = useState(false);
+
+  useEffect(() => {
+    setAvatarError(false);
+  }, [user?.avatarUrl]);
+
+  const resolvedAvatar = resolveAvatarUrl(user?.avatarUrl);
 
   return (
     <header className="sticky top-0 w-full z-30 flex justify-between items-center px-4 sm:px-8 py-3.5 bg-white/95 backdrop-blur-md border-b border-slate-100 shadow-xs">
@@ -33,9 +36,19 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
           <Menu className="w-5 h-5" />
         </button>
 
-        <h1 className="text-lg sm:text-xl font-bold tracking-tight text-[#23055c]">
-          {title}
-        </h1>
+        {/* DAIH Logo Branding */}
+        <Link href="/dashboard" className="flex items-center gap-3 group">
+          <img
+            src="/images/logo.png"
+            alt="DAIH Hub Logo"
+            className="h-8 w-auto object-contain transition-transform group-hover:scale-105"
+          />
+          {title && title !== "Executive Flux" && (
+            <span className="text-base sm:text-lg font-bold tracking-tight text-[#23055c] border-l border-slate-200 pl-3">
+              {title}
+            </span>
+          )}
+        </Link>
       </div>
 
       <div className="flex items-center gap-3 sm:gap-6">
@@ -67,10 +80,26 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
           </Link>
 
           {/* User Profile Avatar */}
-          <Link href="/dashboard" className="flex items-center gap-2 ml-1">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#23055c] to-[#392271] text-white flex items-center justify-center font-bold text-xs shadow-xs border border-purple-200/80">
-              {user?.firstName?.[0] || 'M'}
-              {user?.lastName?.[0] || ''}
+          <Link
+            href="/settings"
+            className="flex items-center gap-2 ml-1"
+            title="Account Settings"
+          >
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#23055c] to-[#392271] text-white flex items-center justify-center font-bold text-xs shadow-xs border border-purple-200/80 hover:scale-105 transition-transform overflow-hidden">
+              {resolvedAvatar && !avatarError ? (
+                <img
+                  key={resolvedAvatar}
+                  src={resolvedAvatar}
+                  alt={`${user?.firstName} ${user?.lastName}`}
+                  className="w-full h-full object-cover"
+                  onError={() => setAvatarError(true)}
+                />
+              ) : (
+                <span>
+                  {user?.firstName?.[0] || "M"}
+                  {user?.lastName?.[0] || ""}
+                </span>
+              )}
             </div>
           </Link>
         </div>

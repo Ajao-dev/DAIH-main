@@ -1,11 +1,12 @@
-import type { Metadata } from 'next';
-import './globals.css';
-import { Providers } from './providers';
-import { AdminShell } from './admin-shell';
+import type { Metadata } from "next";
+import "./globals.css";
+import { Providers } from "./providers";
+import { AdminShell } from "./admin-shell";
 
 export const metadata: Metadata = {
-  title: 'DAIH Workspace - Admin Operations Dashboard',
-  description: 'Manage workspaces, live schedules, bookings, revenue ledger, and audit logs.',
+  title: "DAIH Workspace - Admin Operations Dashboard",
+  description:
+    "Manage workspaces, live schedules, bookings, revenue ledger, and audit logs.",
 };
 
 export default function RootLayout({
@@ -17,7 +18,11 @@ export default function RootLayout({
     <html lang="en" className="light" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin="anonymous"
+        />
         <link
           href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;500;600;700;800&display=swap"
           rel="stylesheet"
@@ -27,7 +32,10 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="bg-background text-on-background antialiased flex flex-col min-h-screen font-sans" suppressHydrationWarning>
+      <body
+        className="bg-background text-on-background antialiased flex flex-col min-h-screen font-sans"
+        suppressHydrationWarning
+      >
         <Providers>
           <AdminShell>{children}</AdminShell>
         </Providers>

@@ -1,32 +1,40 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import Link from 'next/link';
-import { Mail, ArrowLeft, ExternalLink, Loader2, CheckCircle2 } from 'lucide-react';
-import { api } from '@daih/api-client';
-import { useToast } from '@daih/ui';
+import React, { useState } from "react";
+import Link from "next/link";
+import {
+  Mail,
+  ArrowLeft,
+  ExternalLink,
+  Loader2,
+  CheckCircle2,
+} from "lucide-react";
+import { api } from "@daih/api-client";
+import { useToast } from "@daih/ui";
 
 interface VerificationSuccessCardProps {
   email: string;
   onBackToLogin?: () => void;
 }
 
-export const VerificationSuccessCard: React.FC<VerificationSuccessCardProps> = ({
-  email,
-  onBackToLogin,
-}) => {
+export const VerificationSuccessCard: React.FC<
+  VerificationSuccessCardProps
+> = ({ email, onBackToLogin }) => {
   const [isResending, setIsResending] = useState(false);
   const [resendSent, setResendSent] = useState(false);
   const toast = useToast();
 
   const handleOpenEmailApp = () => {
     // Open standard email client / webmail provider
-    if (email.includes('@gmail.com')) {
-      window.open('https://mail.google.com', '_blank');
-    } else if (email.includes('@outlook.com') || email.includes('@hotmail.com')) {
-      window.open('https://outlook.live.com', '_blank');
-    } else if (email.includes('@yahoo.com')) {
-      window.open('https://mail.yahoo.com', '_blank');
+    if (email.includes("@gmail.com")) {
+      window.open("https://mail.google.com", "_blank");
+    } else if (
+      email.includes("@outlook.com") ||
+      email.includes("@hotmail.com")
+    ) {
+      window.open("https://outlook.live.com", "_blank");
+    } else if (email.includes("@yahoo.com")) {
+      window.open("https://mail.yahoo.com", "_blank");
     } else {
       window.location.href = `mailto:${email}`;
     }
@@ -39,11 +47,11 @@ export const VerificationSuccessCard: React.FC<VerificationSuccessCardProps> = (
       await api.auth.resendVerification(email.trim().toLowerCase());
       setResendSent(true);
       toast.success(`Verification link sent to ${email}`, {
-        title: 'Verification Resent',
+        title: "Verification Resent",
       });
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to resend verification link.', {
-        title: 'Resend Failed',
+      toast.error(err?.message || "Failed to resend verification link.", {
+        title: "Resend Failed",
       });
     } finally {
       setIsResending(false);
@@ -76,12 +84,13 @@ export const VerificationSuccessCard: React.FC<VerificationSuccessCardProps> = (
             <p className="text-sm text-slate-600 mb-4 leading-relaxed">
               We've sent a verification link to <br />
               <span className="font-semibold text-[#23055c] mt-1 inline-block break-all">
-                {email || 'your email address'}
+                {email || "your email address"}
               </span>
             </p>
 
             <p className="text-xs text-slate-500 mb-8 max-w-xs mx-auto leading-relaxed opacity-85">
-              To maintain the security of the DAIH Workspace ecosystem, please verify your address to access your executive suite.
+              To maintain the security of the DAIH Workspace ecosystem, please
+              verify your address to access your executive suite.
             </p>
 
             {/* Resend status message */}
@@ -115,7 +124,7 @@ export const VerificationSuccessCard: React.FC<VerificationSuccessCardProps> = (
                     Resending Link...
                   </>
                 ) : (
-                  'Resend Verification Link'
+                  "Resend Verification Link"
                 )}
               </button>
             </div>

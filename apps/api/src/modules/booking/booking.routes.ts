@@ -1,121 +1,182 @@
-import { Router, Response } from 'express';
-import { authenticate, AuthRequest } from '../../middleware/auth.middleware.js';
-import { BookingState, BookingSummary, ResourceCategory } from '@daih/types';
-import { CATALOGUE_DATA } from '../catalogue/catalogue.routes.js';
+import { Router } from "express";
+import { bookingController } from "./booking.controller.js";
+import { authenticate } from "../../middleware/auth.middleware.js";
+import {
+  requirePermission,
+  requireAnyPermission,
+} from "../../middleware/rbac.middleware.js";
+import {
+  validateBody,
+  validateQuery,
+  validateParams,
+} from "../../middleware/validate.middleware.js";
+import { Permission } from "@daih/types";
+import {
+  BookingIdParamSchema,
+  CheckAvailabilitySchema,
+  CalendarAvailabilitySchema,
+  CreateHoldSchema,
+  CancelBookingSchema,
+  AdminOverrideBookingSchema,
+  AdminNoShowRescheduleSchema,
+  BookingFilterSchema,
+  AnalyticsFilterSchema,
+} from "./booking.schema.js";
 
 export const bookingRouter = Router();
 
-// In-memory active bookings / holds store (mirrors DB for instant responsive prototyping)
-const BOOKINGS_STORE: BookingSummary[] = [
-  {
-    id: 'bk_sample_01',
-    reference: 'DAIH-BK-88219',
-    resourceId: 'res_hot_desk',
-    resourceName: 'Hot Desk - Dedicated Pod A',
-    category: ResourceCategory.HOT_DESK,
-    userId: 'usr_demo_customer',
-    customerName: 'Tunde Adeleke',
-    startTime: new Date().toISOString(),
-    endTime: new Date(Date.now() + 86400000).toISOString(),
-    state: BookingState.CONFIRMED,
-    qrToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJiaWQiOiJia19zYW1wbGVfMDEifQ.sig_demo',
-    amount: 45000,
-    currency: 'NGN',
-    createdAt: new Date().toISOString(),
-  },
+// ==========================================
+// Operations Admin Endpoints (RBAC Guarded)
+// (Registered first so static /admin paths are not intercepted by /:id)
+// ==========================================
+
+const readBookingsGuard = [
+  authenticate,
+  requireAnyPermission([
+    Permission.BOOKINGS_READ_ALL,
+    Permission.BOOKINGS_MANAGE,
+  ]),
+];
+const manageGuard = [
+  authenticate,
+  requirePermission(Permission.BOOKINGS_MANAGE),
+];
+const overrideGuard = [
+  authenticate,
+  requirePermission(Permission.BOOKINGS_OVERRIDE),
 ];
 
+const viewReportsGuard = [
+  authenticate,
+  requireAnyPermission([Permission.REPORTS_VIEW, Permission.REPORTS_EXPORT]),
+];
+
+const dashboardSummaryGuard = [
+  authenticate,
+  requireAnyPermission([
+    Permission.BOOKINGS_READ_ALL,
+    Permission.BOOKINGS_MANAGE,
+    Permission.REPORTS_VIEW,
+  ]),
+];
+
+// Consolidated Admin Operations Dashboard Summary
+bookingRouter.get(
+  "/admin/dashboard-summary",
+  ...dashboardSummaryGuard,
+  bookingController.getDashboardSummary,
+);
+
+// Consolidated Admin Analytics Reports Summary (Restricted to Management, Finance, Ops Admin, Super Admin)
+bookingRouter.get(
+  "/admin/analytics-summary",
+  ...viewReportsGuard,
+  validateQuery(AnalyticsFilterSchema),
+  bookingController.getAnalyticsSummary,
+);
+
+// List all bookings for Admin Console (accessible by all staff with BOOKINGS_READ_ALL)
+bookingRouter.get(
+  "/admin",
+  ...readBookingsGuard,
+  validateQuery(BookingFilterSchema),
+  bookingController.getAdminBookings,
+);
+
+bookingRouter.get(
+  "/admin/all",
+  ...readBookingsGuard,
+  validateQuery(BookingFilterSchema),
+  bookingController.getAdminBookings,
+);
+
+// Manual VIP / Walk-in booking override
+bookingRouter.post(
+  "/admin/override",
+  ...overrideGuard,
+  validateBody(AdminOverrideBookingSchema),
+  bookingController.adminOverride,
+);
+
+// Force release an active hold
+bookingRouter.post(
+  "/admin/:id/release",
+  ...manageGuard,
+  validateParams(BookingIdParamSchema),
+  bookingController.adminReleaseHold,
+);
+
+// Discretionary reschedule for NO_SHOW booking (Operations Admin / Super Admin)
+bookingRouter.post(
+  "/admin/:id/reschedule-noshow",
+  ...manageGuard,
+  validateParams(BookingIdParamSchema),
+  validateBody(AdminNoShowRescheduleSchema),
+  bookingController.rescheduleNoShow,
+);
+
+// ==========================================
+// Public & Customer Static Endpoints
+// ==========================================
+
+// Real-time availability search (open/public or authenticated)
+bookingRouter.get(
+  "/availability",
+  validateQuery(CheckAvailabilitySchema),
+  bookingController.checkAvailability,
+);
+
+// Sparse monthly calendar & hourly slot availability
+bookingRouter.get(
+  "/calendar-availability",
+  validateQuery(CalendarAvailabilitySchema),
+  bookingController.getCalendarAvailability,
+);
+
 // Create a 10-minute hold on a resource
-bookingRouter.post('/hold', authenticate, (req: AuthRequest, res: Response) => {
-  const { resourceId, startTime, endTime } = req.body;
-  const user = req.user!;
+bookingRouter.post(
+  "/hold",
+  authenticate,
+  validateBody(CreateHoldSchema),
+  bookingController.createHold,
+);
 
-  const resource = CATALOGUE_DATA.find((r) => r.id === resourceId || r.slug === resourceId);
-  const resourceName = resource?.name || 'Selected Workspace';
-  const defaultPrice = resource?.pricing[0]?.price || 5000;
+// View customer's own bookings
+bookingRouter.get("/my", authenticate, bookingController.getMyBookings);
 
-  const holdExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10-min hold
-  const bookingId = `bk_${Date.now()}`;
-  const refNumber = `DAIH-BK-${Math.floor(10000 + Math.random() * 90000)}`;
+// ==========================================
+// Parameterized /:id Endpoints
+// ==========================================
 
-  const newBooking: BookingSummary = {
-    id: bookingId,
-    reference: refNumber,
-    resourceId: resourceId || 'res_hot_desk',
-    resourceName,
-    category: resource?.category || ResourceCategory.HOT_DESK,
-    userId: user.id,
-    customerName: user.email,
-    startTime: startTime || new Date().toISOString(),
-    endTime: endTime || new Date(Date.now() + 86400000).toISOString(),
-    state: BookingState.HELD,
-    amount: defaultPrice,
-    currency: 'NGN',
-    createdAt: new Date().toISOString(),
-  };
+// Extend hold expiry (e.g. while on checkout / payment modal)
+bookingRouter.post(
+  "/:id/extend-hold",
+  authenticate,
+  validateParams(BookingIdParamSchema),
+  bookingController.extendHold,
+);
 
-  BOOKINGS_STORE.push(newBooking);
+// Cancel an active booking / hold
+bookingRouter.post(
+  "/:id/cancel",
+  authenticate,
+  validateParams(BookingIdParamSchema),
+  validateBody(CancelBookingSchema),
+  bookingController.cancelBooking,
+);
 
-  res.status(201).json({
-    success: true,
-    data: {
-      bookingId,
-      resourceId,
-      userId: user.id,
-      startTime: newBooking.startTime,
-      endTime: newBooking.endTime,
-      holdExpiresAt: holdExpiry.toISOString(),
-      totalAmount: newBooking.amount,
-      currency: newBooking.currency,
-      reference: refNumber,
-    },
-  });
-});
+// Confirm booking (Operations staff only; customers confirm through verified payment webhook)
+bookingRouter.post(
+  "/:id/confirm",
+  ...manageGuard,
+  validateParams(BookingIdParamSchema),
+  bookingController.confirmBooking,
+);
 
-bookingRouter.get('/my', authenticate, (req: AuthRequest, res: Response) => {
-  const userBookings = BOOKINGS_STORE.filter(
-    (b) => b.userId === req.user?.id || b.userId === 'usr_demo_customer'
-  );
-
-  res.json({
-    success: true,
-    data: userBookings,
-  });
-});
-
-bookingRouter.get('/:id', authenticate, (req: AuthRequest, res: Response) => {
-  const booking = BOOKINGS_STORE.find((b) => b.id === req.params.id || b.reference === req.params.id);
-
-  if (!booking) {
-    res.status(404).json({
-      code: 'BOOKING_NOT_FOUND',
-      message: 'Booking record not found',
-    });
-    return;
-  }
-
-  res.json({
-    success: true,
-    data: booking,
-  });
-});
-
-bookingRouter.post('/:id/confirm', authenticate, (req: AuthRequest, res: Response) => {
-  const booking = BOOKINGS_STORE.find((b) => b.id === req.params.id);
-
-  if (!booking) {
-    res.status(404).json({
-      code: 'BOOKING_NOT_FOUND',
-      message: 'Booking not found',
-    });
-    return;
-  }
-
-  booking.state = BookingState.CONFIRMED;
-  booking.qrToken = `daih_qr_${booking.id}_${Date.now()}`;
-
-  res.json({
-    success: true,
-    data: booking,
-  });
-});
+// Get single booking by ID or reference
+bookingRouter.get(
+  "/:id",
+  authenticate,
+  validateParams(BookingIdParamSchema),
+  bookingController.getBookingById,
+);

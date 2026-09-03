@@ -1,5 +1,5 @@
-import { PrismaClient, Prisma } from '@prisma/client';
-import { prisma as defaultPrisma } from '../../db/client.js';
+import { PrismaClient, Prisma } from "@prisma/client";
+import { prisma as defaultPrisma } from "../../db/client.js";
 
 export class ClientIdService {
   /**
@@ -8,7 +8,7 @@ export class ClientIdService {
    */
   async generateNextClientId(
     tx: Prisma.TransactionClient | PrismaClient = defaultPrisma,
-    year: number = new Date().getUTCFullYear()
+    year: number = new Date().getUTCFullYear(),
   ): Promise<string> {
     const sequenceRecord = await tx.clientIdSequence.upsert({
       where: { year },
@@ -18,7 +18,7 @@ export class ClientIdService {
 
     // The current allocated number was (nextSequence - 1)
     const currentNumber = sequenceRecord.nextSequence - 1;
-    const padded = String(currentNumber).padStart(6, '0');
+    const padded = String(currentNumber).padStart(6, "0");
     return `DAIH-${year}-${padded}`;
   }
 }

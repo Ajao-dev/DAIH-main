@@ -16,7 +16,7 @@
   }
   function n(a) {
     var b = j[a[h]];
-    return b || ((b = {}), i++, (a[h] = i), (j[i] = b)), b;
+    return (b || ((b = {}), i++, (a[h] = i), (j[i] = b)), b);
   }
   function o(a, c, d) {
     if ((c || (c = b), k)) return c.createElement(a);
@@ -26,8 +26,8 @@
       (g = d.cache[a]
         ? d.cache[a].cloneNode()
         : f.test(a)
-        ? (d.cache[a] = d.createElem(a)).cloneNode()
-        : d.createElem(a)),
+          ? (d.cache[a] = d.createElem(a)).cloneNode()
+          : d.createElem(a)),
       !g.canHaveChildren || e.test(a) || g.tagUrn ? g : d.frag.appendChild(g)
     );
   }
@@ -39,7 +39,7 @@
     return d;
   }
   function q(a, b) {
-    b.cache ||
+    (b.cache ||
       ((b.cache = {}),
       (b.createElem = a.createElement),
       (b.createFrag = a.createDocumentFragment),
@@ -53,10 +53,14 @@
           m()
             .join()
             .replace(/[\w\-:]+/g, function (a) {
-              return b.createElem(a), b.frag.createElement(a), 'c("' + a + '")';
+              return (
+                b.createElem(a),
+                b.frag.createElement(a),
+                'c("' + a + '")'
+              );
             }) +
-          ");return n}"
-      )(s, b.frag));
+          ");return n}",
+      )(s, b.frag)));
   }
   function r(a) {
     a || (a = b);
@@ -67,7 +71,7 @@
         c.hasCSS ||
         (c.hasCSS = !!l(
           a,
-          "article,aside,dialog,figcaption,figure,footer,header,hgroup,main,nav,section{display:block}mark{background:#FF0;color:#000}template{display:none}"
+          "article,aside,dialog,figcaption,figure,footer,header,hgroup,main,nav,section{display:block}mark{background:#FF0;color:#000}template{display:none}",
         )),
       k || q(a, c),
       a
@@ -86,7 +90,7 @@
   !(function () {
     try {
       var a = b.createElement("a");
-      (a.innerHTML = "<xyz></xyz>"),
+      ((a.innerHTML = "<xyz></xyz>"),
         (g = "hidden" in a),
         (k =
           1 == a.childNodes.length ||
@@ -98,9 +102,9 @@
               "undefined" == typeof a.createDocumentFragment ||
               "undefined" == typeof a.createElement
             );
-          })());
+          })()));
     } catch (a) {
-      (g = !0), (k = !0);
+      ((g = !0), (k = !0));
     }
   })();
   var s = {
@@ -116,5 +120,5 @@
     createElement: o,
     createDocumentFragment: p,
   };
-  (a.html5 = s), r(b);
+  ((a.html5 = s), r(b));
 })(this, document);

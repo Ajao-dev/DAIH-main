@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { UserRole } from '@daih/types';
+import React from "react";
+import { UserRole } from "@daih/types";
 import {
   Edit2,
   Ban,
@@ -11,17 +11,17 @@ import {
   ChevronLeft,
   ChevronRight,
   User as UserIcon,
-} from 'lucide-react';
+} from "lucide-react";
 
 export interface AdminUserRecord {
   id: string;
   name: string;
   email: string;
   role: UserRole;
-  status: 'ACTIVE' | 'PENDING' | 'DEACTIVATED';
+  status: "ACTIVE" | "PENDING" | "DEACTIVATED";
   lastActive: string;
-  avatarUrl?: string;
-  phone?: string;
+  avatarUrl?: string | null;
+  phone?: string | null;
 }
 
 interface UserDirectoryTableProps {
@@ -52,36 +52,36 @@ export const UserDirectoryTable: React.FC<UserDirectoryTableProps> = ({
   const getRoleBadgeStyle = (role: UserRole) => {
     switch (role) {
       case UserRole.SUPER_ADMIN:
-        return 'bg-[#392271] text-white border border-[#392271]';
+        return "bg-[#392271] text-white border border-[#392271]";
       case UserRole.OPERATIONS_ADMIN:
-        return 'bg-[#ffdcc0] text-[#673d12] border border-[#f7ba84]';
+        return "bg-[#ffdcc0] text-[#673d12] border border-[#f7ba84]";
       case UserRole.FINANCE_OFFICER:
-        return 'bg-[#e5e8ee] text-[#494550] border border-[#d7dadf]';
+        return "bg-[#e5e8ee] text-[#494550] border border-[#d7dadf]";
       case UserRole.RECEPTION_OFFICER:
-        return 'bg-[#e8ddff] text-[#210558] border border-[#cebdff]';
+        return "bg-[#e8ddff] text-[#210558] border border-[#cebdff]";
       case UserRole.SECURITY_OFFICER:
-        return 'bg-blue-100 text-blue-800 border border-blue-200';
+        return "bg-blue-100 text-blue-800 border border-blue-200";
       case UserRole.MANAGEMENT_VIEWER:
-        return 'bg-indigo-100 text-indigo-800 border border-indigo-200';
+        return "bg-indigo-100 text-indigo-800 border border-indigo-200";
       default:
-        return 'bg-slate-100 text-slate-700 border border-slate-200';
+        return "bg-slate-100 text-slate-700 border border-slate-200";
     }
   };
 
   const getRoleDisplayName = (role: UserRole) => {
     switch (role) {
       case UserRole.SUPER_ADMIN:
-        return 'Super Admin';
+        return "Super Admin";
       case UserRole.OPERATIONS_ADMIN:
-        return 'Operations';
+        return "Operations";
       case UserRole.FINANCE_OFFICER:
-        return 'Finance';
+        return "Finance";
       case UserRole.RECEPTION_OFFICER:
-        return 'Reception';
+        return "Reception";
       case UserRole.SECURITY_OFFICER:
-        return 'Security';
+        return "Security";
       case UserRole.MANAGEMENT_VIEWER:
-        return 'Management';
+        return "Management (CEO)";
       default:
         return role;
     }
@@ -94,9 +94,15 @@ export const UserDirectoryTable: React.FC<UserDirectoryTableProps> = ({
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-[#F8F9FA] border-b border-[#EBE7F5] text-slate-500">
-              <th className="py-3.5 px-6 text-xs font-bold uppercase tracking-wider">User</th>
-              <th className="py-3.5 px-6 text-xs font-bold uppercase tracking-wider">Role</th>
-              <th className="py-3.5 px-6 text-xs font-bold uppercase tracking-wider">Status</th>
+              <th className="py-3.5 px-6 text-xs font-bold uppercase tracking-wider">
+                User
+              </th>
+              <th className="py-3.5 px-6 text-xs font-bold uppercase tracking-wider">
+                Role
+              </th>
+              <th className="py-3.5 px-6 text-xs font-bold uppercase tracking-wider">
+                Status
+              </th>
               <th className="py-3.5 px-6 text-xs font-bold uppercase tracking-wider hidden md:table-cell">
                 Last Active
               </th>
@@ -111,8 +117,12 @@ export const UserDirectoryTable: React.FC<UserDirectoryTableProps> = ({
                 <td colSpan={5} className="py-12 text-center text-slate-400">
                   <div className="flex flex-col items-center justify-center gap-2">
                     <UserIcon className="w-8 h-8 text-slate-300" />
-                    <p className="text-sm font-semibold text-slate-600">No users found</p>
-                    <p className="text-xs text-slate-400">Try adjusting your search or role filters</p>
+                    <p className="text-sm font-semibold text-slate-600">
+                      No users found
+                    </p>
+                    <p className="text-xs text-slate-400">
+                      Try adjusting your search or role filters
+                    </p>
                   </div>
                 </td>
               </tr>
@@ -134,16 +144,20 @@ export const UserDirectoryTable: React.FC<UserDirectoryTableProps> = ({
                       ) : (
                         <div className="w-10 h-10 rounded-full bg-[#e8ddff] text-[#210558] font-bold text-xs flex items-center justify-center border border-[#cebdff] shrink-0">
                           {user.name
-                            .split(' ')
+                            .split(" ")
                             .map((n) => n[0])
-                            .join('')
+                            .join("")
                             .toUpperCase()
                             .slice(0, 2)}
                         </div>
                       )}
                       <div className="min-w-0">
-                        <p className="font-bold text-slate-900 truncate">{user.name}</p>
-                        <p className="text-xs text-slate-400 truncate">{user.email}</p>
+                        <p className="font-bold text-slate-900 truncate">
+                          {user.name}
+                        </p>
+                        <p className="text-xs text-slate-400 truncate">
+                          {user.email}
+                        </p>
                       </div>
                     </div>
                   </td>
@@ -152,7 +166,7 @@ export const UserDirectoryTable: React.FC<UserDirectoryTableProps> = ({
                   <td className="py-4 px-6">
                     <span
                       className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${getRoleBadgeStyle(
-                        user.role
+                        user.role,
                       )}`}
                     >
                       {getRoleDisplayName(user.role)}
@@ -161,19 +175,19 @@ export const UserDirectoryTable: React.FC<UserDirectoryTableProps> = ({
 
                   {/* Status Pill */}
                   <td className="py-4 px-6">
-                    {user.status === 'ACTIVE' && (
+                    {user.status === "ACTIVE" && (
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                         Active
                       </span>
                     )}
-                    {user.status === 'PENDING' && (
+                    {user.status === "PENDING" && (
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
                         <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                         Pending
                       </span>
                     )}
-                    {user.status === 'DEACTIVATED' && (
+                    {user.status === "DEACTIVATED" && (
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-300">
                         <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
                         Deactivated
@@ -189,7 +203,7 @@ export const UserDirectoryTable: React.FC<UserDirectoryTableProps> = ({
                   {/* Actions (with hover reveal + keyboard accessibility) */}
                   <td className="py-4 px-6 text-right">
                     <div className="flex items-center justify-end gap-1.5 sm:opacity-0 group-hover:opacity-100 transition-opacity">
-                      {user.status === 'PENDING' && (
+                      {user.status === "PENDING" && (
                         <button
                           onClick={() => onResendInvite(user)}
                           title="Resend Invite"
@@ -209,14 +223,18 @@ export const UserDirectoryTable: React.FC<UserDirectoryTableProps> = ({
 
                       <button
                         onClick={() => onToggleStatus(user.id)}
-                        title={user.status === 'DEACTIVATED' ? 'Activate User' : 'Deactivate User'}
+                        title={
+                          user.status === "DEACTIVATED"
+                            ? "Activate User"
+                            : "Deactivate User"
+                        }
                         className={`p-1.5 transition-colors rounded-lg hover:bg-white shadow-xs border border-transparent hover:border-[#EBE7F5] cursor-pointer ${
-                          user.status === 'DEACTIVATED'
-                            ? 'text-emerald-600 hover:text-emerald-700'
-                            : 'text-slate-400 hover:text-rose-600'
+                          user.status === "DEACTIVATED"
+                            ? "text-emerald-600 hover:text-emerald-700"
+                            : "text-slate-400 hover:text-rose-600"
                         }`}
                       >
-                        {user.status === 'DEACTIVATED' ? (
+                        {user.status === "DEACTIVATED" ? (
                           <CheckCircle className="w-4 h-4" />
                         ) : (
                           <Ban className="w-4 h-4" />
@@ -234,8 +252,8 @@ export const UserDirectoryTable: React.FC<UserDirectoryTableProps> = ({
       {/* Pagination Footer */}
       <div className="px-6 py-4 border-t border-[#EBE7F5] bg-white flex flex-col sm:flex-row items-center justify-between gap-3">
         <span className="text-xs font-medium text-slate-500">
-          Showing <span className="font-bold text-slate-800">{startCount}</span> to{' '}
-          <span className="font-bold text-slate-800">{endCount}</span> of{' '}
+          Showing <span className="font-bold text-slate-800">{startCount}</span>{" "}
+          to <span className="font-bold text-slate-800">{endCount}</span> of{" "}
           <span className="font-bold text-slate-800">{totalCount}</span> users
         </span>
 
@@ -245,8 +263,8 @@ export const UserDirectoryTable: React.FC<UserDirectoryTableProps> = ({
             disabled={currentPage <= 1}
             className={`px-3 py-1.5 border border-[#EBE7F5] rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors ${
               currentPage <= 1
-                ? 'text-slate-300 bg-[#F8F9FA] cursor-not-allowed'
-                : 'text-slate-700 bg-white hover:bg-[#F8F9FA] cursor-pointer'
+                ? "text-slate-300 bg-[#F8F9FA] cursor-not-allowed"
+                : "text-slate-700 bg-white hover:bg-[#F8F9FA] cursor-pointer"
             }`}
           >
             <ChevronLeft className="w-3.5 h-3.5" />
@@ -262,8 +280,8 @@ export const UserDirectoryTable: React.FC<UserDirectoryTableProps> = ({
             disabled={currentPage >= totalPages}
             className={`px-3 py-1.5 border border-[#EBE7F5] rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors ${
               currentPage >= totalPages
-                ? 'text-slate-300 bg-[#F8F9FA] cursor-not-allowed'
-                : 'text-slate-700 bg-white hover:bg-[#F8F9FA] cursor-pointer'
+                ? "text-slate-300 bg-[#F8F9FA] cursor-not-allowed"
+                : "text-slate-700 bg-white hover:bg-[#F8F9FA] cursor-pointer"
             }`}
           >
             Next

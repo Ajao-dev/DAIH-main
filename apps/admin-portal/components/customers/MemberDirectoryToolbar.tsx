@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { Search, Filter, SlidersHorizontal } from 'lucide-react';
+import React from "react";
+import { Search, Filter, SlidersHorizontal } from "lucide-react";
 
 export interface MemberDirectoryToolbarProps {
   searchQuery: string;

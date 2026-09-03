@@ -7,3 +7,41 @@
     @apply bg-slate-50 text-slate-900 antialiased font-sans;
   }
 }
+
+@media print {
+  /* Hide whole document body by default when printing */
+  body * {
+    visibility: hidden;
+  }
+
+  /* Make only the target receipt container and its children visible */
+  .printable-receipt-container,
+  .printable-receipt-container * {
+    visibility: visible;
+  }
+
+  /* Lock printable receipt to full standard page layout */
+  .printable-receipt-container {
+    position: fixed !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100vw !important;
+    height: auto !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 24px 32px !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: #ffffff !important;
+    z-index: 999999 !important;
+  }
+
+  /* Explicitly suppress all navigation chrome, modals backdrops, and action buttons */
+  .no-print,
+  header,
+  nav,
+  aside,
+  button {
+    display: none !important;
+  }
+}

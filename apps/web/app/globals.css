@@ -28,7 +28,8 @@ a.btn-main:hover,
   font-size: 24px;
   vertical-align: top;
 }
-.pricing-s1 .price .m, .pricing-s1 .price .y {
+.pricing-s1 .price .m,
+.pricing-s1 .price .y {
   font-size: 36px;
   font-weight: 700;
 }
@@ -47,4 +48,23 @@ a.btn-main:hover,
 }
 .why-media img {
   border-radius: 8px;
+}
+
+/* Price block: transparent background & black price text */
+.de-card .d-price,
+.de-card .de-price,
+.de-card.s2 .d-price {
+  background: transparent !important;
+  padding: 10px 0 0 0 !important;
+}
+
+.de-card .d-price span,
+.de-card.s2 .d-price span {
+  color: #181c20 !important;
+  font-weight: 800 !important;
+}
+
+.de-card .d-price div,
+.de-card.s2 .d-price div {
+  color: #717171 !important;
 }

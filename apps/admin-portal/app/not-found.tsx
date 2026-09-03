@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import React from 'react';
-import Link from 'next/link';
-import { SearchX, ArrowLeft } from 'lucide-react';
+import React from "react";
+import Link from "next/link";
+import { SearchX, ArrowLeft } from "lucide-react";
 
 export default function NotFound() {
   return (
@@ -14,7 +14,8 @@ export default function NotFound() {
         Page Not Found
       </h1>
       <p className="text-sm text-slate-500 max-w-md mb-6">
-        The operational resource or admin console page you requested could not be located.
+        The operational resource or admin console page you requested could not
+        be located.
       </p>
       <Link
         href="/"
