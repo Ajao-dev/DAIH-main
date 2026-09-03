@@ -239,6 +239,16 @@ vi.mock("../../db/client.js", () => {
         return record;
       }),
     },
+    emailTemplate: {
+      findUnique: vi.fn(async ({ where }: any) => ({
+        id: `tmpl_${where.type}`,
+        type: where.type,
+        subject: "Mock Email Subject",
+        htmlBody: "<p>Hello {{name}} {{verification_url}} {{reset_url}}</p>",
+        textBody: "Hello {{name}} {{verification_url}} {{reset_url}}",
+        isActive: true,
+      })),
+    },
   };
 
   const mockPrisma = {

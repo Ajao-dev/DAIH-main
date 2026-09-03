@@ -1,5 +1,24 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "globalPassThroughEnv": [
+    "NODE_ENV",
+    "CI",
+    "DATABASE_URL",
+    "REDIS_URL",
+    "JWT_SECRET",
+    "JWT_REFRESH_SECRET",
+    "TOKEN_ENCRYPTION_KEY",
+    "QR_SIGNING_SECRET",
+    "PORT",
+    "PAYSTACK_SECRET_KEY",
+    "PAYSTACK_PUBLIC_KEY",
+    "PAYSTACK_WEBHOOK_SECRET",
+    "RESEND_API_KEY",
+    "ZEPTOMAIL_API_KEY",
+    "SENTRY_DSN",
+    "DD_SERVICE",
+    "DD_ENV"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
@@ -16,8 +35,21 @@
       "dependsOn": ["^build"]
     },
     "test": {
+      "cache": false,
       "dependsOn": ["^build"],
-      "outputs": ["coverage/**"]
+      "outputs": ["coverage/**"],
+      "passThroughEnv": [
+        "DATABASE_URL",
+        "REDIS_URL",
+        "JWT_SECRET",
+        "JWT_REFRESH_SECRET",
+        "TOKEN_ENCRYPTION_KEY",
+        "QR_SIGNING_SECRET",
+        "PORT",
+        "PAYSTACK_SECRET_KEY",
+        "PAYSTACK_PUBLIC_KEY",
+        "PAYSTACK_WEBHOOK_SECRET"
+      ]
     },
     "clean": {
       "cache": false

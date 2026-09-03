@@ -119,6 +119,16 @@ vi.mock("../../db/client.js", () => {
           ...data,
         })),
       },
+      emailTemplate: {
+        findUnique: vi.fn(async ({ where }: any) => ({
+          id: `tmpl_${where.type}`,
+          type: where.type,
+          subject: "Verification Email",
+          htmlBody: "<p>Hello {{name}} {{verification_url}}</p>",
+          textBody: "Hello {{name}} {{verification_url}}",
+          isActive: true,
+        })),
+      },
       $transaction: vi.fn(async (callback: any) => {
         return callback(prisma);
       }),

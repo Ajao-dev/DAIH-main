@@ -120,7 +120,14 @@ vi.mock("../../db/client.js", () => {
         }),
       },
       emailTemplate: {
-        findUnique: vi.fn(async () => null),
+        findUnique: vi.fn(async ({ where }: any) => ({
+          id: `tmpl_${where.type}`,
+          type: where.type,
+          subject: "Your One-Time Password",
+          htmlBody: "<p>Your code is: {{otp_code}}</p>",
+          textBody: "Your code is: {{otp_code}}",
+          isActive: true,
+        })),
       },
       auditLog: {
         create: vi.fn(async ({ data }: any) => {
