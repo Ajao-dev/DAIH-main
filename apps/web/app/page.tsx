@@ -260,193 +260,183 @@ export default function HomePage() {
           </div>
 
           <div className="item pricing">
-            <div className="container">
-              <div className="row">
-                {/* Flex Desk */}
-                <div className="col-lg-4 col-md-6 col-sm-12">
-                  <div className="pricing-s1 mb30">
-                    <div className="top">
-                      <h2>Flex Desk</h2>
-                      <p className="plan-tagline">
-                        Best for flexibility &amp; daily focus
-                      </p>
-                    </div>
+            <div className="row">
+              {/* Flex Desk */}
+              <div className="col-12 col-md-6 col-lg-4 mb-4">
+                <div className="pricing-s1 mb30 h-100 d-flex flex-column justify-content-between">
+                  <div className="top">
+                    <h2>Flex Desk</h2>
+                    <p className="plan-tagline">
+                      Best for flexibility &amp; daily focus
+                    </p>
+                  </div>
 
-                    <div className="mid bg-color-secondary text-light">
-                      <p className="price">
-                        <span className="currency">₦</span>
-                        <span className="m opt-1">{flexDeskPrice}</span>
-                        <span className="month">
-                          {isMonthly ? "/month" : "/day"}
-                        </span>
-                      </p>
-                    </div>
+                  <div className="mid bg-color-secondary text-light">
+                    <p className="price">
+                      <span className="currency">₦</span>
+                      <span className="m opt-1">{flexDeskPrice}</span>
+                      <span className="month">
+                        {isMonthly ? "/month" : "/day"}
+                      </span>
+                    </p>
+                  </div>
 
-                    <div className="bottom">
-                      <ul>
-                        <li>
-                          <i className="fa fa-check"></i>Dedicated workstation
-                          access
-                        </li>
-                        <li>
-                          <i className="fa fa-check"></i>High-speed internet /
-                          Wi-Fi
-                        </li>
-                        <li>
-                          <i className="fa fa-check"></i>Comfortable ergonomic
-                          seating
-                        </li>
-                        <li>
-                          <i className="fa fa-check"></i>24/7 power supply &amp;
-                          charging
-                        </li>
-                        <li>
-                          <i className="fa fa-check"></i>Secure environment
-                          (CCTV)
-                        </li>
-                        <li>
-                          <i className="fa fa-check"></i>Water (hot &amp; cold)
-                        </li>
-                      </ul>
-                    </div>
+                  <div className="bottom flex-grow-1">
+                    <ul>
+                      <li>
+                        <i className="fa fa-check"></i>Dedicated workstation
+                        access
+                      </li>
+                      <li>
+                        <i className="fa fa-check"></i>High-speed internet /
+                        Wi-Fi
+                      </li>
+                      <li>
+                        <i className="fa fa-check"></i>Comfortable ergonomic
+                        seating
+                      </li>
+                      <li>
+                        <i className="fa fa-check"></i>24/7 power supply &amp;
+                        charging
+                      </li>
+                      <li>
+                        <i className="fa fa-check"></i>Secure environment
+                        (CCTV)
+                      </li>
+                      <li>
+                        <i className="fa fa-check"></i>Water (hot &amp; cold)
+                      </li>
+                    </ul>
+                  </div>
 
-                    <div className="action">
-                      <Link href="/flex-desk" className="btn-main">
-                        Book Now
-                      </Link>
-                    </div>
+                  <div className="action mt-auto">
+                    <Link href="/flex-desk" className="btn-main w-100 d-block text-center">
+                      Book Now
+                    </Link>
                   </div>
                 </div>
+              </div>
 
-                {/* Dedicated Desk */}
-                <div className="col-lg-4 col-md-6 col-sm-12">
-                  <div className="pricing-s1 mb30">
-                    <div className="top">
-                      <h2>Dedicated Desk</h2>
-                      <p className="plan-tagline">
-                        Best for consistency &amp; productivity
-                      </p>
-                    </div>
+              {/* Dedicated Desk */}
+              <div className="col-12 col-md-6 col-lg-4 mb-4">
+                <div className="pricing-s1 mb30 h-100 d-flex flex-column justify-content-between">
+                  <div className="top">
+                    <h2>Dedicated Desk</h2>
+                    <p className="plan-tagline">
+                      Best for consistency &amp; productivity
+                    </p>
+                  </div>
 
-                    <div className="mid bg-color-secondary text-light">
-                      <p className="price">
-                        <span className="currency">₦</span>
-                        <span className="m opt-1">{dedicatedDeskPrice}</span>
-                        <span className="month">
-                          {isMonthly ? "/month" : "/day"}
-                        </span>
-                      </p>
-                    </div>
+                  <div className="mid bg-color-secondary text-light">
+                    <p className="price">
+                      <span className="currency">₦</span>
+                      <span className="m opt-1">{dedicatedDeskPrice}</span>
+                      <span className="month">
+                        {isMonthly ? "/month" : "/day"}
+                      </span>
+                    </p>
+                  </div>
 
-                    <div className="bottom">
-                      <ul>
-                        <li>
-                          <i className="fa fa-check"></i>Assigned personal
-                          workstation
-                        </li>
-                        <li>
-                          <i className="fa fa-check"></i>High-speed internet /
-                          Wi-Fi
-                        </li>
-                        <li>
-                          <i className="fa fa-check"></i>Ergonomic office chair
-                        </li>
-                        <li>
-                          <i className="fa fa-check"></i>Personal desk drawer /
-                          storage
-                        </li>
-                        <li>
-                          <i className="fa fa-check"></i>24/7 power supply
-                        </li>
-                        <li>
-                          <i className="fa fa-check"></i>Daily dedicated access
-                        </li>
-                      </ul>
-                    </div>
+                  <div className="bottom flex-grow-1">
+                    <ul>
+                      <li>
+                        <i className="fa fa-check"></i>Assigned personal
+                        workstation
+                      </li>
+                      <li>
+                        <i className="fa fa-check"></i>High-speed internet /
+                        Wi-Fi
+                      </li>
+                      <li>
+                        <i className="fa fa-check"></i>Ergonomic office chair
+                      </li>
+                      <li>
+                        <i className="fa fa-check"></i>Personal desk drawer /
+                        storage
+                      </li>
+                      <li>
+                        <i className="fa fa-check"></i>24/7 power supply
+                      </li>
+                      <li>
+                        <i className="fa fa-check"></i>Daily dedicated access
+                      </li>
+                    </ul>
+                  </div>
 
-                    <div className="action">
-                      <Link href="/dedicated-desk" className="btn-main">
-                        Book Now
-                      </Link>
-                    </div>
+                  <div className="action mt-auto">
+                    <Link href="/dedicated-desk" className="btn-main w-100 d-block text-center">
+                      Book Now
+                    </Link>
                   </div>
                 </div>
+              </div>
 
-                {/* Private Office / Suite */}
-                <div className="col-lg-4 col-md-6 col-sm-12">
-                  <div className="pricing-s1 mb30">
-                    <div className="top">
-                      <h2>Private Office</h2>
-                      <p className="plan-tagline">
-                        Best for privacy &amp; executive teams
-                      </p>
-                    </div>
+              {/* Private Office / Suite */}
+              <div className="col-12 col-md-6 col-lg-4 mb-4">
+                <div className="pricing-s1 mb30 h-100 d-flex flex-column justify-content-between">
+                  <div className="top">
+                    <h2>Private Office</h2>
+                    <p className="plan-tagline">
+                      Best for privacy &amp; executive teams
+                    </p>
+                  </div>
 
-                    <div className="mid bg-color-secondary text-light">
-                      <p className="price">
-                        <span className="currency">₦</span>
-                        <span className="m opt-1">{officeSuitePrice}</span>
-                        <span className="month">
-                          {isMonthly ? "/month" : "/day"}
-                        </span>
-                      </p>
-                    </div>
+                  <div className="mid bg-color-secondary text-light">
+                    <p className="price">
+                      <span className="currency">₦</span>
+                      <span className="m opt-1">{officeSuitePrice}</span>
+                      <span className="month">
+                        {isMonthly ? "/month" : "/day"}
+                      </span>
+                    </p>
+                  </div>
 
-                    <div className="bottom">
-                      <ul>
-                        <li>
-                          <i className="fa fa-check"></i>Private,
-                          air-conditioned team suite
-                        </li>
-                        <li>
-                          <i className="fa fa-check"></i>High-speed internet /
-                          Wi-Fi
-                        </li>
-                        <li>
-                          <i className="fa fa-check"></i>Presentation screen /
-                          TV
-                        </li>
-                        <li>
-                          <i className="fa fa-check"></i>24/7 power supply
-                        </li>
-                        <li>
-                          <i className="fa fa-check"></i>Comfortable team
-                          seating
-                        </li>
-                        <li>
-                          <i className="fa fa-check"></i>On-site dedicated
-                          support
-                        </li>
-                      </ul>
-                    </div>
+                  <div className="bottom flex-grow-1">
+                    <ul>
+                      <li>
+                        <i className="fa fa-check"></i>Private,
+                        air-conditioned team suite
+                      </li>
+                      <li>
+                        <i className="fa fa-check"></i>High-speed internet /
+                        Wi-Fi
+                      </li>
+                      <li>
+                        <i className="fa fa-check"></i>Presentation screen /
+                        TV
+                      </li>
+                      <li>
+                        <i className="fa fa-check"></i>24/7 power supply
+                      </li>
+                      <li>
+                        <i className="fa fa-check"></i>Comfortable team
+                        seating
+                      </li>
+                      <li>
+                        <i className="fa fa-check"></i>On-site dedicated
+                        support
+                      </li>
+                    </ul>
+                  </div>
 
-                    <div className="action">
-                      <Link href="/private-office" className="btn-main">
-                        Book Now
-                      </Link>
-                    </div>
+                  <div className="action mt-auto">
+                    <Link href="/private-office" className="btn-main w-100 d-block text-center">
+                      Book Now
+                    </Link>
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="d-flex justify-content-center align-items-center h-100 mt-4">
-            <div className="container text-white text-center">
-              <div className="row">
-                <div className="col-md-6 offset-md-3">
-                  <h1 className="mb-3 wow fadeInUp">DAIH</h1>
-                  <Link
-                    href="/our-plans"
-                    className="btn-main wow fadeInUp"
-                    data-wow-delay=".6s"
-                  >
-                    View All Plans &amp; Facilities
-                  </Link>
-                  <div className="spacer-10"></div>
-                </div>
-              </div>
-            </div>
+          <div className="text-center mt-4 pt-2">
+            <Link
+              href="/our-plans"
+              className="btn-main btn-view-all-plans"
+            >
+              <span>View All Plans &amp; Facilities</span>
+              <i className="fa fa-arrow-right" style={{ marginLeft: "8px" }}></i>
+            </Link>
           </div>
         </div>
       </section>

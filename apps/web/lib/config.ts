@@ -3,7 +3,9 @@
  */
 
 export const CUSTOMER_PORTAL_URL =
-  process.env.NEXT_PUBLIC_CUSTOMER_PORTAL_URL || "http://localhost:3001";
+  process.env.NEXT_PUBLIC_CUSTOMER_PORTAL_URL ||
+  process.env.NEXT_PUBLIC_CUSTOMER_PWA_URL ||
+  "http://localhost:3001";
 
 export const API_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
