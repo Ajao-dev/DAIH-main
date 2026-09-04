@@ -16,19 +16,26 @@ export const Header: React.FC<{ isTransparent?: boolean }> = ({
     setMounted(true);
   }, []);
 
+  // Close mobile menu on route change
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
+
   const isHome = pathname === "/";
   const shouldBeTransparent = mounted
     ? isTransparent && isHome
     : isTransparent && (!pathname || pathname === "/");
 
+  const closeMenu = () => setMobileOpen(false);
+
   return (
     <header
       suppressHydrationWarning
-      className={
+      className={`${
         shouldBeTransparent
           ? "transparent scroll-light"
           : "header-light scroll-light"
-      }
+      } ${mobileOpen ? "mobile-menu-active" : ""}`}
     >
       <div className="container" suppressHydrationWarning>
         <div className="row" suppressHydrationWarning>
@@ -48,6 +55,7 @@ export const Header: React.FC<{ isTransparent?: boolean }> = ({
                   >
                     <Link
                       href="/"
+                      onClick={closeMenu}
                       style={{
                         display: "flex",
                         alignItems: "center",
@@ -94,7 +102,7 @@ export const Header: React.FC<{ isTransparent?: boolean }> = ({
                   className={mobileOpen ? "open" : ""}
                 >
                   <li>
-                    <Link href="/">
+                    <Link href="/" onClick={closeMenu}>
                       Home<span></span>
                     </Link>
                   </li>
@@ -104,25 +112,39 @@ export const Header: React.FC<{ isTransparent?: boolean }> = ({
                     </a>
                     <ul>
                       <li>
-                        <Link href="/dedicated-desk">Dedicated Desk</Link>
+                        <Link href="/dedicated-desk" onClick={closeMenu}>
+                          Dedicated Desk
+                        </Link>
                       </li>
                       <li>
-                        <Link href="/hot-desk">Hot Desk</Link>
+                        <Link href="/hot-desk" onClick={closeMenu}>
+                          Hot Desk
+                        </Link>
                       </li>
                       <li>
-                        <Link href="/office-suite">Office Suite</Link>
+                        <Link href="/office-suite" onClick={closeMenu}>
+                          Office Suite
+                        </Link>
                       </li>
                       <li>
-                        <Link href="/conference-hall">Conference Hall</Link>
+                        <Link href="/conference-hall" onClick={closeMenu}>
+                          Conference Hall
+                        </Link>
                       </li>
                       <li>
-                        <Link href="/training-room">Training Room</Link>
+                        <Link href="/training-room" onClick={closeMenu}>
+                          Training Room
+                        </Link>
                       </li>
                       <li>
-                        <a href="#">Lounge (Coming Soon)</a>
+                        <a href="#" onClick={closeMenu}>
+                          Lounge (Coming Soon)
+                        </a>
                       </li>
                       <li>
-                        <a href="#">Studio (Coming Soon)</a>
+                        <a href="#" onClick={closeMenu}>
+                          Studio (Coming Soon)
+                        </a>
                       </li>
                     </ul>
                   </li>
@@ -132,40 +154,65 @@ export const Header: React.FC<{ isTransparent?: boolean }> = ({
                     </a>
                     <ul>
                       <li>
-                        <Link href="/about-us">About Us</Link>
+                        <Link href="/about-us" onClick={closeMenu}>
+                          About Us
+                        </Link>
                       </li>
                       <li>
-                        <Link href="/news">News</Link>
+                        <Link href="/news" onClick={closeMenu}>
+                          News
+                        </Link>
                       </li>
                       <li>
-                        <Link href="/jobs">Jobs</Link>
+                        <Link href="/jobs" onClick={closeMenu}>
+                          Jobs
+                        </Link>
                       </li>
                       <li>
-                        <Link href="/contact">Contact</Link>
+                        <Link href="/contact" onClick={closeMenu}>
+                          Contact
+                        </Link>
                       </li>
                     </ul>
                   </li>
                   <li>
-                    <Link href="/events">
+                    <Link href="/events" onClick={closeMenu}>
                       Events<span></span>
                     </Link>
                   </li>
                   <li>
-                    <Link href="/gallery">
+                    <Link href="/gallery" onClick={closeMenu}>
                       Gallery<span></span>
                     </Link>
+                  </li>
+
+                  {/* Prominent Book A Space CTA inside mobile menu */}
+                  <li className="mobile-menu-cta">
+                    <a
+                      href={getPortalBookingUrl()}
+                      className="btn-main"
+                      onClick={closeMenu}
+                    >
+                      <i className="fa fa-calendar mr-2"></i>
+                      <span>Book A Space</span>
+                    </a>
                   </li>
                 </ul>
               </div>
 
               <div className="de-flex-col" suppressHydrationWarning>
                 <div className="menu_side_area" suppressHydrationWarning>
-                  <a href={getPortalBookingUrl()} className="btn-main">
+                  <a
+                    href={getPortalBookingUrl()}
+                    className="btn-main header-book-btn"
+                  >
                     <i className="fa fa-calendar mr-2"></i>
                     <span>Book A Space</span>
                   </a>
                   <span
                     id="menu-btn"
+                    className={mobileOpen ? "open" : ""}
+                    aria-label="Toggle menu"
                     onClick={() => setMobileOpen(!mobileOpen)}
                   ></span>
                 </div>

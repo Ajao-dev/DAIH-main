@@ -68,3 +68,21 @@ a.btn-main:hover,
 .de-card.s2 .d-price div {
   color: #717171 !important;
 }
+
+/* Zero-flash mobile navbar on initial load */
+@media (max-width: 991.98px) {
+  #mainmenu:not(.open) {
+    display: none !important;
+  }
+}
+
+/* Full width pricing cards on small screens */
+@media (max-width: 767.98px) {
+  #section-pricing .container {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+  .pricing-s1 {
+    width: 100% !important;
+  }
+}
