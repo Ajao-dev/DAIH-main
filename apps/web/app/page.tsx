@@ -300,8 +300,7 @@ export default function HomePage() {
                         charging
                       </li>
                       <li>
-                        <i className="fa fa-check"></i>Secure environment
-                        (CCTV)
+                        <i className="fa fa-check"></i>Secure environment (CCTV)
                       </li>
                       <li>
                         <i className="fa fa-check"></i>Water (hot &amp; cold)
@@ -310,7 +309,10 @@ export default function HomePage() {
                   </div>
 
                   <div className="action mt-auto">
-                    <Link href="/flex-desk" className="btn-main w-100 d-block text-center">
+                    <Link
+                      href="/flex-desk"
+                      className="btn-main w-100 d-block text-center"
+                    >
                       Book Now
                     </Link>
                   </div>
@@ -364,7 +366,10 @@ export default function HomePage() {
                   </div>
 
                   <div className="action mt-auto">
-                    <Link href="/dedicated-desk" className="btn-main w-100 d-block text-center">
+                    <Link
+                      href="/dedicated-desk"
+                      className="btn-main w-100 d-block text-center"
+                    >
                       Book Now
                     </Link>
                   </div>
@@ -394,33 +399,33 @@ export default function HomePage() {
                   <div className="bottom flex-grow-1">
                     <ul>
                       <li>
-                        <i className="fa fa-check"></i>Private,
-                        air-conditioned team suite
+                        <i className="fa fa-check"></i>Private, air-conditioned
+                        team suite
                       </li>
                       <li>
                         <i className="fa fa-check"></i>High-speed internet /
                         Wi-Fi
                       </li>
                       <li>
-                        <i className="fa fa-check"></i>Presentation screen /
-                        TV
+                        <i className="fa fa-check"></i>Presentation screen / TV
                       </li>
                       <li>
                         <i className="fa fa-check"></i>24/7 power supply
                       </li>
                       <li>
-                        <i className="fa fa-check"></i>Comfortable team
-                        seating
+                        <i className="fa fa-check"></i>Comfortable team seating
                       </li>
                       <li>
-                        <i className="fa fa-check"></i>On-site dedicated
-                        support
+                        <i className="fa fa-check"></i>On-site dedicated support
                       </li>
                     </ul>
                   </div>
 
                   <div className="action mt-auto">
-                    <Link href="/private-office" className="btn-main w-100 d-block text-center">
+                    <Link
+                      href="/private-office"
+                      className="btn-main w-100 d-block text-center"
+                    >
                       Book Now
                     </Link>
                   </div>
@@ -430,12 +435,12 @@ export default function HomePage() {
           </div>
 
           <div className="text-center mt-4 pt-2">
-            <Link
-              href="/our-plans"
-              className="btn-main btn-view-all-plans"
-            >
+            <Link href="/our-plans" className="btn-main btn-view-all-plans">
               <span>View All Plans &amp; Facilities</span>
-              <i className="fa fa-arrow-right" style={{ marginLeft: "8px" }}></i>
+              <i
+                className="fa fa-arrow-right"
+                style={{ marginLeft: "8px" }}
+              ></i>
             </Link>
           </div>
         </div>
