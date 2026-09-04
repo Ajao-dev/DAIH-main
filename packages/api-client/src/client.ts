@@ -94,6 +94,16 @@ export class DaihApiClient {
     this.getTokenFn = config.getToken;
     this.setTokenFn = config.setToken;
     this.onSessionExpiredFn = config.onSessionExpired;
+
+    // Ensure no legacy tokens remain in localStorage or sessionStorage
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.removeItem("daih_access_token");
+        sessionStorage.removeItem("daih_access_token");
+        localStorage.removeItem("daih_refresh_token");
+        sessionStorage.removeItem("daih_refresh_token");
+      } catch {}
+    }
   }
 
   setOnSessionExpired(fn: () => void): void {
@@ -102,10 +112,13 @@ export class DaihApiClient {
 
   setAccessToken(token: string | null): void {
     this.inMemoryToken = token;
-    // Clean up legacy localStorage token if previously stored to prevent lingering XSS exposure
+    // Strictly memory-only: purge any storage copies to prevent XSS exfiltration
     if (typeof window !== "undefined") {
       try {
         localStorage.removeItem("daih_access_token");
+        sessionStorage.removeItem("daih_access_token");
+        localStorage.removeItem("daih_refresh_token");
+        sessionStorage.removeItem("daih_refresh_token");
       } catch {}
     }
     if (this.setTokenFn) {
@@ -116,7 +129,7 @@ export class DaihApiClient {
   async getAccessToken(): Promise<string | null> {
     if (this.getTokenFn) {
       const customToken = await this.getTokenFn();
-      if (customToken !== undefined) return customToken;
+      if (customToken !== undefined && customToken !== null) return customToken;
     }
     return this.inMemoryToken;
   }
@@ -326,7 +339,7 @@ export class DaihApiClient {
 
     refresh: async () => {
       const res = await this.request<{
-        accessToken: string;
+        accessToken?: string;
         user: UserProfile;
         token?: string;
       }>("/identity/refresh", {
@@ -336,7 +349,11 @@ export class DaihApiClient {
       if (token) {
         this.setAccessToken(token);
       }
-      return res;
+      return {
+        ...res,
+        accessToken: token || "",
+        token: token || "",
+      };
     },
 
     logout: async () => {

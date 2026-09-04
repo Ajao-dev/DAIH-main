@@ -4,6 +4,10 @@ import { config } from "../config/env.js";
 import { prisma } from "../db/client.js";
 import { redis } from "../config/redis.js";
 import { UserRole } from "@daih/types";
+import {
+  checkSessionRevocation,
+  InfrastructureUnavailableError,
+} from "../utils/revocation-cache.js";
 
 export interface AuthRequest extends Request {
   user?: {
@@ -57,16 +61,11 @@ export const authenticate = async (
       return;
     }
 
-    // Verify session is active and not revoked (Redis Cache + DB Fallback)
+    // Verify session is active and not revoked (Redis Cache + DB Fallback with Circuit Breaker)
     if (payload.sessionId) {
-      let isSessionValid = false;
-
-      // 1. Fast Redis cache check (sub-millisecond)
       try {
-        const revoked = await redis.get(
-          `daih:session:revoked:${payload.sessionId}`,
-        );
-        if (revoked) {
+        const { isValid } = await checkSessionRevocation(payload.sessionId);
+        if (!isValid) {
           res.status(401).json({
             code: "SESSION_REVOKED",
             message:
@@ -74,48 +73,16 @@ export const authenticate = async (
           });
           return;
         }
-
-        const active = await redis.get(
-          `daih:session:active:${payload.sessionId}`,
-        );
-        if (active === "1") {
-          isSessionValid = true;
-        }
-      } catch {
-        // Cache miss/unavailable -> fall back to database
-      }
-
-      // 2. Database verification fallback
-      if (!isSessionValid) {
-        const session = await prisma.authSession.findUnique({
-          where: { id: payload.sessionId },
-        });
-
-        if (!session || session.isRevoked || session.expiresAt < new Date()) {
-          try {
-            await redis.setex(
-              `daih:session:revoked:${payload.sessionId}`,
-              900,
-              "1",
-            );
-          } catch {}
-
-          res.status(401).json({
-            code: "SESSION_REVOKED",
+      } catch (infraError) {
+        if (infraError instanceof InfrastructureUnavailableError) {
+          res.status(503).json({
+            code: "SERVICE_UNAVAILABLE",
             message:
-              "This session has been logged out or replaced by a new token. Please log in again.",
+              "Authentication verification is temporarily degraded. Please retry shortly.",
           });
           return;
         }
-
-        // Cache active session in Redis for subsequent requests
-        try {
-          await redis.setex(
-            `daih:session:active:${payload.sessionId}`,
-            900,
-            "1",
-          );
-        } catch {}
+        throw infraError;
       }
     } else if (config.env !== "test" || !process.env.VITEST) {
       res.status(401).json({
@@ -139,6 +106,15 @@ export const authenticate = async (
 
     next();
   } catch (error) {
+    if (error instanceof InfrastructureUnavailableError) {
+      res.status(503).json({
+        code: "SERVICE_UNAVAILABLE",
+        message:
+          "Authentication verification is temporarily degraded. Please retry shortly.",
+      });
+      return;
+    }
+
     res.status(401).json({
       code: "INVALID_TOKEN",
       message: "Token has expired or is invalid",

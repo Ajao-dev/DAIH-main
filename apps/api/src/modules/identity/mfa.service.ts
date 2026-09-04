@@ -90,12 +90,13 @@ export function generateTotpCode(
 }
 
 /**
- * Verifies an RFC 6238 TOTP code with ±1 step (±30s) tolerance window
+ * Verifies an RFC 6238 TOTP code with ±2 steps (±60s) tolerance window.
+ * Tolerance of 2 steps ensures robustness against minor server clock drift and network lag.
  */
 export function verifyTotpToken(
   secretBase32: string,
   token: string,
-  windowSteps: number = 1,
+  windowSteps: number = 2,
   timeStepSeconds: number = 30,
 ): boolean {
   const cleanToken = token.trim().replace(/\s/g, "");
@@ -118,14 +119,15 @@ export function verifyTotpToken(
 }
 
 /**
- * Derives a 256-bit encryption key from JWT_SECRET via HKDF-SHA256.
- * No new env var required — reuses existing secret.
+ * Derives a 256-bit encryption key from MFA_ENCRYPTION_SECRET / JWT_SECRET via HKDF-SHA256.
  */
-function deriveEncryptionKey(): Buffer {
+function deriveEncryptionKey(
+  secret: string = config.mfa.encryptionSecret,
+): Buffer {
   return Buffer.from(
     crypto.hkdfSync(
       "sha256",
-      config.jwt.secret,
+      secret,
       "daih-mfa-encryption-salt-v1",
       "daih-mfa-secret-key",
       DERIVED_KEY_LENGTH,
@@ -155,21 +157,55 @@ function encryptTotpSecret(rawSecret: string): string {
 
 /**
  * Decrypts a stored TOTP secret.
+ * Attempts decryption using the configured secret first, then falls back to the
+ * default development secret in case the database was seeded or imported from local dev.
  */
 function decryptTotpSecret(stored: string): string {
-  const [ivHex, authTagHex, ciphertextHex] = stored.split(":");
-  const key = deriveEncryptionKey();
+  const parts = stored.split(":");
+  if (parts.length !== 3) {
+    throw new Error("Invalid stored TOTP secret format");
+  }
+  const [ivHex, authTagHex, ciphertextHex] = parts;
   const iv = Buffer.from(ivHex, "hex");
   const authTag = Buffer.from(authTagHex, "hex");
   const ciphertext = Buffer.from(ciphertextHex, "hex");
 
-  const decipher = crypto.createDecipheriv(AES_ALGORITHM, key, iv);
-  decipher.setAuthTag(authTag);
-  const decrypted = Buffer.concat([
-    decipher.update(ciphertext),
-    decipher.final(),
-  ]);
-  return decrypted.toString("utf8");
+  // Attempt 1: Configured key (MFA_ENCRYPTION_SECRET or JWT_SECRET)
+  const primaryKey = deriveEncryptionKey(config.mfa.encryptionSecret);
+  try {
+    const decipher = crypto.createDecipheriv(AES_ALGORITHM, primaryKey, iv);
+    decipher.setAuthTag(authTag);
+    const decrypted = Buffer.concat([
+      decipher.update(ciphertext),
+      decipher.final(),
+    ]);
+    return decrypted.toString("utf8");
+  } catch (primaryErr) {
+    // Attempt 2: Fallback to development secret (for databases seeded in development)
+    const devSecret = "dev-secret-key-12345678901234567890";
+    if (config.mfa.encryptionSecret !== devSecret) {
+      try {
+        const fallbackKey = deriveEncryptionKey(devSecret);
+        const fallbackDecipher = crypto.createDecipheriv(
+          AES_ALGORITHM,
+          fallbackKey,
+          iv,
+        );
+        fallbackDecipher.setAuthTag(authTag);
+        const decrypted = Buffer.concat([
+          fallbackDecipher.update(ciphertext),
+          fallbackDecipher.final(),
+        ]);
+        console.warn(
+          "[MFA] Stored TOTP secret decrypted via development secret fallback.",
+        );
+        return decrypted.toString("utf8");
+      } catch {
+        // Fall through to throw the primary error
+      }
+    }
+    throw primaryErr;
+  }
 }
 
 export class MfaService {
@@ -208,7 +244,7 @@ export class MfaService {
    */
   verifyTotpCode(rawSecret: string, code: string): boolean {
     try {
-      return verifyTotpToken(rawSecret, code, 1, 30);
+      return verifyTotpToken(rawSecret, code, 2, 30);
     } catch {
       return false;
     }
@@ -221,8 +257,11 @@ export class MfaService {
   verifyTotpCodeFromStorage(encryptedSecret: string, code: string): boolean {
     try {
       const rawSecret = decryptTotpSecret(encryptedSecret);
-      return verifyTotpToken(rawSecret, code, 1, 30);
-    } catch {
+      return verifyTotpToken(rawSecret, code, 2, 30);
+    } catch (err: any) {
+      console.error(
+        `[MFA] Failed to decrypt TOTP secret from storage: ${err?.message}. Check if MFA_ENCRYPTION_SECRET/JWT_SECRET in production matches the key used when MFA was enabled.`,
+      );
       return false;
     }
   }

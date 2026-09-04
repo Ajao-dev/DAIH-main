@@ -3,7 +3,7 @@ import "./globals.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: "DAIH — Member Experience Portal",
+  title: "DAIH — Workspace & Member Portal",
   description:
     "Manage your workspace bookings, instant QR access pass, and invoices.",
   manifest: "/manifest.json",

@@ -5,6 +5,7 @@ import { useToast } from "@daih/ui";
 import { api } from "@daih/api-client";
 import {
   FacilityResource,
+  ResourcePricingPlan,
   CreateResourceDTO,
   CreatePricingPlanDTO,
   UpdatePricingPlanDTO,
@@ -31,6 +32,7 @@ import {
   Loader2,
   RefreshCw,
   Layers,
+  Download,
 } from "lucide-react";
 
 export default function OperationsPage() {
@@ -61,24 +63,55 @@ export default function OperationsPage() {
   const [resourceToDelete, setResourceToDelete] =
     useState<FacilityResource | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const toastRef = React.useRef(toast);
+  toastRef.current = toast;
+
+  const [exportingReport, setExportingReport] = useState(false);
 
   const fetchResources = useCallback(async () => {
     setLoading(true);
     try {
       const data = await api.catalogue.getAdminResources();
       setResources(data);
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to fetch resource inventory", {
-        title: "Error loading resources",
+      setPricingResource((prev) => {
+        if (!prev) return null;
+        return data.find((r) => r.id === prev.id) || prev;
       });
+      return data;
+    } catch (err: any) {
+      toastRef.current.error(
+        err?.message || "Failed to fetch resource inventory",
+        {
+          title: "Error loading resources",
+        },
+      );
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, []);
 
   useEffect(() => {
     fetchResources();
   }, [fetchResources]);
+
+  const handleExportOperationsReport = async () => {
+    setExportingReport(true);
+    try {
+      await api.reports.downloadExport({
+        type: "occupancy",
+        format: "pdf",
+      });
+      toast.success("Operations occupancy report downloaded successfully.", {
+        title: "Report Exported",
+      });
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to download operations report", {
+        title: "Download Failed",
+      });
+    } finally {
+      setExportingReport(false);
+    }
+  };
 
   // Handle Save Resource (Create or Update)
   const handleSaveResource = async (payload: CreateResourceDTO) => {
@@ -182,8 +215,6 @@ export default function OperationsPage() {
           title: "Pricing Plan Added",
         },
       );
-      const updated = await api.catalogue.getResourceById(resourceId);
-      setPricingResource(updated);
       await fetchResources();
     } catch (err: any) {
       toast.error(err?.message || "Could not add pricing plan", {
@@ -200,15 +231,61 @@ export default function OperationsPage() {
   ) => {
     if (!pricingResource) return;
     try {
-      await api.catalogue.updatePricingPlan(planId, plan);
-      toast.success(
-        `Pricing plan updated to ₦${Number(plan.price || 0).toLocaleString()}.`,
-        {
-          title: "Pricing Plan Updated",
-        },
+      const existingPlan = pricingResource.pricing?.find(
+        (p: ResourcePricingPlan) => p.id === planId,
       );
-      const updated = await api.catalogue.getResourceById(pricingResource.id);
-      setPricingResource(updated);
+
+      await api.catalogue.updatePricingPlan(planId, plan);
+
+      const planName =
+        plan.planName || existingPlan?.planName || "Pricing plan";
+
+      const oldPrice = existingPlan ? Number(existingPlan.price) : undefined;
+      const newPrice =
+        plan.price !== undefined ? Number(plan.price) : undefined;
+      const priceChanged =
+        oldPrice !== undefined &&
+        newPrice !== undefined &&
+        oldPrice !== newPrice;
+
+      const oldMonths = existingPlan?.durationMonths
+        ? Number(existingPlan.durationMonths)
+        : null;
+      const newMonths = plan.durationMonths
+        ? Number(plan.durationMonths)
+        : null;
+
+      const oldDays = existingPlan?.durationDays
+        ? Number(existingPlan.durationDays)
+        : null;
+      const newDays = plan.durationDays ? Number(plan.durationDays) : null;
+
+      const oldHours = existingPlan?.durationHours
+        ? Number(existingPlan.durationHours)
+        : null;
+      const newHours = plan.durationHours ? Number(plan.durationHours) : null;
+
+      const durationChanged =
+        oldMonths !== newMonths || oldDays !== newDays || oldHours !== newHours;
+
+      let message = `Plan '${planName}' updated successfully.`;
+      if (durationChanged && !priceChanged) {
+        let durationDesc = "duration";
+        if (newMonths && newMonths > 0) {
+          durationDesc = `${newMonths} month${newMonths > 1 ? "s" : ""}`;
+        } else if (newDays && newDays > 0) {
+          durationDesc = `${newDays} day${newDays > 1 ? "s" : ""}`;
+        } else if (newHours && newHours > 0) {
+          durationDesc = `${newHours} hour${newHours > 1 ? "s" : ""}`;
+        }
+        message = `Plan '${planName}' duration updated to ${durationDesc}.`;
+      } else if (priceChanged && !durationChanged) {
+        message = `Plan '${planName}' price updated to ₦${Number(newPrice || 0).toLocaleString()}.`;
+      }
+
+      toast.success(message, {
+        title: "Pricing Plan Updated",
+      });
       await fetchResources();
     } catch (err: any) {
       toast.error(err?.message || "Could not update pricing plan", {
@@ -226,8 +303,6 @@ export default function OperationsPage() {
       toast.info("Pricing plan removed successfully.", {
         title: "Plan Removed",
       });
-      const updated = await api.catalogue.getResourceById(pricingResource.id);
-      setPricingResource(updated);
       await fetchResources();
     } catch (err: any) {
       toast.error(err?.message || "Could not delete pricing plan", {
@@ -342,6 +417,20 @@ export default function OperationsPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={handleExportOperationsReport}
+            disabled={exportingReport}
+            className="border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 font-bold text-xs px-3.5 py-2 rounded-lg flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
+            title="Download Operations Occupancy & Utilization Report (PDF)"
+          >
+            {exportingReport ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-[#23055c]" />
+            ) : (
+              <Download className="h-3.5 w-3.5 text-slate-600" />
+            )}
+            <span>Export Report</span>
+          </button>
           <button
             onClick={() => setFilterModalOpen(true)}
             className={`border px-4 py-2 rounded-lg flex items-center gap-2 font-bold text-xs transition-colors shadow-2xs cursor-pointer ${

@@ -6,13 +6,26 @@ import { staffUserService } from "./staff-user.service.js";
 import { customerService } from "./customer.service.js";
 import { AuthRequest } from "../../middleware/auth.middleware.js";
 import { uploadAvatarSchema } from "./identity.schema.js";
+import { computeFingerprint } from "../../utils/fingerprint.js";
 
 export class IdentityController {
-  private setRefreshCookie(res: Response, rawRefreshToken: string): void {
+  private setRefreshCookie(
+    res: Response,
+    rawRefreshToken: string,
+    req?: Request,
+  ): void {
     const maxAge = config.jwt.refreshExpiresInDays * 24 * 60 * 60 * 1000;
+    const isSecure =
+      req !== undefined
+        ? Boolean(
+            req.secure ||
+            req.headers["x-forwarded-proto"] === "https" ||
+            config.cookies.secure,
+          )
+        : config.cookies.secure;
     res.cookie(config.cookies.refreshCookieName, rawRefreshToken, {
       httpOnly: true,
-      secure: config.cookies.secure,
+      secure: isSecure,
       sameSite: config.cookies.sameSite,
       domain: config.cookies.domain,
       path: config.cookies.path,
@@ -20,10 +33,18 @@ export class IdentityController {
     });
   }
 
-  private clearRefreshCookie(res: Response): void {
+  private clearRefreshCookie(res: Response, req?: Request): void {
+    const isSecure =
+      req !== undefined
+        ? Boolean(
+            req.secure ||
+            req.headers["x-forwarded-proto"] === "https" ||
+            config.cookies.secure,
+          )
+        : config.cookies.secure;
     res.clearCookie(config.cookies.refreshCookieName, {
       httpOnly: true,
-      secure: config.cookies.secure,
+      secure: isSecure,
       sameSite: config.cookies.sameSite,
       domain: config.cookies.domain,
       path: config.cookies.path,
@@ -57,6 +78,7 @@ export class IdentityController {
       const result = await identityService.login(req.body, {
         ipAddress: req.ip,
         userAgent: req.headers["user-agent"],
+        deviceFingerprint: computeFingerprint(req),
         portal: req.body?.portal || req.body?.audience || portalHeader,
       });
 
@@ -79,7 +101,7 @@ export class IdentityController {
       }
 
       // Full login success for customers or non-MFA flow
-      this.setRefreshCookie(res, result.rawRefreshToken);
+      this.setRefreshCookie(res, result.rawRefreshToken, req);
 
       res.json({
         success: true,
@@ -101,6 +123,8 @@ export class IdentityController {
     try {
       const rawRefreshToken =
         req.cookies?.[config.cookies.refreshCookieName] ||
+        req.cookies?.["daih_refresh_token"] ||
+        req.cookies?.["daih_refresh"] ||
         (config.env === "test" ? req.body?.refreshToken : undefined);
 
       if (!rawRefreshToken) {
@@ -118,9 +142,10 @@ export class IdentityController {
       } = await identityService.refresh(rawRefreshToken, {
         ipAddress: req.ip,
         userAgent: req.headers["user-agent"],
+        deviceFingerprint: computeFingerprint(req),
       });
 
-      this.setRefreshCookie(res, nextRefreshToken);
+      this.setRefreshCookie(res, nextRefreshToken, req);
 
       res.json({
         success: true,
@@ -130,7 +155,7 @@ export class IdentityController {
         },
       });
     } catch (error) {
-      this.clearRefreshCookie(res);
+      this.clearRefreshCookie(res, req);
       next(error);
     }
   };
@@ -166,7 +191,7 @@ export class IdentityController {
       if (rawRefreshToken || sessionId) {
         await identityService.logout(rawRefreshToken, sessionId);
       }
-      this.clearRefreshCookie(res);
+      this.clearRefreshCookie(res, req);
 
       res.json({
         success: true,
@@ -557,10 +582,11 @@ export class IdentityController {
         {
           ipAddress: req.ip,
           userAgent: req.headers["user-agent"],
+          deviceFingerprint: computeFingerprint(req),
         },
       );
 
-      this.setRefreshCookie(res, result.rawRefreshToken);
+      this.setRefreshCookie(res, result.rawRefreshToken, req);
 
       res.json({
         success: true,
@@ -586,10 +612,11 @@ export class IdentityController {
         {
           ipAddress: req.ip,
           userAgent: req.headers["user-agent"],
+          deviceFingerprint: computeFingerprint(req),
         },
       );
 
-      this.setRefreshCookie(res, result.rawRefreshToken);
+      this.setRefreshCookie(res, result.rawRefreshToken, req);
 
       res.json({
         success: true,

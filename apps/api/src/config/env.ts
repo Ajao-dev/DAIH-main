@@ -29,6 +29,10 @@ export const config = {
     expiresIn: process.env.JWT_EXPIRES_IN || "15m",
     refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
     refreshExpiresInDays: parseInt(process.env.JWT_REFRESH_DAYS || "7", 10),
+    refreshGraceWindowMs: parseInt(
+      process.env.REFRESH_GRACE_WINDOW_MS || "3000",
+      10,
+    ),
     verificationExpiresInHours: parseInt(
       process.env.VERIFICATION_EXPIRES_HOURS || "24",
       10,
@@ -38,13 +42,28 @@ export const config = {
       10,
     ),
   },
+  mfa: {
+    encryptionSecret:
+      process.env.MFA_ENCRYPTION_SECRET ||
+      process.env.JWT_SECRET ||
+      "dev-secret-key-12345678901234567890",
+  },
   cookies: {
-    refreshCookieName: "daih_refresh_token",
-    domain: process.env.COOKIE_DOMAIN || undefined,
-    secure: process.env.NODE_ENV === "production",
+    refreshCookieName:
+      process.env.COOKIE_NAME ||
+      process.env.REFRESH_COOKIE_NAME ||
+      "daih_refresh_token",
+    domain:
+      process.env.COOKIE_DOMAIN ||
+      process.env.REFRESH_COOKIE_DOMAIN ||
+      undefined,
+    secure:
+      process.env.COOKIE_SECURE !== undefined
+        ? process.env.COOKIE_SECURE === "true"
+        : process.env.NODE_ENV === "production",
     sameSite:
       (process.env.COOKIE_SAME_SITE as "lax" | "strict" | "none") || "lax",
-    path: process.env.COOKIE_PATH || "/api/v1/identity",
+    path: process.env.COOKIE_PATH || "/api/v1/identity/refresh",
   },
   superAdmin: {
     email: process.env.SUPER_ADMIN_EMAIL || "admin@daih.ng",
@@ -116,6 +135,14 @@ export const config = {
     secretKey: process.env.PAYSTACK_SECRET_KEY || "sk_test_mock",
     publicKey: process.env.PAYSTACK_PUBLIC_KEY || "pk_test_mock",
     webhookSecret: process.env.PAYSTACK_WEBHOOK_SECRET || "wh_sec_mock",
+  },
+  security: {
+    alertWebhookUrl: process.env.SECURITY_ALERT_WEBHOOK_URL || "",
+    redisOpTimeoutMs: parseInt(process.env.REDIS_OP_TIMEOUT_MS || "250", 10),
+    circuitBreakerResetTimeoutMs: parseInt(
+      process.env.CIRCUIT_BREAKER_RESET_TIMEOUT_MS || "12000",
+      10,
+    ),
   },
 };
 

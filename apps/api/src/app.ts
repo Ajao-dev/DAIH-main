@@ -47,7 +47,15 @@ app.use(
         return callback(null, true);
       }
 
-      // In development / non-production, permit localhost, 127.0.0.1, configured tunnel URL, and official subdomains
+      // Always permit official daih.ng subdomains (cross-subdomain production access)
+      const isOfficialDomain = /^https:\/\/([a-zA-Z0-9-]+\.)*daih\.ng$/.test(
+        cleanOrigin,
+      );
+      if (isOfficialDomain) {
+        return callback(null, true);
+      }
+
+      // In development / non-production, permit localhost, 127.0.0.1, and configured tunnel URL
       if (config.env !== "production") {
         const isLocalhost = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(
           cleanOrigin,
@@ -59,11 +67,8 @@ app.use(
         const isConfiguredTunnel = configuredTunnel
           ? cleanOrigin === configuredTunnel
           : false;
-        const isOfficialDomain = /^https:\/\/([a-zA-Z0-9-]+\.)*daih\.ng$/.test(
-          cleanOrigin,
-        );
 
-        if (isLocalhost || isConfiguredTunnel || isOfficialDomain) {
+        if (isLocalhost || isConfiguredTunnel) {
           return callback(null, true);
         }
       }

@@ -106,9 +106,22 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({
     [show],
   );
 
+  const toastsRef = React.useRef<ToastItem[]>(toasts);
+  toastsRef.current = toasts;
+
   const contextValue = useMemo(
-    () => ({ toasts, show, success, error, warning, info, dismiss }),
-    [toasts, show, success, error, warning, info, dismiss],
+    () => ({
+      get toasts() {
+        return toastsRef.current;
+      },
+      show,
+      success,
+      error,
+      warning,
+      info,
+      dismiss,
+    }),
+    [show, success, error, warning, info, dismiss],
   );
 
   return (

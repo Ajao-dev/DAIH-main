@@ -528,25 +528,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Video Section */}
-      <section id="section-video">
-        <div className="container">
-          <div className="row align-items-center">
-            <div className="de-map-wrapper">
-              <iframe
-                width="560"
-                height="315"
-                src="https://www.youtube.com/embed/yT53yVmCLzU?si=03Z58vEb__U_dBPg"
-                title="DAIH video"
-                frameBorder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                allowFullScreen
-              ></iframe>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* Space Type Section */}
       <section id="section-studio-type">
         <div className="container">

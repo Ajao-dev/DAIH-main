@@ -86,3 +86,17 @@ a.btn-main:hover,
     width: 100% !important;
   }
 }
+
+/* Ensure mobile CTA label is always visible */
+.mobile-cta-label {
+  display: inline-block !important;
+  color: #ffffff !important;
+  border: none !important;
+}
+
+/* Remove button beside hamburger on mobile */
+@media (max-width: 991.98px) {
+  .menu_side_area .header-book-btn {
+    display: none !important;
+  }
+}
