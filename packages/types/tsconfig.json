@@ -1,8 +1,18 @@
 {
-  "extends": "@daih/config/tsconfig.base.json",
   "compilerOptions": {
-    "moduleResolution": "bundler",
-    "module": "ESNext"
+    "target": "ES2022",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "esModuleInterop": true,
+    "noEmit": false
   },
   "include": ["src/**/*"]
 }
