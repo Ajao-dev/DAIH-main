@@ -790,15 +790,15 @@ export function PricingManagementModal({
         durationDays:
           editFormData.durationType === "days"
             ? Number(editFormData.durationValue) || 1
-            : undefined,
+            : (null as any),
         durationHours:
           editFormData.durationType === "hours"
             ? Number(editFormData.durationValue) || 1
-            : undefined,
+            : (null as any),
         durationMonths:
           editFormData.durationType === "months"
             ? Number(editFormData.durationValue) || 1
-            : undefined,
+            : (null as any),
       };
       await onUpdatePlan(planId, payload);
       setEditingPlanId(null);
@@ -959,6 +959,7 @@ export function PricingManagementModal({
                           <td className="p-2.5 text-right whitespace-nowrap">
                             <div className="flex items-center justify-end gap-1">
                               <button
+                                type="button"
                                 onClick={() => handleSaveEdit(plan.id)}
                                 disabled={updatingPlan}
                                 className="px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] inline-flex items-center gap-1 shadow-xs cursor-pointer transition-colors"
@@ -972,6 +973,7 @@ export function PricingManagementModal({
                                 Save
                               </button>
                               <button
+                                type="button"
                                 onClick={handleCancelEdit}
                                 disabled={updatingPlan}
                                 className="p-1 rounded text-slate-500 hover:bg-slate-200 cursor-pointer transition-colors"

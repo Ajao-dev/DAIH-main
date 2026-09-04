@@ -39,6 +39,24 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function isTokenExpiringSoon(
+  token: string | null,
+  bufferSeconds: number = 180,
+): boolean {
+  if (!token) return true;
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return true;
+    const payloadJson = atob(parts[1].replace(/-/g, "+").replace(/_/g, "/"));
+    const payload = JSON.parse(payloadJson);
+    if (!payload.exp) return false;
+    const currentTimeSeconds = Math.floor(Date.now() / 1000);
+    return payload.exp - currentTimeSeconds <= bufferSeconds;
+  } catch {
+    return true;
+  }
+}
+
 export function AuthProvider({
   children,
   apiClient = api,
@@ -78,6 +96,7 @@ export function AuthProvider({
     apiClient.setOnSessionExpired(() => {
       updateUserState(null);
       setAccessToken(null);
+      apiClient.setAccessToken(null);
       if (
         typeof window !== "undefined" &&
         !window.location.pathname.includes("/login")
@@ -98,23 +117,25 @@ export function AuthProvider({
         updateUserState(res.user);
         const token = res.accessToken || (res as any).token || null;
         setAccessToken(token);
-        return res.user;
-      } catch {
-        // If refresh cookie failed, check if we have a valid stored token & fetch profile
-        try {
-          const storedToken = await apiClient.getAccessToken();
-          if (storedToken) {
-            const profile = await apiClient.auth.getProfile();
-            updateUserState(profile);
-            setAccessToken(storedToken);
-            return profile;
-          }
-        } catch {
-          // Stored token is invalid or expired
+        if (token) {
+          apiClient.setAccessToken(token);
         }
+        return res.user;
+      } catch (err: any) {
+        // If refresh failed due to network error, check if in-memory token is still unexpired
+        try {
+          const inMemoryToken = await apiClient.getAccessToken();
+          if (inMemoryToken && !isTokenExpiringSoon(inMemoryToken, 15)) {
+            // Temporary network glitch: preserve active session
+            if (err?.status !== 401 && err?.statusCode !== 401) {
+              if (user) return user;
+            }
+          }
+        } catch {}
 
         updateUserState(null);
         setAccessToken(null);
+        apiClient.setAccessToken(null);
         return null;
       } finally {
         inFlightRefreshRef.current = null;
@@ -123,9 +144,9 @@ export function AuthProvider({
 
     inFlightRefreshRef.current = promise;
     return promise;
-  }, [apiClient, updateUserState]);
+  }, [apiClient, updateUserState, user]);
 
-  // Initial session restoration on load
+  // Initial session restoration on load via silent refresh against HttpOnly cookie
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -141,6 +162,36 @@ export function AuthProvider({
       mounted = false;
     };
   }, [refreshSession]);
+
+  // Proactive background refresh timer & focus / payment callback listener
+  useEffect(() => {
+    if (!user) return;
+
+    const checkAndRefreshToken = async () => {
+      const currentToken = await apiClient.getAccessToken();
+      if (!currentToken || isTokenExpiringSoon(currentToken, 180)) {
+        await refreshSession();
+      }
+    };
+
+    // Periodically verify every 60 seconds
+    const interval = setInterval(checkAndRefreshToken, 60000);
+
+    // Refresh immediately when returning from external redirects (e.g. Paystack) or switching tabs
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        checkAndRefreshToken();
+      }
+    };
+    window.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleVisibilityChange);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleVisibilityChange);
+    };
+  }, [user, apiClient, refreshSession]);
 
   const setSession = useCallback(
     (token: string, newUser: UserProfile) => {
@@ -164,6 +215,9 @@ export function AuthProvider({
         updateUserState(res.user as UserProfile);
         const token = (res as any).token || (res as any).accessToken || null;
         setAccessToken(token);
+        if (token) {
+          apiClient.setAccessToken(token);
+        }
       }
       return res;
     } finally {
@@ -196,6 +250,7 @@ export function AuthProvider({
     } finally {
       updateUserState(null);
       setAccessToken(null);
+      apiClient.setAccessToken(null);
       setIsLoading(false);
     }
   };

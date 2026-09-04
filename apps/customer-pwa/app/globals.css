@@ -9,6 +9,10 @@
 }
 
 @media print {
+  @page {
+    margin: 0;
+  }
+
   /* Hide whole document body by default when printing */
   body * {
     visibility: hidden;

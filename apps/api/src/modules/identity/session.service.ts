@@ -10,6 +10,10 @@ import {
   SessionContext,
   UserSummaryDTO,
 } from "./identity.types.js";
+import {
+  recordTelemetry,
+  sendDebouncedSecurityAlert,
+} from "../../utils/security-alert.js";
 
 export class SessionService {
   /**
@@ -73,6 +77,8 @@ export class SessionService {
         tokenFamily,
         ipAddress: context.ipAddress,
         userAgent: context.userAgent,
+        deviceFingerprint: context.deviceFingerprint || null,
+        mismatchCount: 0,
         expiresAt,
         lastUsedAt: new Date(),
       },
@@ -118,7 +124,7 @@ export class SessionService {
 
     // If session is already marked revoked -> Check grace window for concurrent requests
     if (session.isRevoked) {
-      const GRACE_WINDOW_MS = 15 * 1000; // 15-second grace window for concurrent/in-flight requests
+      const GRACE_WINDOW_MS = config.jwt.refreshGraceWindowMs || 3000;
       const timeSinceRevocation =
         Date.now() - new Date(session.updatedAt).getTime();
 
@@ -135,6 +141,107 @@ export class SessionService {
         });
 
         if (activeSession && activeSession.user) {
+          // Device fingerprint verification
+          let isMatch = false;
+          let fingerprintState: "null" | "matched" | "mismatched" = "matched";
+
+          if (!session.deviceFingerprint) {
+            // Backward compatibility: Pre-migration session with null fingerprint
+            fingerprintState = "null";
+            isMatch = true;
+
+            // Auto-enroll fingerprint on the session for future checks
+            if (context.deviceFingerprint) {
+              await prisma.authSession
+                .update({
+                  where: { id: session.id },
+                  data: { deviceFingerprint: context.deviceFingerprint },
+                })
+                .catch(() => {});
+            }
+          } else if (session.deviceFingerprint === context.deviceFingerprint) {
+            fingerprintState = "matched";
+            isMatch = true;
+          } else {
+            fingerprintState = "mismatched";
+            isMatch = false;
+          }
+
+          // Un-debounced telemetry evaluation tracking
+          await recordTelemetry("auth.refresh.grace_window_hit", {
+            matched: isMatch,
+            fingerprint_state: fingerprintState,
+            tokenFamily: session.tokenFamily,
+            sessionId: session.id,
+          });
+
+          if (!isMatch) {
+            await recordTelemetry("auth.refresh.grace_window_mismatch", {
+              matched: false,
+              fingerprint_state: "mismatched",
+              tokenFamily: session.tokenFamily,
+              sessionId: session.id,
+            });
+
+            // ATOMIC INCREMENT across all sessions in this tokenFamily to eliminate race conditions
+            await prisma.authSession.updateMany({
+              where: { tokenFamily: session.tokenFamily },
+              data: { mismatchCount: { increment: 1 } },
+            });
+
+            // Read the post-increment count for this family
+            const updatedSession = await prisma.authSession.findFirst({
+              where: { tokenFamily: session.tokenFamily },
+              select: { mismatchCount: true },
+              orderBy: { updatedAt: "desc" },
+            });
+
+            const currentMismatchCount = updatedSession?.mismatchCount ?? 1;
+
+            // Strike 2+: Post-increment count > 1 -> Full immediate family revocation
+            if (currentMismatchCount > 1) {
+              const revokedSessions = await prisma.authSession.findMany({
+                where: { tokenFamily: session.tokenFamily },
+                select: { id: true },
+              });
+
+              await prisma.authSession.updateMany({
+                where: { tokenFamily: session.tokenFamily },
+                data: { isRevoked: true },
+              });
+
+              for (const s of revokedSessions) {
+                await this.markSessionRevokedInCache(s.id);
+              }
+
+              // Fire critical revocation alert (uses separate debounce key)
+              await sendDebouncedSecurityAlert({
+                eventType: "REVOCATION",
+                sessionId: session.id,
+                tokenFamily: session.tokenFamily,
+                requestIp: context.ipAddress || session.ipAddress || "unknown",
+                userAgentHash: context.deviceFingerprint
+                  ? context.deviceFingerprint.slice(0, 16)
+                  : "unknown",
+                mismatchCount: currentMismatchCount,
+              });
+
+              throw new Error("REFRESH_TOKEN_REUSE_DETECTED");
+            }
+
+            // Strike 1: First mismatch on the family (currentMismatchCount === 1) -> Grant active pair, fire warning alert
+            await sendDebouncedSecurityAlert({
+              eventType: "MISMATCH_WARNING",
+              sessionId: session.id,
+              tokenFamily: session.tokenFamily,
+              requestIp: context.ipAddress || session.ipAddress || "unknown",
+              userAgentHash: context.deviceFingerprint
+                ? context.deviceFingerprint.slice(0, 16)
+                : "unknown",
+              mismatchCount: 1,
+            });
+          }
+
           const nextRawRefreshToken = passwordService.generateSecureToken(32);
           const nextRefreshTokenHash =
             passwordService.hashToken(nextRawRefreshToken);
@@ -150,6 +257,11 @@ export class SessionService {
               tokenFamily: activeSession.tokenFamily,
               ipAddress: context.ipAddress || activeSession.ipAddress,
               userAgent: context.userAgent || activeSession.userAgent,
+              deviceFingerprint:
+                context.deviceFingerprint ||
+                activeSession.deviceFingerprint ||
+                null,
+              mismatchCount: activeSession.mismatchCount,
               expiresAt: nextExpiresAt,
               lastUsedAt: new Date(),
             },
@@ -242,6 +354,9 @@ export class SessionService {
         tokenFamily: session.tokenFamily,
         ipAddress: context.ipAddress || session.ipAddress,
         userAgent: context.userAgent || session.userAgent,
+        deviceFingerprint:
+          context.deviceFingerprint || session.deviceFingerprint || null,
+        mismatchCount: session.mismatchCount,
         expiresAt: nextExpiresAt,
         lastUsedAt: new Date(),
       },

@@ -21,10 +21,11 @@ import {
   Receipt,
   RotateCcw,
   CreditCard,
-  Printer,
+  Download,
   X,
   Sparkles,
 } from "lucide-react";
+import { downloadReceiptPdf } from "../../../lib/receiptPdf";
 
 function formatDate(isoStr: string) {
   if (!isoStr) return "";
@@ -757,16 +758,19 @@ function BookingsContent() {
               </div>
             </div>
 
-            {/* Modal Actions (Hidden when printing) */}
+            {/* Modal Actions */}
             <div className="no-print flex gap-3 pt-2">
               <button
-                onClick={() => window.print()}
-                className="flex-1 py-2.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+                type="button"
+                onClick={() => downloadReceiptPdf(selectedInvoice)}
+                className="flex-1 py-2.5 border border-[#23055c]/20 bg-[#faf9ff] hover:bg-[#23055c]/5 rounded-xl text-xs font-bold text-[#23055c] transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+                title="Download PDF Receipt"
               >
-                <Printer className="h-3.5 w-3.5" />
-                <span>Print Receipt</span>
+                <Download className="h-3.5 w-3.5 text-[#23055c]" />
+                <span>Download Receipt</span>
               </button>
               <button
+                type="button"
                 onClick={() => setSelectedInvoice(null)}
                 className="flex-1 py-2.5 bg-[#23055c] hover:bg-[#392271] text-white rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-2xs"
               >

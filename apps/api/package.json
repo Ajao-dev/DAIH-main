@@ -17,6 +17,7 @@
     "prisma:migrate": "prisma migrate dev --schema=src/db/prisma/schema.prisma",
     "db:push": "prisma db push --schema=src/db/prisma/schema.prisma",
     "seed:admin": "tsx src/scripts/seed-super-admin.ts",
+    "create:admin": "tsx src/scripts/create-admin.ts",
     "seed:templates": "tsx src/db/seeds/email-templates.seed.ts"
   },
   "dependencies": {

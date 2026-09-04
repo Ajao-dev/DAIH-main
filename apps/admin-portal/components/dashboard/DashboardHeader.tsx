@@ -3,6 +3,9 @@
 import React, { useState, useEffect } from "react";
 import { Download, Plus } from "lucide-react";
 
+import { api } from "@daih/api-client";
+import { useToast } from "@daih/ui";
+
 interface DashboardHeaderProps {
   onOpenWalkInModal?: () => void;
 }
@@ -10,38 +13,26 @@ interface DashboardHeaderProps {
 export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   onOpenWalkInModal,
 }) => {
+  const toast = useToast();
   const [downloading, setDownloading] = useState(false);
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     setDownloading(true);
-    setTimeout(() => {
+    try {
+      await api.reports.downloadExport({
+        type: "occupancy",
+        format: "pdf",
+      });
+      toast.success("Operations occupancy report downloaded successfully.", {
+        title: "Report Exported",
+      });
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to download operations report", {
+        title: "Download Failed",
+      });
+    } finally {
       setDownloading(false);
-      const blob = new Blob(
-        [
-          JSON.stringify(
-            {
-              report: "DAIH Workspace Operations Pulse",
-              timestamp: new Date().toISOString(),
-              totalRevenueMtd: "$45,280",
-              activeBookings: 142,
-              occupancy: "78%",
-              newMembersWtd: 24,
-              systemHealth:
-                "Core API: 99.9% Uptime, Stripe: Operational, Doors: 2 Offline",
-            },
-            null,
-            2,
-          ),
-        ],
-        { type: "application/json" },
-      );
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `daih-operations-telemetry-${new Date().toISOString().slice(0, 10)}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-    }, 400);
+    }
   };
 
   return (

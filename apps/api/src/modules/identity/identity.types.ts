@@ -58,6 +58,7 @@ export interface JwtTokenPayload {
 export interface SessionContext {
   ipAddress?: string;
   userAgent?: string;
+  deviceFingerprint?: string;
   portal?: string;
 }
 
