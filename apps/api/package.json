@@ -6,6 +6,7 @@
   "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
+    "prebuild": "pnpm --filter @daih/types build",
     "build": "tsc",
     "start": "node dist/server.js",
     "worker": "tsx watch src/jobs/worker.ts",
