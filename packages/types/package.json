@@ -15,11 +15,10 @@
     "build": "tsc",
     "dev": "tsc --watch --preserveWatchOutput",
     "typecheck": "tsc --noEmit",
-    "clean": "rimraf dist"
+    "clean": "node -e \"fs.rmSync('dist', { recursive: true, force: true })\""
   },
   "devDependencies": {
     "@daih/config": "workspace:*",
-    "rimraf": "^6.0.1",
     "typescript": "^5.8.2"
   }
 }
