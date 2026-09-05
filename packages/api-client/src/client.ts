@@ -55,6 +55,15 @@ import {
   UpdatePolicyDTO,
   VisitLogItemDTO,
   VisitActivityResponse,
+  DiscountDTO,
+  CreateDiscountDTO,
+  UpdateDiscountDTO,
+  DiscountPreviewRequestDTO,
+  DiscountPreviewResponseDTO,
+  ApplyCourtesyDiscountDTO,
+  DiscountRedemptionDTO,
+  DiscountFilterDTO,
+  DiscountListResponse,
 } from "@daih/types";
 import { apiCacheManager } from "./cache";
 
@@ -95,12 +104,16 @@ export class DaihApiClient {
     const rawUrl =
       config.baseUrl ||
       (typeof window !== "undefined"
-        ? process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"
-        : "http://localhost:4000");
+        ? process.env.NEXT_PUBLIC_API_URL || "/api/v1"
+        : process.env.INTERNAL_API_URL ||
+          process.env.NEXT_PUBLIC_API_URL ||
+          "http://localhost:4000");
     const cleanUrl = rawUrl.replace(/\/$/, "");
     this.baseUrl = cleanUrl.endsWith("/api/v1")
       ? cleanUrl
-      : `${cleanUrl}/api/v1`;
+      : cleanUrl
+        ? `${cleanUrl}/api/v1`
+        : "/api/v1";
     this.getTokenFn = config.getToken;
     this.setTokenFn = config.setToken;
     this.onSessionExpiredFn = config.onSessionExpired;
@@ -1320,6 +1333,100 @@ export class DaihApiClient {
         window.URL.revokeObjectURL(downloadUrl);
       }
     },
+  };
+
+  // Discounts & Promotions API
+  public discounts = {
+    preview: (payload: DiscountPreviewRequestDTO) =>
+      this.request<DiscountPreviewResponseDTO>("/discounts/preview", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
+
+    list: (filters: DiscountFilterDTO = {}) => {
+      const params = new URLSearchParams();
+      if (filters.search) params.append("search", filters.search);
+      if (filters.isActive !== undefined)
+        params.append("isActive", String(filters.isActive));
+      if (filters.type) params.append("type", filters.type);
+      if (filters.page) params.append("page", String(filters.page));
+      if (filters.limit) params.append("limit", String(filters.limit));
+      const qs = params.toString();
+      return this.request<DiscountListResponse>(
+        `/discounts${qs ? `?${qs}` : ""}`,
+      );
+    },
+
+    getById: (id: string) => this.request<DiscountDTO>(`/discounts/${id}`),
+
+    create: async (data: CreateDiscountDTO) => {
+      const res = await this.request<DiscountDTO>("/discounts", {
+        method: "POST",
+        body: JSON.stringify(data),
+      });
+      apiCacheManager.invalidate("discounts");
+      return res;
+    },
+
+    update: async (id: string, data: UpdateDiscountDTO) => {
+      const res = await this.request<DiscountDTO>(`/discounts/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+      });
+      apiCacheManager.invalidate("discounts");
+      return res;
+    },
+
+    toggleStatus: async (id: string, isActive: boolean) => {
+      const res = await this.request<DiscountDTO>(`/discounts/${id}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ isActive }),
+      });
+      apiCacheManager.invalidate("discounts");
+      return res;
+    },
+
+    delete: async (id: string) => {
+      const res = await this.request<{ success: boolean; message: string }>(
+        `/discounts/${id}`,
+        { method: "DELETE" },
+      );
+      apiCacheManager.invalidate("discounts");
+      return res;
+    },
+
+    getRedemptions: (
+      discountId?: string,
+      query: { page?: number; limit?: number } = {},
+    ) => {
+      const params = new URLSearchParams();
+      if (query.page) params.append("page", String(query.page));
+      if (query.limit) params.append("limit", String(query.limit));
+      const qs = params.toString();
+      const endpoint = discountId
+        ? `/discounts/${discountId}/redemptions${qs ? `?${qs}` : ""}`
+        : `/discounts/redemptions/all${qs ? `?${qs}` : ""}`;
+      return this.request<{
+        redemptions: DiscountRedemptionDTO[];
+        total: number;
+        page: number;
+        limit: number;
+      }>(endpoint);
+    },
+
+    applyCourtesyDiscount: (
+      bookingId: string,
+      payload: ApplyCourtesyDiscountDTO,
+    ) =>
+      this.request<{
+        success: boolean;
+        message: string;
+        booking: any;
+        redemption: DiscountRedemptionDTO;
+      }>(`/bookings/${bookingId}/courtesy-discount`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
   };
 
   /**

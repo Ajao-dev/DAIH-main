@@ -1,9 +1,13 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import express from "express";
+import request from "supertest";
 import {
   maskIpAddress,
   hashUserAgent,
   computeFingerprint,
+  getVerifiedClientIp,
 } from "./fingerprint.js";
+import { config } from "../config/env.js";
 
 describe("Device Fingerprint Utility", () => {
   describe("maskIpAddress", () => {
@@ -94,6 +98,112 @@ describe("Device Fingerprint Utility", () => {
       expect(computeFingerprint(mockReq1)).not.toBe(
         computeFingerprint(mockReq2),
       );
+    });
+  });
+
+  describe("getVerifiedClientIp and Secret-Paired Header Trust", () => {
+    const originalSecret = config.security.originVerifySecret;
+
+    beforeEach(() => {
+      config.security.originVerifySecret = "test-origin-secret-32-chars-long!";
+    });
+
+    afterEach(() => {
+      config.security.originVerifySecret = originalSecret;
+    });
+
+    it("falls back to req.ip when no custom headers are provided", () => {
+      const mockReq: any = {
+        ip: "192.0.2.1",
+        headers: {},
+      };
+      expect(getVerifiedClientIp(mockReq)).toBe("192.0.2.1");
+    });
+
+    it("ignores X-Verified-Client-IP if X-Origin-Verify-Secret is missing", () => {
+      const mockReq: any = {
+        ip: "198.51.100.5",
+        headers: {
+          "x-verified-client-ip": "1.2.3.4",
+        },
+      };
+      expect(getVerifiedClientIp(mockReq)).toBe("198.51.100.5");
+    });
+
+    it("ignores X-Verified-Client-IP if X-Origin-Verify-Secret is incorrect", () => {
+      const mockReq: any = {
+        ip: "198.51.100.5",
+        headers: {
+          "x-verified-client-ip": "1.2.3.4",
+          "x-origin-verify-secret": "wrong-secret-value",
+        },
+      };
+      expect(getVerifiedClientIp(mockReq)).toBe("198.51.100.5");
+    });
+
+    it("accepts X-Verified-Client-IP when paired with valid X-Origin-Verify-Secret", () => {
+      const mockReq: any = {
+        ip: "198.51.100.5",
+        headers: {
+          "x-verified-client-ip": "203.0.113.42",
+          "x-origin-verify-secret": "test-origin-secret-32-chars-long!",
+        },
+      };
+      expect(getVerifiedClientIp(mockReq)).toBe("203.0.113.42");
+    });
+  });
+
+  describe("Express CIDR Trust & Untrusted Boundary Walk", () => {
+    it("Case B: Trusted proxy forwarding adversarial prepended chain stops at first untrusted IP", async () => {
+      const testApp = express();
+      // Trust loopback and local private networks (like Nginx on 127.0.0.1 and Docker/private subnets)
+      testApp.set("trust proxy", ["loopback", "linklocal", "uniquelocal"]);
+      testApp.get("/test-ip", (req, res) => {
+        res.json({
+          resolvedIp: req.ip,
+          verifiedIp: getVerifiedClientIp(req),
+        });
+      });
+
+      // Supertest connects via loopback (127.0.0.1).
+      // Header: 9.9.9.9 (attacker spoof), 203.0.113.50 (real client IP), 10.0.0.1 (trusted private internal hop)
+      const res = await request(testApp)
+        .get("/test-ip")
+        .set("X-Forwarded-For", "9.9.9.9, 203.0.113.50, 10.0.0.1");
+
+      expect(res.status).toBe(200);
+      // Express walks right-to-left:
+      // - 127.0.0.1 (socket) is loopback -> trusted
+      // - 10.0.0.1 is uniquelocal -> trusted
+      // - 203.0.113.50 is public -> UNTRUSTED. Walk stops here!
+      // Attacker's prepended 9.9.9.9 is completely rejected.
+      expect(res.body.resolvedIp).toBe("203.0.113.50");
+      expect(res.body.verifiedIp).toBe("203.0.113.50");
+    });
+
+    it("Case A: Direct untrusted connection ignores spoofed X-Forwarded-For and X-Real-IP headers", async () => {
+      const testApp = express();
+      // Configure trust proxy strictly to 10.0.0.0/8 (so loopback 127.0.0.1 is UNTRUSTED)
+      testApp.set("trust proxy", ["10.0.0.0/8"]);
+      testApp.get("/test-ip", (req, res) => {
+        res.json({
+          resolvedIp: req.ip,
+          verifiedIp: getVerifiedClientIp(req),
+        });
+      });
+
+      const res = await request(testApp)
+        .get("/test-ip")
+        .set("X-Forwarded-For", "9.9.9.9, 1.1.1.1")
+        .set("X-Real-IP", "8.8.8.8");
+
+      expect(res.status).toBe(200);
+      // Because connecting socket (127.0.0.1 / ::ffff:127.0.0.1) is not in 10.0.0.0/8,
+      // Express treats connection as untrusted client and ignores all spoofed headers.
+      expect(res.body.resolvedIp).toMatch(/127\.0\.0\.1/);
+      expect(res.body.resolvedIp).not.toBe("9.9.9.9");
+      expect(res.body.resolvedIp).not.toBe("1.1.1.1");
+      expect(res.body.resolvedIp).not.toBe("8.8.8.8");
     });
   });
 });

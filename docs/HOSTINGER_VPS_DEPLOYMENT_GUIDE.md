@@ -2,7 +2,7 @@
 
 **Target Architecture:** Multi-App Monorepo on a single Hostinger KVM Linux VPS  
 **Domain Scope:** `*.daih.ng` / `.daih.ng` (Shared Parent Domain Cookie Scope)  
-**Infrastructure Stack:** Ubuntu 24.04 LTS, Docker, PostgreSQL 16, Redis 7, MinIO, Node.js 20, pnpm 10, Coolify / Caddy Reverse Proxy
+**Infrastructure Stack:** Ubuntu 24.04 LTS, Docker, PostgreSQL 16, Redis 7, MinIO, Node.js 20, pnpm 10, Nginx / Caddy Reverse Proxy
 
 ---
 
@@ -17,7 +17,7 @@
                                         ▼
                            Hostinger KVM VPS (France)
                     ┌───────────────────────────────────────┐
-                    │    Reverse Proxy (Traefik / Caddy)    │
+                    │    Reverse Proxy (Nginx / Caddy)      │
                     │        Ports 80 & 443 (HTTPS)         │
                     └───────────────────┬───────────────────┘
                                         │
@@ -26,6 +26,11 @@
      daih.ng      admin.daih.ng    app.daih.ng    kiosk.daih.ng    api.daih.ng
    (apps/web)    (admin-portal)  (customer-pwa)  (reception-app)   (apps/api)
     Port 3000       Port 3003       Port 3001       Port 3002       Port 4000
+        │               │               │               │               ▲
+        └───────────────┴───────┬───────┴───────────────┘               │
+                                │                                       │
+                     Next.js Same-Origin Proxy                          │
+               (/api/v1/* -> http://127.0.0.1:4000) ────────────────────┘
                                                                         │
                                                      ┌──────────────────┴───────────────┐
                                                      ▼                                  ▼
@@ -92,7 +97,7 @@ ssh root@YOUR_VPS_PUBLIC_IP
 
 ```bash
 apt update && apt upgrade -y
-apt install -y curl git ufw fail2ban htop unzip build-essential
+apt install -y curl git ufw fail2ban htop unzip build-essential nginx certbot python3-certbot-nginx
 ```
 
 ### Step 3.2: Create a 4 GB Swap File (Critical for Next.js Builds)
@@ -125,15 +130,13 @@ ufw enable -y
 
 ---
 
-## Phase 4: Deploying with Coolify (Recommended Option)
+## Phase 4: Deploying with Coolify (Web UI Option)
 
 If you chose the **Ubuntu with Coolify** template, access your dashboard at:
 
 ```text
 http://YOUR_VPS_PUBLIC_IP:8000
 ```
-
-_(Complete the initial admin account setup)._
 
 ### Step 4.1: Deploy PostgreSQL 16 & Redis 7
 
@@ -167,7 +170,7 @@ _(Complete the initial admin account setup)._
    - **Start Command**: `node dist/server.js`
    - **Port**: `4000`
    - **Domains**: `https://api.daih.ng`
-3. Add Environment Variables (see Section 6 below).
+3. Add Environment Variables (see Phase 6).
 4. Click **Deploy**.
 
 ### Step 4.4: Deploy the Background Worker (`BullMQ`)
@@ -193,13 +196,16 @@ For each frontend application, add a new Application from the repository:
 | **daih-reception** | `apps/reception-app` | `3002`     | `https://kiosk.daih.ng`                  |
 
 - Build Command for each: `pnpm build`
-- Start Command: `pnpm start --port $PORT`
+- Start Command: `pnpm start -- -p $PORT`
+- Environment Variables:
+  - `INTERNAL_API_URL="http://daih-api:4000"` (Coolify internal network)
+  - `NEXT_PUBLIC_API_URL="/api/v1"`
 
 ---
 
-## Phase 5: Manual CLI Deployment with Docker Compose (Alternative Option)
+## Phase 5: Manual CLI Deployment with Docker Compose & Nginx (Production Best Practice)
 
-If you chose a clean Ubuntu 24.04 server without Coolify:
+If you are running directly on Ubuntu 24.04 without a control panel:
 
 ### Step 5.1: Install Node.js, pnpm, and Docker
 
@@ -221,7 +227,7 @@ cd /var/www
 git clone <YOUR_GIT_REPO_URL> daih
 cd /var/www/daih
 
-# Start Postgres 16, Redis 7, MinIO
+# Start Postgres 16 and Redis 7
 cd infra/docker
 docker compose up -d
 ```
@@ -233,7 +239,7 @@ cd /var/www/daih
 pnpm install
 cd apps/api
 
-# Push schema and seed
+# Push schema and seed initial Super Admin
 npx prisma db push --schema=src/db/prisma/schema.prisma
 npx tsx src/scripts/seed-super-admin.ts
 ```
@@ -260,103 +266,160 @@ pm2 save
 pm2 startup
 ```
 
-### Step 5.5: Configure Caddy (Automatic Reverse Proxy & SSL)
+### Step 5.5: Configure Nginx (Reverse Proxy & SSL)
 
-```bash
-apt install -y debian-keyring debian-archive-keyring apt-transport-https curl
-curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
-curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-stable.list
-apt update && apt install -y caddy
+Create `/etc/nginx/sites-available/daih.conf`:
+
+```nginx
+# Map shared proxy headers
+proxy_http_version 1.1;
+proxy_set_header Upgrade $http_upgrade;
+proxy_set_header Connection "upgrade";
+proxy_set_header Host $host;
+proxy_set_header X-Real-IP $remote_addr;
+proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+proxy_set_header X-Forwarded-Proto $scheme;
+proxy_set_header X-Verified-Client-IP $remote_addr;
+proxy_set_header X-Origin-Verify-Secret "your-production-origin-verify-secret";
+
+# 1. Marketing Website (Port 3000)
+server {
+    server_name daih.ng www.daih.ng;
+    client_max_body_size 15M;
+
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+    }
+}
+
+# 2. Customer Mobile PWA (Port 3001)
+server {
+    server_name app.daih.ng;
+    client_max_body_size 15M;
+
+    location / {
+        proxy_pass http://127.0.0.1:3001;
+    }
+}
+
+# 3. Reception & Gate Kiosk (Port 3002)
+server {
+    server_name kiosk.daih.ng reception.daih.ng;
+    client_max_body_size 15M;
+
+    location / {
+        proxy_pass http://127.0.0.1:3002;
+    }
+}
+
+# 4. Admin & Staff Operations Portal (Port 3003)
+server {
+    server_name admin.daih.ng;
+    client_max_body_size 15M;
+
+    location / {
+        proxy_pass http://127.0.0.1:3003;
+    }
+}
+
+# 5. Core Backend API (Port 4000)
+server {
+    server_name api.daih.ng;
+    client_max_body_size 15M;
+
+    location / {
+        proxy_pass http://127.0.0.1:4000;
+    }
+}
 ```
 
-Create `/etc/caddy/Caddyfile`:
-
-```caddy
-daih.ng, www.daih.ng {
-    reverse_proxy 127.0.0.1:3000
-}
-
-app.daih.ng {
-    reverse_proxy 127.0.0.1:3001
-}
-
-kiosk.daih.ng {
-    reverse_proxy 127.0.0.1:3002
-}
-
-admin.daih.ng {
-    reverse_proxy 127.0.0.1:3003
-}
-
-api.daih.ng {
-    reverse_proxy 127.0.0.1:4000
-}
-```
-
-Restart Caddy:
+Enable the configuration and obtain Let's Encrypt SSL certificates:
 
 ```bash
-systemctl restart caddy
+ln -s /etc/nginx/sites-available/daih.conf /etc/nginx/sites-enabled/
+nginx -t && systemctl reload nginx
+
+# Issue automated SSL certificates for all domains
+certbot --nginx -d daih.ng -d www.daih.ng -d app.daih.ng -d admin.daih.ng -d kiosk.daih.ng -d api.daih.ng
 ```
 
 ---
 
-## Phase 6: Environment Variables Reference
+## Phase 6: Production Environment Variables Reference
 
-### Backend API (`apps/api/.env`)
+### Backend API (`/var/www/daih/apps/api/.env`)
 
 ```ini
 NODE_ENV=production
 PORT=4000
-API_BASE_URL=https://api.daih.ng
-APP_ENV=production
 
-# Database & Redis
+# ─── Database & Redis ────────────────────────────────────────────────────────
 DATABASE_URL="postgresql://postgres:YOUR_PASSWORD@127.0.0.1:5432/daih_db?schema=public"
 REDIS_URL="redis://127.0.0.1:6379"
 
-# JWT & Authentication (CRITICAL for cross-subdomain SSO)
-JWT_SECRET=generate_at_least_32_random_characters_secret_here
-JWT_REFRESH_SECRET=generate_second_32_characters_random_secret_here
-ACCESS_TOKEN_TTL=15m
-REFRESH_TOKEN_TTL=7d
-REFRESH_COOKIE_NAME=daih_refresh
-REFRESH_COOKIE_DOMAIN=.daih.ng
+# ─── Cryptographic Secrets (Min 32 characters, completely independent) ───────
+JWT_SECRET="openssl-generated-32-char-secret-jwt"
+JWT_REFRESH_SECRET="openssl-generated-32-char-secret-refresh"
+TOKEN_ENCRYPTION_KEY="openssl-generated-32-char-secret-encryption"
+QR_SIGNING_SECRET="openssl-generated-32-char-secret-qr"
 
-# Super Admin Seed
-SUPER_ADMIN_EMAIL=superadmin@daih.ng
-SUPER_ADMIN_PASSWORD=SetAStrongPassword2026!
-SUPER_ADMIN_FIRST_NAME=DAIH
-SUPER_ADMIN_LAST_NAME=SuperAdmin
-SUPER_ADMIN_PHONE=+2348000000001
+# ─── Refresh Cookie Scoping (First-Party Wildcard SSO) ───────────────────────
+COOKIE_DOMAIN=".daih.ng"
+COOKIE_PATH="/api/v1/identity"
+COOKIE_SAME_SITE="lax"
+COOKIE_SECURE="true"
 
-# Email Providers
-EMAIL_PROVIDER_PRIMARY=resend
-RESEND_API_KEY=re_your_live_key
-RESEND_FROM_EMAIL=no-reply@daih.ng
+# ─── Reverse Proxy IP Trust & Origin Security ────────────────────────────────
+TRUSTED_PROXIES="loopback,linklocal,uniquelocal"
+ORIGIN_VERIFY_SECRET="your-production-origin-verify-secret"
+ENABLE_DIAGNOSTIC_IP_ENDPOINT="false"
 
-# Payments (Paystack)
-PAYSTACK_SECRET_KEY=sk_live_your_paystack_secret
-PAYSTACK_PUBLIC_KEY=pk_live_your_paystack_public
-PAYSTACK_WEBHOOK_SECRET=your_paystack_secret_hash
+# ─── Super Admin Seeding ─────────────────────────────────────────────────────
+SUPER_ADMIN_EMAIL="admin@daih.ng"
+SUPER_ADMIN_PASSWORD="StrongSuperAdminPassword2026!"
+SUPER_ADMIN_FIRST_NAME="Super"
+SUPER_ADMIN_LAST_NAME="Administrator"
+SUPER_ADMIN_PHONE="07042504389"
+
+# ─── Transactional Email ─────────────────────────────────────────────────────
+EMAIL_PROVIDER="auto"
+RESEND_API_KEY="re_your_live_key"
+RESEND_FROM_EMAIL="DAIH Hub <noreply@daih.ng>"
+
+# ─── CORS & Allowed Origins ──────────────────────────────────────────────────
+FRONTEND_CUSTOMER_URL="https://app.daih.ng"
+FRONTEND_ADMIN_URL="https://admin.daih.ng"
+FRONTEND_WEB_URL="https://daih.ng"
+ALLOWED_ORIGINS="https://daih.ng,https://app.daih.ng,https://admin.daih.ng,https://kiosk.daih.ng"
+
+# ─── Payments (Paystack) ─────────────────────────────────────────────────────
+PAYSTACK_SECRET_KEY="sk_live_xxx"
+PAYSTACK_PUBLIC_KEY="pk_live_xxx"
+PAYSTACK_WEBHOOK_SECRET="wh_sec_xxx"
 ```
 
-### Frontends (`.env.production` for all 4 apps)
+### Frontend Applications (`.env` for `admin-portal`, `customer-pwa`, `reception-app`, `web`)
 
 ```ini
-NEXT_PUBLIC_API_URL=https://api.daih.ng/api/v1
-NEXT_PUBLIC_APP_ENV=production
-NEXT_PUBLIC_WEB_URL=https://daih.ng
-NEXT_PUBLIC_CUSTOMER_PORTAL_URL=https://app.daih.ng
-NEXT_PUBLIC_CUSTOMER_PWA_URL=https://app.daih.ng
-NEXT_PUBLIC_ADMIN_URL=https://admin.daih.ng
+# Internal loopback target for Next.js same-origin rewrites (/api/v1/* -> :4000)
+INTERNAL_API_URL="http://127.0.0.1:4000"
+
+# Relative same-origin path for client-side fetches (browser)
+NEXT_PUBLIC_API_URL="/api/v1"
+
+# Cross-Portal URLs
+NEXT_PUBLIC_WEB_URL="https://daih.ng"
+NEXT_PUBLIC_CUSTOMER_PWA_URL="https://app.daih.ng"
+NEXT_PUBLIC_CUSTOMER_PORTAL_URL="https://app.daih.ng"
+NEXT_PUBLIC_ADMIN_URL="https://admin.daih.ng"
+NEXT_PUBLIC_RECEPTION_URL="https://kiosk.daih.ng"
 ```
 
 ---
 
 ## Phase 7: Verification & Health Checks
 
-Once deployed, run these commands to verify every layer:
+Once deployed, run these checks to verify every layer:
 
 1. **Check API Health & Database Connection:**
 
@@ -365,21 +428,30 @@ Once deployed, run these commands to verify every layer:
    # Expected: HTTP/2 200 OK
    ```
 
-2. **Check Cross-Domain Cookie Auth:**
-   - Open `https://admin.daih.ng`.
-   - Log in with your `SUPER_ADMIN_EMAIL` and `SUPER_ADMIN_PASSWORD`.
-   - Complete the MFA Authenticator QR scan.
-   - Verify in browser DevTools → Application → Cookies that `daih_refresh` is set with domain `.daih.ng`.
+2. **Verify Single Set-Cookie & First-Party Storage:**
+   - Open `https://admin.daih.ng/login`.
+   - Sign in with Super Admin credentials.
+   - Inspect Network response headers for `POST /api/v1/identity/login`.
+   - **Verification**: Exactly **one** `Set-Cookie` header present:
+     ```http
+     Set-Cookie: daih_refresh_token=...; Path=/api/v1/identity; Domain=.daih.ng; HttpOnly; Secure; SameSite=Lax
+     ```
+   - Press **F5 (Reload)**: Page restores authenticated state silently without bouncing to `/login`.
 
-3. **Check Background Worker Logs:**
-   - Coolify: View logs in `daih-worker` panel.
-   - PM2: `pm2 logs daih-worker`.
+3. **Check Client IP Resolution (Optional Debug Check):**
+   - Temporarily set `ENABLE_DIAGNOSTIC_IP_ENDPOINT="true"` in `apps/api/.env` and reload.
+   - Authenticate as Super Admin and call:
+     ```bash
+     curl -H "Authorization: Bearer <ADMIN_TOKEN>" https://admin.daih.ng/api/v1/identity/admin/debug-client-ip
+     ```
+   - Confirm `clientIp` matches your public ISP IP and not `127.0.0.1`.
+   - Set `ENABLE_DIAGNOSTIC_IP_ENDPOINT="false"` and reload.
 
 ---
 
 ## Phase 8: Automated Daily Database Backups
 
-Create a backup script at `/usr/local/bin/backup-daih-db.sh`:
+Create `/usr/local/bin/backup-daih-db.sh`:
 
 ```bash
 #!/bin/bash
@@ -387,17 +459,16 @@ BACKUP_DIR="/var/backups/daih-postgres"
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 mkdir -p "$BACKUP_DIR"
 
-docker exec daih-postgres pg_dump -U postgres daih_db | gzip > "$BACKUP_DIR/daih_backup_$TIMESTAMP.sql.gz"
+# Dump database from local Docker container
+docker exec $(docker ps -qf "name=postgres") pg_dump -U postgres daih_db | gzip > "$BACKUP_DIR/daih_backup_$TIMESTAMP.sql.gz"
 
-# Keep last 7 days only
+# Retain last 7 days of daily backups
 find "$BACKUP_DIR" -type f -name "*.sql.gz" -mtime +7 -delete
 ```
 
-Make executable and add to cron:
+Make executable and register with cron:
 
 ```bash
 chmod +x /usr/local/bin/backup-daih-db.sh
 (crontab -l 2>/dev/null; echo "0 2 * * * /usr/local/bin/backup-daih-db.sh") | crontab -
 ```
-
-_(Runs automatically every night at 2:00 AM)._

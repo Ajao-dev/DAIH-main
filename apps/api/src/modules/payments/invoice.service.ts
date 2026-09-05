@@ -58,14 +58,43 @@ export class InvoiceService {
     const invoiceNumber = await this.generateNextInvoiceNumber(tx);
     const currency = data.currency || "NGN";
 
+    const booking = await tx.booking.findUnique({
+      where: { id: data.bookingId },
+      select: {
+        originalAmount: true,
+        discountAmount: true,
+        discountCode: true,
+      },
+    });
+
+    const basePrice = booking?.originalAmount
+      ? Number(booking.originalAmount)
+      : data.amount;
+    const discountAmount = booking?.discountAmount
+      ? Number(booking.discountAmount)
+      : 0;
+    const netTaxable = Math.max(0, basePrice - discountAmount);
+
     const defaultLineItems: InvoiceLineItem[] = [
       {
         description: `Workspace Reservation: ${data.resourceName} (${data.bookingReference})`,
         quantity: 1,
-        unitPrice: data.amount,
-        amount: data.amount,
+        unitPrice: basePrice,
+        amount: basePrice,
       },
     ];
+
+    if (discountAmount > 0) {
+      const discountLabel = booking?.discountCode
+        ? `Discount (${booking.discountCode})`
+        : "Staff Courtesy Override";
+      defaultLineItems.push({
+        description: `${discountLabel} - Pre-tax deduction`,
+        quantity: 1,
+        unitPrice: -discountAmount,
+        amount: -discountAmount,
+      });
+    }
 
     const lineItems =
       data.lineItems && data.lineItems.length > 0
@@ -78,7 +107,7 @@ export class InvoiceService {
         transactionId: data.transactionId,
         bookingId: data.bookingId,
         userId: data.userId,
-        subtotal: data.amount,
+        subtotal: netTaxable,
         tax: 0,
         total: data.amount,
         currency,

@@ -7,3 +7,4 @@ export * from "./customer.types";
 export * from "./access.types";
 export * from "./auth.types";
 export * from "./legal.types";
+export * from "./discount.types";

@@ -17,6 +17,7 @@ import {
   ChevronLeft,
   Shield,
   PanelLeftOpen,
+  Tag,
 } from "lucide-react";
 import { useAuth } from "@daih/api-client";
 import { cn } from "@daih/ui";
@@ -92,6 +93,12 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           icon: Receipt,
           description: "Paystack ledger & settlements",
         },
+        {
+          name: "Discounts & Promos",
+          href: "/finance/discounts",
+          icon: Tag,
+          description: "Customer coupons & space promotions",
+        },
       ],
     },
     {
@@ -130,6 +137,32 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       ),
     }))
     .filter((section) => section.items.length > 0);
+
+  const allNavHrefs = React.useMemo(() => {
+    return filteredSections.flatMap((s) => s.items.map((i) => i.href));
+  }, [filteredSections]);
+
+  const isItemActive = React.useCallback(
+    (href: string) => {
+      if (href === "/") {
+        return pathname === "/";
+      }
+      if (pathname === href) {
+        return true;
+      }
+      if (pathname.startsWith(`${href}/`)) {
+        const hasMoreSpecific = allNavHrefs.some(
+          (otherHref) =>
+            otherHref !== href &&
+            otherHref.startsWith(href) &&
+            (pathname === otherHref || pathname.startsWith(`${otherHref}/`)),
+        );
+        return !hasMoreSpecific;
+      }
+      return false;
+    },
+    [pathname, allNavHrefs],
+  );
 
   const handleLogout = async () => {
     try {
@@ -189,10 +222,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
               <nav className="space-y-1">
                 {section.items.map((item) => {
                   const Icon = item.icon;
-                  const isActive =
-                    item.href === "/"
-                      ? pathname === "/"
-                      : pathname.startsWith(item.href);
+                  const isActive = isItemActive(item.href);
 
                   return (
                     <div key={item.href} className="space-y-0.5">

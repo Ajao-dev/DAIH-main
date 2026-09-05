@@ -32,6 +32,7 @@ import {
 } from "@daih/types";
 import { generateSignedQrToken } from "../access/qr-token.util.js";
 import { accessService } from "../access/access.service.js";
+import { discountService } from "../discounts/discount.service.js";
 
 export class BookingService {
   constructor(private repo: BookingRepository = bookingRepository) {}
@@ -124,6 +125,13 @@ export class BookingService {
       state: booking.state,
       qrToken: isConfirmedOrActive ? booking.qrToken || undefined : undefined,
       amount: Number(booking.totalAmount),
+      originalAmount: booking.originalAmount
+        ? Number(booking.originalAmount)
+        : undefined,
+      discountAmount: booking.discountAmount
+        ? Number(booking.discountAmount)
+        : 0,
+      discountCode: booking.discountCode || undefined,
       currency: booking.currency || "NGN",
       holdExpiresAt: booking.holdExpiresAt
         ? booking.holdExpiresAt instanceof Date
@@ -493,6 +501,7 @@ export class BookingService {
           const randomSuffix = Math.floor(10000 + Math.random() * 90000);
           const reference = `DAIH-BK-${datePart}-${randomSuffix}`;
 
+          // Create base hold
           const created = await this.repo.createHold(tx, {
             reference,
             resourceId: resource.id,
@@ -500,9 +509,46 @@ export class BookingService {
             startTime: start,
             endTime: end,
             totalAmount: calculatedPrice,
+            originalAmount: calculatedPrice,
+            discountAmount: 0,
             currency,
             holdExpiresAt,
           });
+
+          // Fetch user details for domain matching
+          const user = await tx.user.findUnique({
+            where: { id: userId },
+            select: { email: true },
+          });
+
+          // Apply discount (either promo code or automatic)
+          const discountResult = await discountService.applyDiscountToHoldTx(
+            tx,
+            {
+              bookingId: created.id,
+              userId,
+              userEmail: user?.email,
+              resourceId: resource.id,
+              resourceCategory: resource.category,
+              basePrice: calculatedPrice,
+              promoCode: (input as any).promoCode,
+            },
+          );
+
+          if (discountResult.discountAmount > 0 || discountResult.discountId) {
+            await tx.booking.update({
+              where: { id: created.id },
+              data: {
+                totalAmount: discountResult.finalAmount,
+                discountAmount: discountResult.discountAmount,
+                discountId: discountResult.discountId,
+                discountCode: discountResult.discountCode,
+              },
+            });
+            created.totalAmount = discountResult.finalAmount as any;
+            (created as any).discountAmount = discountResult.discountAmount;
+            (created as any).discountCode = discountResult.discountCode;
+          }
 
           return created;
         },
@@ -526,6 +572,8 @@ export class BookingService {
           resourceId: booking.resourceId,
           userId,
           holdExpiresAt: booking.holdExpiresAt,
+          discountAmount: (booking as any).discountAmount || 0,
+          discountCode: (booking as any).discountCode,
         },
       });
 
@@ -540,6 +588,13 @@ export class BookingService {
         holdExpiresAt:
           booking.holdExpiresAt?.toISOString() || new Date().toISOString(),
         totalAmount: Number(booking.totalAmount),
+        originalAmount: (booking as any).originalAmount
+          ? Number((booking as any).originalAmount)
+          : undefined,
+        discountAmount: (booking as any).discountAmount
+          ? Number((booking as any).discountAmount)
+          : 0,
+        discountCode: (booking as any).discountCode || undefined,
         currency: booking.currency,
         state: booking.state,
       };
@@ -635,6 +690,7 @@ export class BookingService {
           booking.id,
         );
         await this.repo.updateState(prisma, booking.id, BookingState.EXPIRED);
+        await discountService.releaseHeldRedemptionTx(prisma, booking.id);
 
         console.log(
           `⏰ Booking hold expired for '${booking.reference}' (${booking.id})`,
@@ -706,6 +762,7 @@ export class BookingService {
       bookingId,
       BookingState.CANCELLED,
     );
+    await discountService.releaseHeldRedemptionTx(prisma, bookingId);
     await cancelHoldExpiryJob(bookingId);
 
     // Audit log

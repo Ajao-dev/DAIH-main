@@ -22,7 +22,9 @@ import {
   Ban,
   Eye,
   FileText,
+  Tag,
 } from "lucide-react";
+import { ApplyCourtesyDiscountModal } from "../../components/finance/discounts/ApplyCourtesyDiscountModal";
 
 function formatDate(isoStr: string) {
   if (!isoStr) return "—";
@@ -60,6 +62,11 @@ export default function AdminBookingsPage() {
   );
   const [releaseReason, setReleaseReason] = useState("");
   const [releasingHold, setReleasingHold] = useState(false);
+
+  // Courtesy Discount Modal
+  const [courtesyBooking, setCourtesyBooking] = useState<BookingSummary | null>(
+    null,
+  );
 
   // Reschedule No-Show Modal
   const [noShowToReschedule, setNoShowToReschedule] =
@@ -494,12 +501,20 @@ export default function AdminBookingsPage() {
                       </td>
                       <td className="py-3.5 px-4 text-right">
                         {isHeld && (
-                          <button
-                            onClick={() => setHoldToRelease(b)}
-                            className="px-2.5 py-1 text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-lg text-[11px] font-bold transition-colors cursor-pointer"
-                          >
-                            Release Hold
-                          </button>
+                          <>
+                            <button
+                              onClick={() => setCourtesyBooking(b)}
+                              className="px-2.5 py-1 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-lg text-[11px] font-bold transition-colors cursor-pointer mr-1.5"
+                            >
+                              Courtesy Discount
+                            </button>
+                            <button
+                              onClick={() => setHoldToRelease(b)}
+                              className="px-2.5 py-1 text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-lg text-[11px] font-bold transition-colors cursor-pointer"
+                            >
+                              Release Hold
+                            </button>
+                          </>
                         )}
                         {b.state === BookingState.NO_SHOW && (
                           <button
@@ -1000,6 +1015,23 @@ export default function AdminBookingsPage() {
             </form>
           </div>
         </div>
+      )}
+      {/* Courtesy Discount Modal */}
+      {courtesyBooking && (
+        <ApplyCourtesyDiscountModal
+          isOpen={Boolean(courtesyBooking)}
+          onClose={() => setCourtesyBooking(null)}
+          bookingId={courtesyBooking.id}
+          bookingReference={courtesyBooking.reference}
+          customerName={courtesyBooking.customerName}
+          resourceName={courtesyBooking.resourceName}
+          baseAmount={courtesyBooking.originalAmount || courtesyBooking.amount}
+          bookingState={courtesyBooking.state}
+          onSuccess={() => {
+            fetchBookings();
+            setCourtesyBooking(null);
+          }}
+        />
       )}
     </div>
   );

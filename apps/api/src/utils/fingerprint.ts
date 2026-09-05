@@ -1,6 +1,7 @@
 import { Request } from "express";
 import crypto from "node:crypto";
 import ipaddr from "ipaddr.js";
+import { config } from "../config/env.js";
 
 /**
  * Masks an IP address to preserve user anonymity and accommodate normal subnet shifts:
@@ -74,11 +75,46 @@ export function hashUserAgent(userAgent?: string | null): string {
 }
 
 /**
+ * Resolves the cryptographically verified client IP:
+ * 1. If `X-Verified-Client-IP` is provided AND matches `config.security.originVerifySecret`
+ *    using constant-time `crypto.timingSafeEqual`, return the verified header value.
+ * 2. Otherwise, fall back to Express's `req.ip` (derived from the right-to-left untrusted boundary walk across configured CIDRs).
+ * 3. Fall back to `req.socket?.remoteAddress` or `"0.0.0.0"`.
+ * 4. Never blindly trust raw unverified headers from untrusted connections.
+ */
+export function getVerifiedClientIp(req: Request): string {
+  const customIpHeader = req.headers["x-verified-client-ip"];
+  const customSecretHeader = req.headers["x-origin-verify-secret"];
+
+  if (
+    typeof customIpHeader === "string" &&
+    customIpHeader.trim() &&
+    typeof customSecretHeader === "string" &&
+    config.security.originVerifySecret
+  ) {
+    const expectedSecretBuf = Buffer.from(
+      config.security.originVerifySecret,
+      "utf-8",
+    );
+    const providedSecretBuf = Buffer.from(customSecretHeader, "utf-8");
+
+    if (
+      expectedSecretBuf.length === providedSecretBuf.length &&
+      crypto.timingSafeEqual(expectedSecretBuf, providedSecretBuf)
+    ) {
+      return customIpHeader.trim();
+    }
+  }
+
+  return req.ip || req.socket?.remoteAddress || "0.0.0.0";
+}
+
+/**
  * Computes the unified device fingerprint combining the masked IP subnet and User-Agent hash.
- * Uses Express's trust-proxy-aware `req.ip` for accurate client IP resolution behind reverse proxies.
+ * Uses getVerifiedClientIp(req) to ensure real client IP is used, never proxy egress IP or spoofed values.
  */
 export function computeFingerprint(req: Request): string {
-  const clientIp = req.ip || req.socket?.remoteAddress || "0.0.0.0";
+  const clientIp = getVerifiedClientIp(req);
   const userAgent = req.headers["user-agent"] || "";
 
   const maskedIp = maskIpAddress(clientIp);

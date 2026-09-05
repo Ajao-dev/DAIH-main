@@ -3,6 +3,7 @@ import rateLimit from "express-rate-limit";
 import { RedisStore } from "rate-limit-redis";
 import { redis } from "../config/redis.js";
 import { config } from "../config/env.js";
+import { getVerifiedClientIp } from "../utils/fingerprint.js";
 
 function createRedisStore(prefix: string) {
   if (
@@ -43,7 +44,7 @@ export const loginIpRateLimiter = rateLimit({
   legacyHeaders: false,
   store: createRedisStore("login-ip"),
   keyGenerator: (req: Request) => {
-    return req.ip || req.socket.remoteAddress || "unknown";
+    return getVerifiedClientIp(req) || "unknown";
   },
   handler: standardHandler,
   skip: skipInTest,
@@ -63,7 +64,7 @@ export const loginAccountRateLimiter = rateLimit({
     const email = req.body?.email
       ? String(req.body.email).toLowerCase().trim()
       : "";
-    return email || req.ip || req.socket.remoteAddress || "unknown";
+    return email || getVerifiedClientIp(req) || "unknown";
   },
   handler: standardHandler,
   skip: skipInTest,
@@ -93,7 +94,7 @@ export const registrationRateLimiter = rateLimit({
   legacyHeaders: false,
   store: createRedisStore("reg"),
   keyGenerator: (req: Request) => {
-    return req.ip || req.socket.remoteAddress || "unknown";
+    return getVerifiedClientIp(req) || "unknown";
   },
   handler: standardHandler,
   skip: skipInTest,
@@ -112,7 +113,7 @@ export const verificationResendRateLimiter = rateLimit({
     const email = req.body?.email
       ? String(req.body.email).toLowerCase().trim()
       : "";
-    return email || req.ip || req.socket.remoteAddress || "unknown";
+    return email || getVerifiedClientIp(req) || "unknown";
   },
   handler: standardHandler,
   skip: skipInTest,
@@ -131,7 +132,7 @@ export const passwordResetRateLimiter = rateLimit({
     const email = req.body?.email
       ? String(req.body.email).toLowerCase().trim()
       : "";
-    return email || req.ip || req.socket.remoteAddress || "unknown";
+    return email || getVerifiedClientIp(req) || "unknown";
   },
   handler: standardHandler,
   skip: skipInTest,
@@ -147,7 +148,7 @@ export const refreshRateLimiter = rateLimit({
   legacyHeaders: false,
   store: createRedisStore("refresh"),
   keyGenerator: (req: Request) => {
-    return req.ip || req.socket.remoteAddress || "unknown";
+    return getVerifiedClientIp(req) || "unknown";
   },
   handler: standardHandler,
   skip: skipInTest,

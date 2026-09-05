@@ -16,6 +16,7 @@ import { emailTemplateRoutes } from "./modules/email/email-template.routes.js";
 import { reportsRouter } from "./modules/reports/reports.routes.js";
 import { debugRouter } from "./modules/debug/debug.routes.js";
 import { legalRouter } from "./modules/legal/legal.routes.js";
+import { discountRouter } from "./modules/discounts/discount.routes.js";
 import path from "node:path";
 import fs from "node:fs";
 import { errorHandler } from "./middleware/error-handler.middleware.js";
@@ -23,8 +24,8 @@ import { config } from "./config/env.js";
 
 export const app = express();
 
-// Trust reverse proxy for accurate client IP rate limiting
-app.set("trust proxy", 1);
+// Trust verified reverse proxies (CIDRs / loopback) for accurate client IP rate limiting and fingerprinting
+app.set("trust proxy", config.security.trustedProxies);
 
 // Security & utility middleware
 app.use(
@@ -185,6 +186,7 @@ app.use("/api/v1/identity", identityRouter);
 app.use("/api/v1/catalogue", catalogueRouter);
 app.use("/api/v1/bookings", bookingRouter);
 app.use("/api/v1/payments", paymentsRouter);
+app.use("/api/v1/discounts", discountRouter);
 app.use("/api/v1/access", accessRouter);
 app.use("/api/v1/email-templates", emailTemplateRoutes);
 app.use("/api/v1/policies", legalRouter);
