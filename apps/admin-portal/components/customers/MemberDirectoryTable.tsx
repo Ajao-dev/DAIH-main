@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Eye, ChevronLeft, ChevronRight, User, Users } from "lucide-react";
+import { ChevronLeft, ChevronRight, User, Users } from "lucide-react";
 
 export interface MemberRecord {
   id: string; // Client ID, e.g. DAIH-2026-000042
@@ -158,19 +158,19 @@ export const MemberDirectoryTable: React.FC<MemberDirectoryTableProps> = ({
                     {member.status === "Active" && (
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#E6F4EA] text-[#137333] font-semibold text-[11px] border border-[#CEEAD6]">
                         <span className="w-1.5 h-1.5 rounded-full bg-[#137333]" />
-                        Active
+                        Verified
                       </span>
                     )}
                     {member.status === "Pending" && (
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#FEF7E0] text-[#B06000] font-semibold text-[11px] border border-[#FCE8B2]">
                         <span className="w-1.5 h-1.5 rounded-full bg-[#B06000]" />
-                        Pending
+                        Unverified
                       </span>
                     )}
                     {member.status === "Inactive" && (
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 font-semibold text-[11px] border border-slate-200">
                         <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-                        Inactive
+                        Dormant
                       </span>
                     )}
                   </td>
@@ -207,7 +207,7 @@ export const MemberDirectoryTable: React.FC<MemberDirectoryTableProps> = ({
 
                   {/* Actions */}
                   <td className="p-4 text-right">
-                    <div className="flex items-center justify-end gap-1">
+                    <div className="flex items-center justify-end gap-1.5">
                       {onViewReferrals && (
                         <button
                           onClick={() => onViewReferrals(member)}
@@ -219,10 +219,10 @@ export const MemberDirectoryTable: React.FC<MemberDirectoryTableProps> = ({
                       )}
                       <button
                         onClick={() => onViewMember(member)}
-                        className="p-2 text-slate-500 hover:text-[#23055c] transition-colors rounded-lg hover:bg-purple-50 inline-flex items-center justify-center cursor-pointer"
-                        title="View Member Profile"
+                        className="px-3 py-1.5 text-xs font-semibold text-[#23055c] bg-purple-50 hover:bg-[#23055c] hover:text-white border border-purple-200 rounded-lg transition-all cursor-pointer whitespace-nowrap"
+                        title="View Member Details"
                       >
-                        <Eye className="w-4 h-4" />
+                        View Details
                       </button>
                     </div>
                   </td>

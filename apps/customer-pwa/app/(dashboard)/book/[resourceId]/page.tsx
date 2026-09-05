@@ -49,8 +49,11 @@ function getPlanBaseUnit(plan: ResourcePricingPlan): number {
 function getUnitLabel(plan: ResourcePricingPlan): string {
   if (plan.durationHours)
     return plan.durationHours === 1 ? "/hour" : `/${plan.durationHours}hr`;
-  if (plan.durationMonths)
+  if (plan.durationMonths) {
+    if (plan.durationMonths === 12) return "/year";
+    if (plan.durationMonths % 12 === 0) return `/${plan.durationMonths / 12}yr`;
     return plan.durationMonths === 1 ? "/month" : `/${plan.durationMonths}mo`;
+  }
   if (plan.durationDays && plan.durationDays === 7) return "/week";
   if (plan.durationDays && plan.durationDays > 1)
     return `/${plan.durationDays}d`;
@@ -123,13 +126,20 @@ function DurationSelector({
   const baseUnit = getPlanBaseUnit(plan);
   const today = toYMD(new Date());
   const minQty = 1;
-  const maxQty = durType === "hours" ? 24 : durType === "months" ? 12 : 90;
+  const maxQty =
+    durType === "hours"
+      ? 24
+      : durType === "months"
+        ? baseUnit >= 12
+          ? 5
+          : 12
+        : 90;
   const totalUnits = baseUnit * quantity;
   const stepUp = () => onQuantityChange(Math.min(quantity + 1, maxQty));
   const stepDown = () => onQuantityChange(Math.max(quantity - 1, minQty));
   const hourPresets = [1, 2, 3, 4, 6, 8];
   const dayPresets = [1, 2, 3, 5, 7, 14];
-  const monthPresets = [1, 2, 3, 6];
+  const monthPresets = [1, 2, 3, 6, 12];
 
   const [showFullMonth, setShowFullMonth] = useState(false);
 
@@ -412,7 +422,7 @@ function DurationSelector({
           {durType === "hours"
             ? `Number of ${baseUnit > 1 ? `${baseUnit}-Hour Blocks` : "Hours"}`
             : durType === "months"
-              ? `Number of ${baseUnit > 1 ? `${baseUnit}-Month Blocks` : "Months"}`
+              ? `Number of ${baseUnit === 12 ? "Years" : baseUnit > 1 ? `${baseUnit}-Month Blocks` : "Months"}`
               : `Number of ${baseUnit > 1 ? `${baseUnit}-Day Blocks` : "Days"}`}
         </label>
         <div className="flex items-center gap-3">
@@ -486,7 +496,15 @@ function DurationSelector({
                 onClick={() => onQuantityChange(q)}
                 className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all ${quantity === q ? "bg-[#23055c] text-white border-[#23055c]" : "bg-white text-slate-600 border-slate-200 hover:border-[#23055c]"}`}
               >
-                {q === 1 ? "1mo" : q === 3 ? "Qtr" : q === 6 ? "6mo" : `${q}mo`}
+                {q === 1
+                  ? "1mo"
+                  : q === 3
+                    ? "Qtr"
+                    : q === 6
+                      ? "6mo"
+                      : q === 12
+                        ? "1yr"
+                        : `${q}mo`}
               </button>
             ))}
         </div>
@@ -736,8 +754,13 @@ export default function PlanSelectionAndCheckoutPage() {
     if (!selectedPlan) return "\u2014";
     if (durType === "hours")
       return `${totalUnits} ${totalUnits === 1 ? "Hour" : "Hours"} (${formatTime(startHour)} \u2014 ${formatTime(endHour)})`;
-    if (durType === "months")
+    if (durType === "months") {
+      if (totalUnits % 12 === 0) {
+        const years = totalUnits / 12;
+        return `${years} ${years === 1 ? "Year" : "Years"} (${formatDate(startDate)} \u2014 ${formatDate(endDate)})`;
+      }
       return `${totalUnits} ${totalUnits === 1 ? "Month" : "Months"} (${formatDate(startDate)} \u2014 ${formatDate(endDate)})`;
+    }
     if (totalUnits === 1) return formatDate(startDate);
     return `${totalUnits} Days (${formatDate(startDate)} \u2014 ${formatDate(endDate)})`;
   }, [

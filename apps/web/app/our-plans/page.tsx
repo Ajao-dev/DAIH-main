@@ -16,9 +16,13 @@ function formatResourcePrice(resource: FacilityResource): string {
     );
     const first = sorted[0] || resource.pricing[0];
     const unit = first.durationMonths
-      ? first.durationMonths === 1
-        ? "/ Month"
-        : `/${first.durationMonths} Months`
+      ? first.durationMonths === 12
+        ? "/ Year"
+        : first.durationMonths % 12 === 0
+          ? `/${first.durationMonths / 12} Years`
+          : first.durationMonths === 1
+            ? "/ Month"
+            : `/${first.durationMonths} Months`
       : first.durationDays
         ? first.durationDays === 1
           ? "/ Day"

@@ -192,6 +192,45 @@ export class AccessController {
   }
 
   /**
+   * GET /api/v1/access/visits
+   * Get filtered visits activity with audit roll-call for check-in / check-out log
+   */
+  async getVisitsActivity(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const terminalId = req.query.terminalId
+        ? String(req.query.terminalId)
+        : undefined;
+      const startDate = req.query.startDate
+        ? String(req.query.startDate)
+        : undefined;
+      const endDate = req.query.endDate ? String(req.query.endDate) : undefined;
+      const status = req.query.status
+        ? (String(req.query.status) as any)
+        : undefined;
+      const search = req.query.search ? String(req.query.search) : undefined;
+      const limit = req.query.limit ? Number(req.query.limit) : 100;
+      const offset = req.query.offset ? Number(req.query.offset) : 0;
+
+      const result = await accessService.getVisitsActivity({
+        terminalId,
+        startDate,
+        endDate,
+        status,
+        search,
+        limit,
+        offset,
+      });
+
+      res.json({
+        success: true,
+        data: result,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
    * GET /api/v1/access/occupancy
    * Get live occupancy statistics
    */

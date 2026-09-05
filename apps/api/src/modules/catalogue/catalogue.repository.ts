@@ -132,23 +132,37 @@ export class CatalogueRepository {
   }
 
   async deleteResource(id: string) {
-    const bookingsCount = await prisma.booking.count({
-      where: { resourceId: id },
-    });
-
-    if (bookingsCount > 0) {
-      // Soft-delete / deactivate if historical bookings exist
-      return prisma.facilityResource.update({
-        where: { id },
-        data: { isActive: false },
-      });
-    }
-
-    // Hard-delete: explicitly remove child tables inside transaction to avoid foreign key errors
     return prisma.$transaction(async (tx) => {
+      // Find all bookings for this resource
+      const bookings = await tx.booking.findMany({
+        where: { resourceId: id },
+        select: { id: true },
+      });
+      const bookingIds = bookings.map((b) => b.id);
+
+      if (bookingIds.length > 0) {
+        // Cascade delete visit sessions linked to these bookings
+        await tx.visitSession.deleteMany({
+          where: { bookingId: { in: bookingIds } },
+        });
+
+        // Cascade delete transactions linked to these bookings
+        await tx.transaction.deleteMany({
+          where: { bookingId: { in: bookingIds } },
+        });
+
+        // Delete the bookings
+        await tx.booking.deleteMany({
+          where: { id: { in: bookingIds } },
+        });
+      }
+
+      // Delete pricing tiers, schedules, and blackouts
       await tx.resourcePricing.deleteMany({ where: { resourceId: id } });
       await tx.resourceSchedule.deleteMany({ where: { resourceId: id } });
       await tx.resourceBlackout.deleteMany({ where: { resourceId: id } });
+
+      // Delete the resource
       return tx.facilityResource.delete({ where: { id } });
     });
   }

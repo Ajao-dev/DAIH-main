@@ -14,6 +14,10 @@ import {
   recordTelemetry,
   sendDebouncedSecurityAlert,
 } from "../../utils/security-alert.js";
+import {
+  setInProcessCache,
+  invalidateInProcessCache,
+} from "../../utils/revocation-cache.js";
 
 export class SessionService {
   /**
@@ -33,9 +37,10 @@ export class SessionService {
   }
 
   /**
-   * Mark session active in Redis cache
+   * Mark session active in Redis cache and in-process shielding cache
    */
   async markSessionActiveInCache(sessionId: string): Promise<void> {
+    setInProcessCache(sessionId, true, 5000);
     try {
       await redis.setex(`daih:session:active:${sessionId}`, 900, "1");
       await redis.del(`daih:session:revoked:${sessionId}`);
@@ -45,9 +50,10 @@ export class SessionService {
   }
 
   /**
-   * Mark session revoked in Redis cache
+   * Mark session revoked in Redis cache and in-process shielding cache
    */
   async markSessionRevokedInCache(sessionId: string): Promise<void> {
+    invalidateInProcessCache(sessionId);
     try {
       await redis.del(`daih:session:active:${sessionId}`);
       await redis.setex(`daih:session:revoked:${sessionId}`, 900, "1");
@@ -124,7 +130,7 @@ export class SessionService {
 
     // If session is already marked revoked -> Check grace window for concurrent requests
     if (session.isRevoked) {
-      const GRACE_WINDOW_MS = config.jwt.refreshGraceWindowMs || 3000;
+      const GRACE_WINDOW_MS = config.jwt.refreshGraceWindowMs || 30000;
       const timeSinceRevocation =
         Date.now() - new Date(session.updatedAt).getTime();
 

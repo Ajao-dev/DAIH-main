@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import { useAuth, api } from "@daih/api-client";
 import { Button, Input, useToast } from "@daih/ui";
 import { resolveAvatarUrl } from "../../../lib/image-utils";
@@ -24,6 +25,8 @@ import {
   Camera,
   Trash2,
   Cake,
+  FileText,
+  ChevronRight,
 } from "lucide-react";
 
 export default function CustomerSettingsPage() {
@@ -829,6 +832,36 @@ export default function CustomerSettingsPage() {
                 </button>
               </div>
             </form>
+          </div>
+
+          {/* Legal & Policies */}
+          <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-3">
+            <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+              <Shield className="w-4 h-4 text-[#23055c]" />
+              <span>Legal & Policies</span>
+            </h2>
+            <div className="divide-y divide-slate-100">
+              <Link
+                href="/terms"
+                className="py-3 flex items-center justify-between text-xs font-semibold text-slate-700 hover:text-[#23055c] transition-colors"
+              >
+                <div className="flex items-center gap-2.5">
+                  <FileText className="w-4 h-4 text-slate-400" />
+                  <span>Terms of Service</span>
+                </div>
+                <ChevronRight className="w-4 h-4 text-slate-400" />
+              </Link>
+              <Link
+                href="/privacy"
+                className="py-3 flex items-center justify-between text-xs font-semibold text-slate-700 hover:text-[#23055c] transition-colors"
+              >
+                <div className="flex items-center gap-2.5">
+                  <Shield className="w-4 h-4 text-slate-400" />
+                  <span>Privacy Policy & NDPR</span>
+                </div>
+                <ChevronRight className="w-4 h-4 text-slate-400" />
+              </Link>
+            </div>
           </div>
 
           {/* Logout Action Button */}

@@ -57,9 +57,17 @@ export function ResourceCard({
   let priceDisplay = "No Pricing Set";
   if (mainPlan) {
     const unit = mainPlan.durationHours
-      ? "hour"
+      ? mainPlan.durationHours === 1
+        ? "hour"
+        : `${mainPlan.durationHours} hours`
       : mainPlan.durationMonths
-        ? "month"
+        ? mainPlan.durationMonths === 12
+          ? "year"
+          : mainPlan.durationMonths % 12 === 0
+            ? `${mainPlan.durationMonths / 12} years`
+            : mainPlan.durationMonths === 1
+              ? "month"
+              : `${mainPlan.durationMonths} months`
         : mainPlan.durationDays === 1
           ? "day"
           : `${mainPlan.durationDays || 1} days`;

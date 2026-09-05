@@ -23,11 +23,23 @@ export class IdentityController {
             config.cookies.secure,
           )
         : config.cookies.secure;
-    res.cookie(config.cookies.refreshCookieName, rawRefreshToken, {
+    const cookieBase = {
       httpOnly: true,
       secure: isSecure,
       sameSite: config.cookies.sameSite,
       domain: config.cookies.domain,
+    };
+
+    // Explicitly evict legacy cookie paths to prevent duplicate cookie headers in browser (skip in tests to avoid duplicate supertest cookie headers)
+    if (config.env !== "test") {
+      res.clearCookie(config.cookies.refreshCookieName, {
+        ...cookieBase,
+        path: "/api/v1/identity/refresh",
+      });
+    }
+
+    res.cookie(config.cookies.refreshCookieName, rawRefreshToken, {
+      ...cookieBase,
       path: config.cookies.path,
       maxAge,
     });
@@ -42,12 +54,26 @@ export class IdentityController {
             config.cookies.secure,
           )
         : config.cookies.secure;
-    res.clearCookie(config.cookies.refreshCookieName, {
+
+    const cookieBase = {
       httpOnly: true,
       secure: isSecure,
       sameSite: config.cookies.sameSite,
       domain: config.cookies.domain,
+    };
+
+    // Evict across all potential historical paths
+    res.clearCookie(config.cookies.refreshCookieName, {
+      ...cookieBase,
       path: config.cookies.path,
+    });
+    res.clearCookie(config.cookies.refreshCookieName, {
+      ...cookieBase,
+      path: "/api/v1/identity/refresh",
+    });
+    res.clearCookie(config.cookies.refreshCookieName, {
+      ...cookieBase,
+      path: "/",
     });
   }
 
@@ -121,13 +147,40 @@ export class IdentityController {
     next: NextFunction,
   ): Promise<void> => {
     try {
-      const rawRefreshToken =
-        req.cookies?.[config.cookies.refreshCookieName] ||
-        req.cookies?.["daih_refresh_token"] ||
-        req.cookies?.["daih_refresh"] ||
-        (config.env === "test" ? req.body?.refreshToken : undefined);
+      // Extract all candidate tokens if the browser sent multiple duplicate cookie paths
+      const candidateTokens: string[] = [];
+      const cookieHeader = req.headers.cookie || "";
+      if (cookieHeader) {
+        for (const cookieItem of cookieHeader.split(";")) {
+          const [name, ...rest] = cookieItem.trim().split("=");
+          if (
+            name === config.cookies.refreshCookieName ||
+            name === "daih_refresh_token" ||
+            name === "daih_refresh"
+          ) {
+            const val = decodeURIComponent(rest.join("="));
+            if (val && !candidateTokens.includes(val)) {
+              candidateTokens.push(val);
+            }
+          }
+        }
+      }
 
-      if (!rawRefreshToken) {
+      if (
+        candidateTokens.length === 0 &&
+        req.cookies?.[config.cookies.refreshCookieName]
+      ) {
+        candidateTokens.push(req.cookies[config.cookies.refreshCookieName]);
+      }
+      if (
+        candidateTokens.length === 0 &&
+        config.env === "test" &&
+        req.body?.refreshToken
+      ) {
+        candidateTokens.push(req.body.refreshToken);
+      }
+
+      if (candidateTokens.length === 0) {
         res.status(401).json({
           code: "UNAUTHORIZED",
           message: "Authentication refresh cookie is missing",
@@ -135,15 +188,38 @@ export class IdentityController {
         return;
       }
 
+      let refreshResult: any = null;
+      let lastError: any = null;
+
+      // When multiple paths exist in browser storage (e.g. legacy /refresh vs current /identity),
+      // try candidates starting with the most recent (reverse order, as RFC 6265 orders more specific first)
+      const tokensToTry =
+        candidateTokens.length > 1
+          ? [...candidateTokens].reverse()
+          : candidateTokens;
+
+      for (const token of tokensToTry) {
+        try {
+          refreshResult = await identityService.refresh(token, {
+            ipAddress: req.ip,
+            userAgent: req.headers["user-agent"],
+            deviceFingerprint: computeFingerprint(req),
+          });
+          break;
+        } catch (err: any) {
+          lastError = err;
+        }
+      }
+
+      if (!refreshResult) {
+        throw lastError;
+      }
+
       const {
         accessToken,
         rawRefreshToken: nextRefreshToken,
         user,
-      } = await identityService.refresh(rawRefreshToken, {
-        ipAddress: req.ip,
-        userAgent: req.headers["user-agent"],
-        deviceFingerprint: computeFingerprint(req),
-      });
+      } = refreshResult;
 
       this.setRefreshCookie(res, nextRefreshToken, req);
 
@@ -154,8 +230,10 @@ export class IdentityController {
           user,
         },
       });
-    } catch (error) {
-      this.clearRefreshCookie(res, req);
+    } catch (error: any) {
+      if (error?.statusCode === 401 || error?.statusCode === 403) {
+        this.clearRefreshCookie(res, req);
+      }
       next(error);
     }
   };

@@ -15,6 +15,7 @@ import { accessRouter } from "./modules/access/access.routes.js";
 import { emailTemplateRoutes } from "./modules/email/email-template.routes.js";
 import { reportsRouter } from "./modules/reports/reports.routes.js";
 import { debugRouter } from "./modules/debug/debug.routes.js";
+import { legalRouter } from "./modules/legal/legal.routes.js";
 import path from "node:path";
 import fs from "node:fs";
 import { errorHandler } from "./middleware/error-handler.middleware.js";
@@ -186,6 +187,7 @@ app.use("/api/v1/bookings", bookingRouter);
 app.use("/api/v1/payments", paymentsRouter);
 app.use("/api/v1/access", accessRouter);
 app.use("/api/v1/email-templates", emailTemplateRoutes);
+app.use("/api/v1/policies", legalRouter);
 app.use("/api/v1/reports", reportsRouter);
 app.use("/api/v1/debug", debugRouter);
 

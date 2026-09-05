@@ -9,10 +9,14 @@ import { getWorkspaceImage } from "../lib/image-utils";
 import { getPortalBookingUrl } from "../lib/config";
 
 function getDurationLabel(plan: any): string {
-  if (plan.durationMonths)
+  if (plan.durationMonths) {
+    if (plan.durationMonths === 12) return "/ Year";
+    if (plan.durationMonths % 12 === 0)
+      return `/${plan.durationMonths / 12} Years`;
     return plan.durationMonths === 1
       ? "/ Month"
       : `/${plan.durationMonths} Months`;
+  }
   if (plan.durationDays)
     return plan.durationDays === 1 ? "/ Day" : `/${plan.durationDays} Days`;
   if (plan.durationHours)

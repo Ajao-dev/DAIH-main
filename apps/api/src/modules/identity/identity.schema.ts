@@ -109,7 +109,7 @@ export const customerFilterSchema = z.object({
   status: z.string().trim().optional(),
   tier: z.string().trim().optional(),
   page: z.coerce.number().int().positive().default(1),
-  limit: z.coerce.number().int().positive().max(1000).default(10),
+  limit: z.coerce.number().int().positive().max(1000).default(20),
 });
 
 export const createCustomerAdminSchema = z.object({

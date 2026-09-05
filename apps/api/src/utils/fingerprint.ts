@@ -15,6 +15,16 @@ export function maskIpAddress(rawIp?: string | null): string {
 
   let cleanIp = rawIp.trim();
 
+  // Normalize all local loopback addresses (IPv4, IPv6, mapped) to uniform subnet
+  if (
+    cleanIp === "::1" ||
+    cleanIp === "127.0.0.1" ||
+    cleanIp === "localhost" ||
+    cleanIp === "::ffff:127.0.0.1"
+  ) {
+    return "127.0.0.0";
+  }
+
   // Strip port if present (e.g. "192.168.1.100:54321")
   if (
     cleanIp.includes(".") &&

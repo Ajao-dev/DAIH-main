@@ -173,12 +173,12 @@ export const AvatarCropperModal: React.FC<AvatarCropperModalProps> = ({
   if (!isOpen || !imageSrc) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="bg-white rounded-3xl border border-[#EBE7F5] shadow-2xl max-w-md w-full overflow-hidden flex flex-col animate-in zoom-in-95 duration-150">
-        {/* Header */}
-        <div className="p-5 sm:p-6 border-b border-[#EBE7F5] flex items-center justify-between bg-[#F8F9FA]">
+    <div className="fixed inset-0 z-50 overflow-y-auto p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center min-h-full animate-in fade-in duration-150">
+      <div className="bg-white rounded-3xl border border-[#EBE7F5] shadow-2xl max-w-md w-full my-auto max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-2rem)] flex flex-col overflow-hidden animate-in zoom-in-95 duration-150">
+        {/* Header - Fixed top */}
+        <div className="p-4 sm:p-5 border-b border-[#EBE7F5] flex items-center justify-between bg-[#F8F9FA] shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-purple-50 text-[#23055c] flex items-center justify-center font-bold">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-purple-50 text-[#23055c] flex items-center justify-center font-bold">
               <Camera className="w-4 h-4" />
             </div>
             <div>
@@ -200,88 +200,91 @@ export const AvatarCropperModal: React.FC<AvatarCropperModalProps> = ({
           </button>
         </div>
 
-        {/* Viewport / Canvas Container */}
-        <div className="p-6 bg-slate-950 flex flex-col items-center justify-center select-none overflow-hidden relative min-h-[300px]">
-          {/* Crop Container (256x256 circular mask) */}
-          <div
-            ref={containerRef}
-            onMouseDown={handleMouseDown}
-            onTouchStart={handleTouchStart}
-            className={`w-64 h-64 relative rounded-full overflow-hidden ring-4 ring-white/30 shadow-2xl ${
-              isDragging ? "cursor-grabbing" : "cursor-grab"
-            }`}
-          >
-            <img
-              ref={imageRef}
-              src={imageSrc}
-              alt="Avatar Preview"
-              draggable={false}
-              className="absolute max-w-none origin-center pointer-events-none transition-transform duration-75 ease-out"
-              style={{
-                width: "256px",
-                height: "auto",
-                transform: `translate(calc(-50% + 128px + ${position.x}px), calc(-50% + 128px + ${position.y}px)) scale(${zoom}) rotate(${rotation}deg)`,
-              }}
-            />
-          </div>
-
-          {/* Helper hint */}
-          <p className="text-[11px] text-slate-400 font-medium mt-4">
-            Click & drag image to reposition
-          </p>
-        </div>
-
-        {/* Controls */}
-        <div className="p-5 sm:p-6 space-y-4 bg-white">
-          {/* Zoom Slider */}
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between text-xs font-bold text-slate-700">
-              <span className="flex items-center gap-1">
-                <ZoomIn className="w-3.5 h-3.5 text-[#23055c]" />
-                Zoom
-              </span>
-              <span className="text-[11px] font-mono text-slate-500">
-                {Math.round(zoom * 100)}%
-              </span>
-            </div>
-            <div className="flex items-center gap-3">
-              <ZoomOut className="w-4 h-4 text-slate-400 shrink-0" />
-              <input
-                type="range"
-                min="0.5"
-                max="3"
-                step="0.05"
-                value={zoom}
-                onChange={(e) => setZoom(parseFloat(e.target.value))}
-                className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[#23055c]"
+        {/* Scrollable Modal Body */}
+        <div className="overflow-y-auto flex-1 overscroll-contain">
+          {/* Viewport / Canvas Container */}
+          <div className="p-4 sm:p-6 bg-slate-950 flex flex-col items-center justify-center select-none overflow-hidden relative min-h-[260px] sm:min-h-[300px]">
+            {/* Crop Container (256x256 circular mask) */}
+            <div
+              ref={containerRef}
+              onMouseDown={handleMouseDown}
+              onTouchStart={handleTouchStart}
+              className={`w-52 h-52 sm:w-64 sm:h-64 relative rounded-full overflow-hidden ring-4 ring-white/30 shadow-2xl ${
+                isDragging ? "cursor-grabbing" : "cursor-grab"
+              }`}
+            >
+              <img
+                ref={imageRef}
+                src={imageSrc}
+                alt="Avatar Preview"
+                draggable={false}
+                className="absolute max-w-none origin-center pointer-events-none transition-transform duration-75 ease-out"
+                style={{
+                  width: "256px",
+                  height: "auto",
+                  transform: `translate(calc(-50% + 128px + ${position.x}px), calc(-50% + 128px + ${position.y}px)) scale(${zoom}) rotate(${rotation}deg)`,
+                }}
               />
-              <ZoomIn className="w-4 h-4 text-slate-400 shrink-0" />
             </div>
+
+            {/* Helper hint */}
+            <p className="text-[11px] text-slate-400 font-medium mt-3 sm:mt-4">
+              Click & drag image to reposition
+            </p>
           </div>
 
-          {/* Quick Toolbar: Rotate & Reset */}
-          <div className="flex items-center justify-center gap-2 pt-1">
-            <button
-              type="button"
-              onClick={handleRotate}
-              className="px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
-            >
-              <RotateCw className="w-3.5 h-3.5" />
-              <span>Rotate 90°</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleReset}
-              className="px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              <span>Reset</span>
-            </button>
+          {/* Controls */}
+          <div className="p-4 sm:p-6 space-y-3 sm:space-y-4 bg-white">
+            {/* Zoom Slider */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+                <span className="flex items-center gap-1">
+                  <ZoomIn className="w-3.5 h-3.5 text-[#23055c]" />
+                  Zoom
+                </span>
+                <span className="text-[11px] font-mono text-slate-500">
+                  {Math.round(zoom * 100)}%
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
+                <ZoomOut className="w-4 h-4 text-slate-400 shrink-0" />
+                <input
+                  type="range"
+                  min="0.5"
+                  max="3"
+                  step="0.05"
+                  value={zoom}
+                  onChange={(e) => setZoom(parseFloat(e.target.value))}
+                  className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[#23055c]"
+                />
+                <ZoomIn className="w-4 h-4 text-slate-400 shrink-0" />
+              </div>
+            </div>
+
+            {/* Quick Toolbar: Rotate & Reset */}
+            <div className="flex items-center justify-center gap-2 pt-1">
+              <button
+                type="button"
+                onClick={handleRotate}
+                className="px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <RotateCw className="w-3.5 h-3.5" />
+                <span>Rotate 90°</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleReset}
+                className="px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>Reset</span>
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Footer Actions */}
-        <div className="p-4 border-t border-[#EBE7F5] bg-[#F8F9FA] flex items-center justify-end gap-3">
+        {/* Footer Actions - Sticky Bottom */}
+        <div className="p-3 sm:p-4 border-t border-[#EBE7F5] bg-[#F8F9FA] flex items-center justify-end gap-3 shrink-0">
           <button
             type="button"
             onClick={onClose}

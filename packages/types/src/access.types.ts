@@ -154,3 +154,30 @@ export interface ReceptionTerminalSummaryDTO {
   recentActivity: TerminalActivityRecord[];
   timestamp: string;
 }
+
+export interface VisitLogItemDTO {
+  id: string;
+  bookingId: string;
+  bookingReference: string;
+  userId: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone?: string | null;
+  clientId?: string | null;
+  resourceName: string;
+  resourceCategory?: string | null;
+  checkInTime: string;
+  checkOutTime?: string | null;
+  durationMinutes?: number | null;
+  isOnSite: boolean;
+  terminalId?: string | null;
+  staffName?: string | null;
+  notes?: string | null;
+}
+
+export interface VisitActivityResponse {
+  items: VisitLogItemDTO[];
+  total: number;
+  currentlyOnSiteCount: number;
+  todayTotalCount: number;
+}

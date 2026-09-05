@@ -59,7 +59,7 @@ export const TransactionLedgerTable: React.FC<TransactionLedgerTableProps> = ({
   const [selectedTx, setSelectedTx] = useState<FinanceTransaction | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-  const pageSize = 10;
+  const pageSize = 20;
   const toast = useToast();
 
   const loadTransactions = useCallback(async () => {

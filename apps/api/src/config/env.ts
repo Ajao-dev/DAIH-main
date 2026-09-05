@@ -30,7 +30,7 @@ export const config = {
     refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
     refreshExpiresInDays: parseInt(process.env.JWT_REFRESH_DAYS || "7", 10),
     refreshGraceWindowMs: parseInt(
-      process.env.REFRESH_GRACE_WINDOW_MS || "3000",
+      process.env.REFRESH_GRACE_WINDOW_MS || "15000",
       10,
     ),
     verificationExpiresInHours: parseInt(
@@ -63,7 +63,7 @@ export const config = {
         : process.env.NODE_ENV === "production",
     sameSite:
       (process.env.COOKIE_SAME_SITE as "lax" | "strict" | "none") || "lax",
-    path: process.env.COOKIE_PATH || "/api/v1/identity/refresh",
+    path: process.env.COOKIE_PATH || "/api/v1/identity",
   },
   superAdmin: {
     email: process.env.SUPER_ADMIN_EMAIL || "admin@daih.ng",

@@ -179,6 +179,92 @@ export class AccessRepository {
   }
 
   /**
+   * Fetch paginated and filtered visits for log audits
+   */
+  async getVisitsActivity(options: {
+    terminalId?: string;
+    startDate?: string;
+    endDate?: string;
+    status?: "ALL" | "ON_SITE" | "CHECKED_OUT";
+    search?: string;
+    limit?: number;
+    offset?: number;
+  }) {
+    const where: any = {};
+    if (options.terminalId) {
+      where.terminalId = options.terminalId;
+    }
+
+    if (options.startDate || options.endDate) {
+      where.checkInTime = {};
+      if (options.startDate) {
+        where.checkInTime.gte = new Date(options.startDate);
+      }
+      if (options.endDate) {
+        where.checkInTime.lte = new Date(options.endDate);
+      }
+    }
+
+    if (options.status === "ON_SITE") {
+      where.checkOutTime = null;
+    } else if (options.status === "CHECKED_OUT") {
+      where.checkOutTime = { not: null };
+    }
+
+    if (options.search && options.search.trim()) {
+      const clean = options.search.trim();
+      where.OR = [
+        { booking: { reference: { contains: clean, mode: "insensitive" } } },
+        { user: { firstName: { contains: clean, mode: "insensitive" } } },
+        { user: { lastName: { contains: clean, mode: "insensitive" } } },
+        { user: { email: { contains: clean, mode: "insensitive" } } },
+        { user: { clientId: { contains: clean, mode: "insensitive" } } },
+        {
+          booking: {
+            resource: { name: { contains: clean, mode: "insensitive" } },
+          },
+        },
+      ];
+    }
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const [items, total, currentlyOnSiteCount, todayTotalCount] =
+      await Promise.all([
+        prisma.visitSession.findMany({
+          where,
+          include: {
+            booking: {
+              include: {
+                resource: true,
+                user: true,
+              },
+            },
+            user: true,
+          },
+          orderBy: { checkInTime: "desc" },
+          take: options.limit ?? 100,
+          skip: options.offset ?? 0,
+        }),
+        prisma.visitSession.count({ where }),
+        prisma.visitSession.count({ where: { checkOutTime: null } }),
+        prisma.visitSession.count({
+          where: {
+            checkInTime: { gte: todayStart },
+          },
+        }),
+      ]);
+
+    return {
+      items,
+      total,
+      currentlyOnSiteCount,
+      todayTotalCount,
+    };
+  }
+
+  /**
    * Fetch live workspace occupancy
    */
   async getLiveOccupancy() {

@@ -30,7 +30,7 @@ function getInProcessCache(sessionId: string): boolean | undefined {
   return entry.isValid;
 }
 
-function setInProcessCache(
+export function setInProcessCache(
   sessionId: string,
   isValid: boolean,
   ttlMs = 5000,
@@ -48,6 +48,13 @@ function setInProcessCache(
   inProcessRevocationCache.set(sessionId, {
     isValid,
     expiresAt: Date.now() + ttlMs,
+  });
+}
+
+export function invalidateInProcessCache(sessionId: string): void {
+  inProcessRevocationCache.set(sessionId, {
+    isValid: false,
+    expiresAt: Date.now() + 5000,
   });
 }
 

@@ -14,12 +14,16 @@ const pool =
     connectionString: config.databaseUrl,
     // Enough for concurrent API requests + worker + admin bulk queries
     max: 20,
-    min: 2,
+    min: 0,
     // Release idle connections after 30s to reduce DB resource usage
     idleTimeoutMillis: 30000,
-    // Fail fast rather than queue indefinitely under load
-    connectionTimeoutMillis: 5000,
+    // Generous connection timeout to accommodate Neon serverless cold starts / wake-ups
+    connectionTimeoutMillis: 20000,
   });
+
+pool.on("error", (err) => {
+  console.warn("[PG_POOL] Idle client error:", err.message);
+});
 
 const adapter = new PrismaPg(pool);
 

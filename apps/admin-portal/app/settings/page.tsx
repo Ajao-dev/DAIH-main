@@ -68,6 +68,13 @@ export default function WorkspaceSettingsPage() {
 
         <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
           <Link
+            href="/settings/policies"
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-[#EBE7F5] hover:bg-purple-50 text-slate-700 hover:text-[#23055c] text-xs font-bold rounded-xl shadow-xs transition-colors shrink-0"
+          >
+            <Shield className="w-4 h-4 text-[#23055c]" />
+            Terms & Privacy Policies
+          </Link>
+          <Link
             href="/settings/email-templates"
             className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-[#EBE7F5] hover:bg-purple-50 text-slate-700 hover:text-[#23055c] text-xs font-bold rounded-xl shadow-xs transition-colors shrink-0"
           >

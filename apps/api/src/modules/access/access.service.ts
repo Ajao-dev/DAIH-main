@@ -10,6 +10,7 @@ import {
   WifiCredentialDTO,
   WifiAccessStatus,
   ReceptionTerminalSummaryDTO,
+  VisitActivityResponse,
 } from "@daih/types";
 
 import { assertValidTransition } from "../booking/booking.state-machine.js";
@@ -786,6 +787,69 @@ export class AccessService {
         notes: item.notes || undefined,
       };
     });
+  }
+
+  /**
+   * Get filtered and paginated visits activity for log audit
+   */
+  async getVisitsActivity(options: {
+    terminalId?: string;
+    startDate?: string;
+    endDate?: string;
+    status?: "ALL" | "ON_SITE" | "CHECKED_OUT";
+    search?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<VisitActivityResponse> {
+    const { items, total, currentlyOnSiteCount, todayTotalCount } =
+      await this.repo.getVisitsActivity(options);
+
+    const mappedItems = items.map((item) => {
+      const checkInDate = new Date(item.checkInTime);
+      const checkOutDate = item.checkOutTime
+        ? new Date(item.checkOutTime)
+        : null;
+      const durationMinutes = checkOutDate
+        ? Math.max(
+            0,
+            Math.round(
+              (checkOutDate.getTime() - checkInDate.getTime()) / 60000,
+            ),
+          )
+        : Math.max(0, Math.round((Date.now() - checkInDate.getTime()) / 60000));
+
+      const customerName = item.user
+        ? `${item.user.firstName || ""} ${item.user.lastName || ""}`.trim() ||
+          item.user.email
+        : "DAIH Member";
+
+      return {
+        id: item.id,
+        bookingId: item.bookingId,
+        bookingReference: item.booking?.reference || "N/A",
+        userId: item.userId,
+        customerName,
+        customerEmail: item.user?.email || "",
+        customerPhone: item.user?.phoneNumber || null,
+        clientId: item.user?.clientId || null,
+        resourceName: item.booking?.resource?.name || "Workspace Resource",
+        resourceCategory: item.booking?.resource?.category || null,
+        checkInTime: checkInDate.toISOString(),
+        checkOutTime: checkOutDate ? checkOutDate.toISOString() : null,
+        durationMinutes,
+        isOnSite: item.checkOutTime === null,
+        terminalId: item.terminalId || "REC-GATE-01",
+        staffName: item.staffUserId || undefined,
+        notes: item.notes || undefined,
+      };
+    });
+
+    return {
+      items: mappedItems,
+      total,
+      currentlyOnSiteCount,
+      todayTotalCount,
+    };
   }
 
   /**

@@ -213,11 +213,22 @@ export class BookingRepository {
     const limit = Math.max(1, Math.min(1000, filters.limit || 20));
     const skip = (page - 1) * limit;
 
+    const now = new Date();
+    const isActiveFilter = filters.state === "ACTIVE";
+
     const where: Prisma.BookingWhereInput = {
-      ...(filters.state ? { state: filters.state as BookingState } : {}),
+      ...(isActiveFilter
+        ? {
+            state: BookingState.CONFIRMED,
+            startTime: { lte: now },
+            endTime: { gte: now },
+          }
+        : filters.state
+          ? { state: filters.state as BookingState }
+          : { state: { notIn: [BookingState.EXPIRED, BookingState.DRAFT] } }),
       ...(filters.resourceId ? { resourceId: filters.resourceId } : {}),
       ...(filters.userId ? { userId: filters.userId } : {}),
-      ...(filters.startDate || filters.endDate
+      ...(!isActiveFilter && (filters.startDate || filters.endDate)
         ? {
             startTime: {
               ...(filters.startDate ? { gte: filters.startDate } : {}),
