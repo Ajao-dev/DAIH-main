@@ -6,7 +6,10 @@ import { staffUserService } from "./staff-user.service.js";
 import { customerService } from "./customer.service.js";
 import { AuthRequest } from "../../middleware/auth.middleware.js";
 import { uploadAvatarSchema } from "./identity.schema.js";
-import { computeFingerprint } from "../../utils/fingerprint.js";
+import {
+  computeFingerprint,
+  getVerifiedClientIp,
+} from "../../utils/fingerprint.js";
 
 export class IdentityController {
   private setRefreshCookie(
@@ -30,14 +33,7 @@ export class IdentityController {
       domain: config.cookies.domain,
     };
 
-    // Explicitly evict legacy cookie paths to prevent duplicate cookie headers in browser (skip in tests to avoid duplicate supertest cookie headers)
-    if (config.env !== "test") {
-      res.clearCookie(config.cookies.refreshCookieName, {
-        ...cookieBase,
-        path: "/api/v1/identity/refresh",
-      });
-    }
-
+    // Exactly one Set-Cookie header scoped strictly to config.cookies.path
     res.cookie(config.cookies.refreshCookieName, rawRefreshToken, {
       ...cookieBase,
       path: config.cookies.path,
@@ -62,18 +58,10 @@ export class IdentityController {
       domain: config.cookies.domain,
     };
 
-    // Evict across all potential historical paths
+    // Exactly one Set-Cookie clear header scoped strictly to config.cookies.path
     res.clearCookie(config.cookies.refreshCookieName, {
       ...cookieBase,
       path: config.cookies.path,
-    });
-    res.clearCookie(config.cookies.refreshCookieName, {
-      ...cookieBase,
-      path: "/api/v1/identity/refresh",
-    });
-    res.clearCookie(config.cookies.refreshCookieName, {
-      ...cookieBase,
-      path: "/",
     });
   }
 
@@ -772,6 +760,39 @@ export class IdentityController {
       res.json({
         success: true,
         data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  debugClientIp = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      if (!config.security.enableDiagnosticIpEndpoint) {
+        res.status(404).json({
+          code: "NOT_FOUND",
+          message: "Not found",
+        });
+        return;
+      }
+
+      res.json({
+        success: true,
+        data: {
+          clientIp: getVerifiedClientIp(req),
+          expressIp: req.ip,
+          socketRemoteAddress: req.socket?.remoteAddress,
+          headers: {
+            xForwardedFor: req.headers["x-forwarded-for"],
+            xRealIp: req.headers["x-real-ip"],
+            cfConnectingIp: req.headers["cf-connecting-ip"],
+            xVerifiedClientIp: req.headers["x-verified-client-ip"],
+          },
+        },
       });
     } catch (error) {
       next(error);

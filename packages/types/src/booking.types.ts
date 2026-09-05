@@ -44,6 +44,9 @@ export interface BookingHoldDTO {
   endTime: string;
   holdExpiresAt: string;
   totalAmount: number;
+  originalAmount?: number;
+  discountAmount?: number;
+  discountCode?: string;
   currency: string;
   reference: string;
   state: BookingState;
@@ -54,6 +57,7 @@ export interface CreateBookingDTO {
   startTime: string;
   endTime: string;
   planId?: string;
+  promoCode?: string;
   notes?: string;
 }
 
@@ -241,6 +245,9 @@ export interface BookingSummary {
   state: BookingState;
   qrToken?: string;
   amount: number;
+  originalAmount?: number;
+  discountAmount?: number;
+  discountCode?: string;
   currency: string;
   holdExpiresAt?: string | null;
   checkedInAt?: string | null;

@@ -48,6 +48,12 @@ export const CreateHoldSchema = z
       .datetime({ message: "Valid ISO startTime is required" }),
     endTime: z.string().datetime({ message: "Valid ISO endTime is required" }),
     planId: z.string().optional(),
+    promoCode: z
+      .string()
+      .trim()
+      .max(30)
+      .optional()
+      .transform((val) => (val ? val.trim().toUpperCase() : undefined)),
     notes: z
       .string()
       .max(500)

@@ -115,9 +115,11 @@ export function hasRouteAccess(
   if (pathname.startsWith("/finance")) {
     return (
       rawRole === UserRole.FINANCE_OFFICER ||
+      rawRole === UserRole.OPERATIONS_ADMIN ||
       hasPermission(role, [
         Permission.PAYMENTS_READ,
         Permission.PAYMENTS_REFUND,
+        Permission.BOOKINGS_MANAGE,
       ])
     );
   }

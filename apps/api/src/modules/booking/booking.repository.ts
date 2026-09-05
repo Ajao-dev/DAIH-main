@@ -80,6 +80,10 @@ export class BookingRepository {
       startTime: Date;
       endTime: Date;
       totalAmount: number | Prisma.Decimal;
+      originalAmount?: number | Prisma.Decimal;
+      discountAmount?: number | Prisma.Decimal;
+      discountId?: string;
+      discountCode?: string;
       currency?: string;
       holdExpiresAt: Date;
     },
@@ -94,6 +98,10 @@ export class BookingRepository {
         state: BookingState.HELD,
         holdExpiresAt: data.holdExpiresAt,
         totalAmount: data.totalAmount,
+        originalAmount: data.originalAmount,
+        discountAmount: data.discountAmount ?? 0,
+        discountId: data.discountId,
+        discountCode: data.discountCode,
         currency: data.currency || "NGN",
       },
       include: {

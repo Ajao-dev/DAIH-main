@@ -22,6 +22,8 @@ import {
   BookingFilterSchema,
   AnalyticsFilterSchema,
 } from "./booking.schema.js";
+import { discountController } from "../discounts/discount.controller.js";
+import { ApplyCourtesyDiscountSchema } from "../discounts/discount.schema.js";
 
 export const bookingRouter = Router();
 
@@ -113,6 +115,15 @@ bookingRouter.post(
   validateParams(BookingIdParamSchema),
   validateBody(AdminNoShowRescheduleSchema),
   bookingController.rescheduleNoShow,
+);
+
+// Staff courtesy discount on specific booking
+bookingRouter.post(
+  "/:id/courtesy-discount",
+  ...overrideGuard,
+  validateParams(BookingIdParamSchema),
+  validateBody(ApplyCourtesyDiscountSchema),
+  discountController.applyCourtesyDiscount,
 );
 
 // ==========================================

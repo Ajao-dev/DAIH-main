@@ -939,4 +939,110 @@ describe("Milestone 1.1: Identity, RBAC & Session Module", () => {
       );
     });
   });
+
+  describe("Cookie Path & Single Header Enforcement", () => {
+    beforeEach(async () => {
+      const store = (prisma as any).__store;
+      const hash = await passwordService.hashPassword("Password123!");
+
+      if (
+        !store.users.some((u: any) => u.email === "cookie-test@example.com")
+      ) {
+        store.users.push({
+          id: "usr_cookie_test",
+          email: "cookie-test@example.com",
+          firstName: "Cookie",
+          lastName: "Tester",
+          passwordHash: hash,
+          clientId: "DAIH-2026-000101",
+          role: UserRole.CUSTOMER,
+          isVerified: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+      }
+    });
+
+    it("emits exactly ONE Set-Cookie header with Path=/api/v1/identity on login", async () => {
+      const res = await request(app).post("/api/v1/identity/login").send({
+        email: "cookie-test@example.com",
+        password: "Password123!",
+        portal: "customer",
+      });
+
+      expect(res.status).toBe(200);
+      const setCookieHeaders = (res.headers["set-cookie"] || []) as string[];
+      const refreshCookies = setCookieHeaders.filter((header: string) =>
+        header.startsWith("daih_refresh_token="),
+      );
+
+      expect(refreshCookies).toHaveLength(1);
+      expect(refreshCookies[0]).toContain("Path=/api/v1/identity");
+      expect(refreshCookies[0]).not.toContain("Path=/api/v1/identity/refresh");
+      expect(refreshCookies[0]).toContain("HttpOnly");
+    });
+
+    it("emits exactly ONE Set-Cookie header with Path=/api/v1/identity on token refresh", async () => {
+      // 1. Log in to acquire a valid refresh token cookie
+      const loginRes = await request(app).post("/api/v1/identity/login").send({
+        email: "cookie-test@example.com",
+        password: "Password123!",
+        portal: "customer",
+      });
+      expect(loginRes.status).toBe(200);
+      const loginCookies = (loginRes.headers["set-cookie"] || []) as string[];
+      const cookieStr = loginCookies.find((c) =>
+        c.startsWith("daih_refresh_token="),
+      );
+      expect(cookieStr).toBeDefined();
+
+      // Extract raw cookie "daih_refresh_token=..."
+      const rawCookie = cookieStr!.split(";")[0];
+
+      // 2. Call refresh endpoint
+      const refreshRes = await request(app)
+        .post("/api/v1/identity/refresh")
+        .set("Cookie", rawCookie);
+
+      expect(refreshRes.status).toBe(200);
+      const refreshSetCookies = (refreshRes.headers["set-cookie"] ||
+        []) as string[];
+      const refreshedTokens = refreshSetCookies.filter((h) =>
+        h.startsWith("daih_refresh_token="),
+      );
+
+      expect(refreshedTokens).toHaveLength(1);
+      expect(refreshedTokens[0]).toContain("Path=/api/v1/identity");
+      expect(refreshedTokens[0]).not.toContain("Path=/api/v1/identity/refresh");
+    });
+
+    it("emits exactly ONE Set-Cookie clear header with Path=/api/v1/identity on logout", async () => {
+      const loginRes = await request(app).post("/api/v1/identity/login").send({
+        email: "cookie-test@example.com",
+        password: "Password123!",
+        portal: "customer",
+      });
+      const loginCookies = (loginRes.headers["set-cookie"] || []) as string[];
+      const cookieStr = loginCookies.find((c) =>
+        c.startsWith("daih_refresh_token="),
+      );
+      const rawCookie = cookieStr!.split(";")[0];
+
+      const logoutRes = await request(app)
+        .post("/api/v1/identity/logout")
+        .set("Cookie", rawCookie);
+
+      expect(logoutRes.status).toBe(200);
+      const logoutSetCookies = (logoutRes.headers["set-cookie"] ||
+        []) as string[];
+      const clearedTokens = logoutSetCookies.filter((h) =>
+        h.startsWith("daih_refresh_token="),
+      );
+
+      expect(clearedTokens).toHaveLength(1);
+      expect(clearedTokens[0]).toContain("Path=/api/v1/identity");
+      expect(clearedTokens[0]).not.toContain("Path=/api/v1/identity/refresh");
+      expect(clearedTokens[0]).not.toContain("Path=/;");
+    });
+  });
 });

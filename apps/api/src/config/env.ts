@@ -143,6 +143,12 @@ export const config = {
       process.env.CIRCUIT_BREAKER_RESET_TIMEOUT_MS || "12000",
       10,
     ),
+    trustedProxies: process.env.TRUSTED_PROXIES
+      ? process.env.TRUSTED_PROXIES.split(",").map((s) => s.trim())
+      : ["loopback", "linklocal", "uniquelocal"],
+    originVerifySecret: process.env.ORIGIN_VERIFY_SECRET || undefined,
+    enableDiagnosticIpEndpoint:
+      process.env.ENABLE_DIAGNOSTIC_IP_ENDPOINT === "true",
   },
 };
 

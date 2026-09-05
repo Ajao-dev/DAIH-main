@@ -16,6 +16,7 @@ import {
   assertValidTransition,
   ACTIVE_BOOKING_STATES,
 } from "../booking/booking.state-machine.js";
+import { discountService } from "../discounts/discount.service.js";
 import {
   BookingState,
   PaymentStatus,
@@ -518,6 +519,13 @@ export class PaymentsService {
                 amount: Number(transaction.amount),
                 currency: transaction.currency,
               });
+
+              // Confirm discount redemption if applicable
+              await discountService.confirmRedemptionTx(
+                tx,
+                booking.id,
+                transaction.id,
+              );
 
               // Cancel delayed hold expiry job
               await cancelHoldExpiryJob(booking.id);

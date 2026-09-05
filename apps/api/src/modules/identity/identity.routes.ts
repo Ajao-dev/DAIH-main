@@ -227,3 +227,11 @@ identityRouter.get(
   requireStaff(),
   identityController.getCustomerReferrals,
 );
+
+// Diagnostic Client IP Verification Endpoint (Strictly Super Admin Protected & Gated)
+identityRouter.get(
+  "/admin/debug-client-ip",
+  authenticate,
+  requireRoles([UserRole.SUPER_ADMIN]),
+  identityController.debugClientIp,
+);
