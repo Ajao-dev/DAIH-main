@@ -31,9 +31,9 @@ export const MemberMetricsGrid: React.FC<MemberMetricsProps> = ({
       icon: Users,
     },
     {
-      label: "Active Now",
+      label: "Verified Members",
       value: activeNow.toLocaleString(),
-      change: "Checked in today",
+      change: "Active in last 90d",
       isPositive: null,
       icon: UserCheck,
     },

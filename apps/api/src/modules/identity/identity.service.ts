@@ -700,22 +700,26 @@ export class IdentityService {
     try {
       return await sessionService.rotateRefreshToken(rawRefreshToken, context);
     } catch (err: any) {
-      if (
-        err.name === "PrismaClientInitializationError" ||
-        err.name === "PrismaClientKnownRequestError" ||
-        err.code === "P1001" ||
-        err.message?.includes("Can't reach database server")
-      ) {
-        throw err;
+      // Auth domain errors: explicitly map to 401 Unauthorized
+      const authErrors = [
+        "INVALID_REFRESH_TOKEN",
+        "REFRESH_TOKEN_REUSE_DETECTED",
+        "SESSION_EXPIRED",
+      ];
+      if (authErrors.includes(err.message)) {
+        const error: any = new Error(
+          err.message === "REFRESH_TOKEN_REUSE_DETECTED"
+            ? "Suspicious session activity detected. Please log in again."
+            : "Invalid or expired session token",
+        );
+        error.code = err.message;
+        error.statusCode = 401;
+        throw error;
       }
-      const error: any = new Error(
-        err.message === "REFRESH_TOKEN_REUSE_DETECTED"
-          ? "Suspicious session activity detected. Please log in again."
-          : "Invalid or expired session token",
-      );
-      error.code = err.message || "UNAUTHORIZED";
-      error.statusCode = 401;
-      throw error;
+
+      // Infrastructure / Database errors (connection timeout, network drop, etc.):
+      // Rethrow so they are treated as 500/503 and do NOT invalidate client credentials
+      throw err;
     }
   }
 

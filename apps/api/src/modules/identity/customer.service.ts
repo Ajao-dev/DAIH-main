@@ -22,7 +22,7 @@ export class CustomerService {
     filter: CustomerFilterDTO = {},
   ): Promise<CustomerListResponse> {
     const page = Number(filter.page) || 1;
-    const limit = Number(filter.limit) || 10;
+    const limit = Number(filter.limit) || 20;
     const skip = (page - 1) * limit;
 
     const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);

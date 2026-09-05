@@ -131,13 +131,30 @@ export function hasRouteAccess(
     );
   }
 
+  if (pathname.startsWith("/visits")) {
+    return (
+      rawRole === UserRole.RECEPTION_OFFICER ||
+      rawRole === UserRole.SECURITY_OFFICER ||
+      rawRole === UserRole.OPERATIONS_ADMIN ||
+      rawRole === UserRole.MANAGEMENT_VIEWER ||
+      hasPermission(role, [
+        Permission.BOOKINGS_READ_ALL,
+        Permission.REPORTS_VIEW,
+      ])
+    );
+  }
+
   // Staff membership & management is strictly restricted to SUPER_ADMIN
   if (pathname.startsWith("/staff") || pathname.startsWith("/users")) {
     return isSuperAdmin || hasPermission(role, Permission.USERS_MANAGE);
   }
 
   if (pathname.startsWith("/settings")) {
-    return isSuperAdmin || hasPermission(role, Permission.SYSTEM_CONFIG);
+    return (
+      isSuperAdmin ||
+      rawRole === UserRole.OPERATIONS_ADMIN ||
+      hasPermission(role, Permission.SYSTEM_CONFIG)
+    );
   }
 
   return false;

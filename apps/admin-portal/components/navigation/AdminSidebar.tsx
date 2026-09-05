@@ -75,6 +75,12 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           icon: Users,
           description: "Member directory & Client IDs",
         },
+        {
+          name: "Check-In / Out Logs",
+          href: "/visits",
+          icon: UserCheck,
+          description: "Facility access & live occupancy logs",
+        },
       ],
     },
     {
@@ -85,10 +91,6 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           href: "/finance",
           icon: Receipt,
           description: "Paystack ledger & settlements",
-          subItems: [
-            { name: "Revenue Summary", href: "/finance#summary" },
-            { name: "Live Transaction Log", href: "/finance#transactions" },
-          ],
         },
       ],
     },
@@ -212,11 +214,6 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                             : "text-slate-600 hover:bg-[#F8F9FA] hover:text-[#23055c]",
                         )}
                       >
-                        {/* Left Active Accent Bar */}
-                        {isActive && (
-                          <div className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-[#a48de2] rounded-r-full" />
-                        )}
-
                         <div
                           className={cn(
                             "p-1.5 rounded-lg shrink-0 transition-colors",

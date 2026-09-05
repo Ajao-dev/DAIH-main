@@ -49,8 +49,10 @@ export const AuthSplitLayout: React.FC<AuthSplitLayoutProps> = ({
         />
 
         {/* Right Side: Form Container (100% Mobile/Tablet, 50% Desktop) */}
-        <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-10 lg:p-12 xl:p-16 bg-white">
-          <div className="w-full max-w-md space-y-6">{children}</div>
+        <div className="w-full lg:w-1/2 flex items-center justify-center px-4 py-8 sm:p-10 lg:p-12 xl:p-16 bg-white">
+          <div className="w-full max-w-none sm:max-w-md space-y-6">
+            {children}
+          </div>
         </div>
       </main>
 

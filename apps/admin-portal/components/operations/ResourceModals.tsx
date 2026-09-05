@@ -719,9 +719,9 @@ export function PricingManagementModal({
     isPopular: false,
     isActive: true,
   });
-  const [durationType, setDurationType] = useState<"days" | "hours" | "months">(
-    "days",
-  );
+  const [durationType, setDurationType] = useState<
+    "days" | "hours" | "months" | "years"
+  >("days");
   const [durationValue, setDurationValue] = useState<number>(1);
   const [submitting, setSubmitting] = useState(false);
 
@@ -731,7 +731,7 @@ export function PricingManagementModal({
     planName: string;
     price: number;
     isPopular: boolean;
-    durationType: "days" | "hours" | "months";
+    durationType: "days" | "hours" | "months" | "years";
     durationValue: number;
   }>({
     planName: "",
@@ -746,14 +746,19 @@ export function PricingManagementModal({
 
   const handleStartEdit = (plan: any) => {
     setEditingPlanId(plan.id);
-    let dType: "days" | "hours" | "months" = "days";
+    let dType: "days" | "hours" | "months" | "years" = "days";
     let dVal = 1;
     if (plan.durationHours) {
       dType = "hours";
       dVal = plan.durationHours;
     } else if (plan.durationMonths) {
-      dType = "months";
-      dVal = plan.durationMonths;
+      if (plan.durationMonths % 12 === 0) {
+        dType = "years";
+        dVal = plan.durationMonths / 12;
+      } else {
+        dType = "months";
+        dVal = plan.durationMonths;
+      }
     } else if (plan.durationDays) {
       dType = "days";
       dVal = plan.durationDays;
@@ -796,9 +801,11 @@ export function PricingManagementModal({
             ? Number(editFormData.durationValue) || 1
             : (null as any),
         durationMonths:
-          editFormData.durationType === "months"
-            ? Number(editFormData.durationValue) || 1
-            : (null as any),
+          editFormData.durationType === "years"
+            ? (Number(editFormData.durationValue) || 1) * 12
+            : editFormData.durationType === "months"
+              ? Number(editFormData.durationValue) || 1
+              : (null as any),
       };
       await onUpdatePlan(planId, payload);
       setEditingPlanId(null);
@@ -826,7 +833,11 @@ export function PricingManagementModal({
       durationHours:
         durationType === "hours" ? Number(durationValue) || 1 : undefined,
       durationMonths:
-        durationType === "months" ? Number(durationValue) || 1 : undefined,
+        durationType === "years"
+          ? (Number(durationValue) || 1) * 12
+          : durationType === "months"
+            ? Number(durationValue) || 1
+            : undefined,
     };
 
     try {
@@ -932,6 +943,7 @@ export function PricingManagementModal({
                               >
                                 <option value="days">Days</option>
                                 <option value="months">Months</option>
+                                <option value="years">Years</option>
                                 <option value="hours">Hours</option>
                               </select>
                             </div>
@@ -1008,7 +1020,9 @@ export function PricingManagementModal({
                             ? `${plan.durationDays} Day(s)`
                             : ""}
                           {plan.durationMonths
-                            ? `${plan.durationMonths} Month(s)`
+                            ? plan.durationMonths % 12 === 0
+                              ? `${plan.durationMonths / 12} Year(s)`
+                              : `${plan.durationMonths} Month(s)`
                             : ""}
                         </td>
                         <td className="p-2.5 text-right font-extrabold text-[#23055c]">
@@ -1096,6 +1110,7 @@ export function PricingManagementModal({
               >
                 <option value="days">Days (Daily/Weekly)</option>
                 <option value="months">Months (Monthly/Quarterly)</option>
+                <option value="years">Years (Yearly / Annual)</option>
                 <option value="hours">Hours (Hourly Bookings)</option>
               </select>
             </div>

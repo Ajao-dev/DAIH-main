@@ -44,9 +44,9 @@ export const MemberDirectoryToolbar: React.FC<MemberDirectoryToolbarProps> = ({
             className="pl-9 pr-8 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 appearance-none focus:outline-none focus:border-[#23055c] focus:ring-2 focus:ring-[#23055c]/20 cursor-pointer shadow-xs"
           >
             <option value="ALL">Status: All</option>
-            <option value="ACTIVE">Status: Active</option>
-            <option value="PENDING">Status: Pending</option>
-            <option value="INACTIVE">Status: Inactive</option>
+            <option value="ACTIVE">Status: Verified</option>
+            <option value="PENDING">Status: Unverified</option>
+            <option value="INACTIVE">Status: Dormant</option>
           </select>
           <Filter className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
         </div>

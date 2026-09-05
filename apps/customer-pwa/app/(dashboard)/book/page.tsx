@@ -92,7 +92,13 @@ export default function BookingDiscoveryPage() {
               if (primaryPlan.durationHours) {
                 formattedUnit = `/hr`;
               } else if (primaryPlan.durationMonths) {
-                formattedUnit = `/mo`;
+                if (primaryPlan.durationMonths === 12) {
+                  formattedUnit = `/yr`;
+                } else if (primaryPlan.durationMonths % 12 === 0) {
+                  formattedUnit = `/${primaryPlan.durationMonths / 12}yr`;
+                } else {
+                  formattedUnit = `/mo`;
+                }
               } else if (
                 primaryPlan.durationDays &&
                 primaryPlan.durationDays > 1

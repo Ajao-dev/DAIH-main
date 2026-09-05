@@ -50,6 +50,11 @@ import {
   SetupAccountResponse,
   CustomerReferralsResponse,
   AdminCustomerReferralsResponse,
+  PolicyDocument,
+  PolicyType,
+  UpdatePolicyDTO,
+  VisitLogItemDTO,
+  VisitActivityResponse,
 } from "@daih/types";
 import { apiCacheManager } from "./cache";
 
@@ -80,6 +85,11 @@ export class DaihApiClient {
   private onSessionExpiredFn?: () => void;
   private isRefreshing: boolean = false;
   private refreshSubscribers: ((token: string | null) => void)[] = [];
+  private inFlightRefreshPromise: Promise<{
+    accessToken: string;
+    token: string;
+    user: UserProfile;
+  }> | null = null;
 
   constructor(config: ApiClientConfig = {}) {
     const rawUrl =
@@ -338,22 +348,34 @@ export class DaihApiClient {
       ),
 
     refresh: async () => {
-      const res = await this.request<{
-        accessToken?: string;
-        user: UserProfile;
-        token?: string;
-      }>("/identity/refresh", {
-        method: "POST",
-      });
-      const token = res.accessToken || res.token;
-      if (token) {
-        this.setAccessToken(token);
+      if (this.inFlightRefreshPromise) {
+        return this.inFlightRefreshPromise;
       }
-      return {
-        ...res,
-        accessToken: token || "",
-        token: token || "",
-      };
+
+      this.inFlightRefreshPromise = (async () => {
+        try {
+          const res = await this.request<{
+            accessToken?: string;
+            user: UserProfile;
+            token?: string;
+          }>("/identity/refresh", {
+            method: "POST",
+          });
+          const token = res.accessToken || res.token;
+          if (token) {
+            this.setAccessToken(token);
+          }
+          return {
+            ...res,
+            accessToken: token || "",
+            token: token || "",
+          };
+        } finally {
+          this.inFlightRefreshPromise = null;
+        }
+      })();
+
+      return this.inFlightRefreshPromise;
     },
 
     logout: async () => {
@@ -1168,17 +1190,48 @@ export class DaihApiClient {
       terminalId?: string;
       limit?: number;
       offset?: number;
+      startDate?: string;
+      endDate?: string;
+      status?: "ALL" | "ON_SITE" | "CHECKED_OUT";
+      search?: string;
     }) => {
       const searchParams = new URLSearchParams();
       if (params?.terminalId) searchParams.set("terminalId", params.terminalId);
       if (params?.limit) searchParams.set("limit", String(params.limit));
       if (params?.offset) searchParams.set("offset", String(params.offset));
+      if (params?.startDate) searchParams.set("startDate", params.startDate);
+      if (params?.endDate) searchParams.set("endDate", params.endDate);
+      if (params?.status) searchParams.set("status", params.status);
+      if (params?.search) searchParams.set("search", params.search);
       const queryStr = searchParams.toString()
         ? `?${searchParams.toString()}`
         : "";
       return this.request<TerminalActivityRecord[]>(
         `/access/activity${queryStr}`,
       );
+    },
+
+    getVisitsActivity: (params?: {
+      terminalId?: string;
+      limit?: number;
+      offset?: number;
+      startDate?: string;
+      endDate?: string;
+      status?: "ALL" | "ON_SITE" | "CHECKED_OUT";
+      search?: string;
+    }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.terminalId) searchParams.set("terminalId", params.terminalId);
+      if (params?.limit) searchParams.set("limit", String(params.limit));
+      if (params?.offset) searchParams.set("offset", String(params.offset));
+      if (params?.startDate) searchParams.set("startDate", params.startDate);
+      if (params?.endDate) searchParams.set("endDate", params.endDate);
+      if (params?.status) searchParams.set("status", params.status);
+      if (params?.search) searchParams.set("search", params.search);
+      const queryStr = searchParams.toString()
+        ? `?${searchParams.toString()}`
+        : "";
+      return this.request<VisitActivityResponse>(`/access/visits${queryStr}`);
     },
 
     getLiveOccupancy: () => this.request<LiveOccupancyDTO>("/access/occupancy"),
@@ -1201,6 +1254,18 @@ export class DaihApiClient {
         { forceRefresh: options?.forceRefresh },
       );
     },
+  };
+
+  // Legal Policies API (Terms of Service & Privacy Policy)
+  public policies = {
+    getAll: () => this.request<PolicyDocument[]>("/policies"),
+    getByType: (type: PolicyType) =>
+      this.request<PolicyDocument>(`/policies/${type}`),
+    update: (type: PolicyType, data: UpdatePolicyDTO) =>
+      this.request<PolicyDocument>(`/policies/${type}`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+      }),
   };
 
   // Reports & Analytics Export API

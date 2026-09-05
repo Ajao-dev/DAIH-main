@@ -52,7 +52,7 @@ export default function AdminBookingsPage() {
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
-  const limit = 15;
+  const limit = 20;
 
   // Release Hold Modal
   const [holdToRelease, setHoldToRelease] = useState<BookingSummary | null>(
@@ -98,7 +98,10 @@ export default function AdminBookingsPage() {
         page,
         limit,
       });
-      setBookings(res.bookings);
+      const cleanBookings = ((res.bookings || []) as BookingSummary[]).filter(
+        (b: BookingSummary) => b.state !== BookingState.EXPIRED,
+      );
+      setBookings(cleanBookings);
       setTotalCount(res.total);
     } catch (err: any) {
       toast.error(err?.message || "Failed to fetch bookings list", {
@@ -338,18 +341,7 @@ export default function AdminBookingsPage() {
 
         {/* Status Filters */}
         <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-          {[
-            "ALL",
-            "CONFIRMED",
-            "HELD",
-            "PENDING_PAYMENT",
-            "CHECKED_IN",
-            "NO_SHOW",
-            "COMPLETED",
-            "CANCELLED",
-            "EXPIRED",
-            "REFUND_PENDING",
-          ].map((st) => (
+          {["ALL", "ACTIVE", "CONFIRMED", "COMPLETED", "NO_SHOW"].map((st) => (
             <button
               key={st}
               onClick={() => {
@@ -362,7 +354,7 @@ export default function AdminBookingsPage() {
                   : "bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200/60"
               }`}
             >
-              {st.replace(/_/g, " ")}
+              {st === "ACTIVE" ? "ACTIVE" : st.replace(/_/g, " ")}
             </button>
           ))}
         </div>
@@ -406,7 +398,6 @@ export default function AdminBookingsPage() {
                   const isHeld =
                     b.state === BookingState.HELD ||
                     b.state === BookingState.PENDING_PAYMENT;
-                  const isExpired = b.state === BookingState.EXPIRED;
 
                   return (
                     <tr
@@ -445,11 +436,26 @@ export default function AdminBookingsPage() {
                         {b.currency} {Number(b.amount).toLocaleString()}
                       </td>
                       <td className="py-3.5 px-4">
-                        {b.state === BookingState.CONFIRMED && (
-                          <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-[10px] font-bold rounded-md border border-emerald-200">
-                            CONFIRMED
-                          </span>
-                        )}
+                        {b.state === BookingState.CONFIRMED &&
+                          (() => {
+                            const now = new Date();
+                            const isPeriodActive =
+                              new Date(b.startTime) <= now &&
+                              new Date(b.endTime) >= now;
+                            if (isPeriodActive) {
+                              return (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 text-emerald-700 text-[10px] font-bold rounded-md border border-emerald-200">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                  ACTIVE
+                                </span>
+                              );
+                            }
+                            return (
+                              <span className="px-2 py-0.5 bg-purple-50 text-[#23055c] text-[10px] font-bold rounded-md border border-purple-200">
+                                CONFIRMED
+                              </span>
+                            );
+                          })()}
                         {b.state === BookingState.CHECKED_IN && (
                           <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-[10px] font-bold rounded-md border border-blue-200">
                             CHECKED IN
@@ -463,11 +469,6 @@ export default function AdminBookingsPage() {
                         {isHeld && (
                           <span className="px-2 py-0.5 bg-amber-50 text-amber-700 text-[10px] font-bold rounded-md border border-amber-200">
                             HOLD ACTIVE
-                          </span>
-                        )}
-                        {isExpired && (
-                          <span className="px-2 py-0.5 bg-slate-100 text-slate-500 text-[10px] font-bold rounded-md border border-slate-200">
-                            EXPIRED
                           </span>
                         )}
                         {b.state === BookingState.CANCELLED && (
@@ -516,7 +517,7 @@ export default function AdminBookingsPage() {
                             }}
                             className="px-2.5 py-1 text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-300 rounded-lg text-[11px] font-bold transition-colors cursor-pointer"
                           >
-                            Reschedule No-Show
+                            Reschedule
                           </button>
                         )}
                       </td>
@@ -833,7 +834,7 @@ export default function AdminBookingsPage() {
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-slate-900">
-                    Discretionary Reschedule (No-Show)
+                    Reschedule Booking
                   </h3>
                   <p className="text-[11px] text-slate-500">
                     Reassign unredeemed session to a new slot with mandatory

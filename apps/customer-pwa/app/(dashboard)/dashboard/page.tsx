@@ -285,7 +285,7 @@ export default function MemberDashboardPage() {
               }
               statusBadge={
                 activeBooking && new Date(activeBooking.startTime) <= now
-                  ? "Active Now"
+                  ? "Active"
                   : "Confirmed"
               }
               qrHref={

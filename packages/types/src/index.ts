@@ -6,3 +6,4 @@ export * from "./catalogue.types";
 export * from "./customer.types";
 export * from "./access.types";
 export * from "./auth.types";
+export * from "./legal.types";

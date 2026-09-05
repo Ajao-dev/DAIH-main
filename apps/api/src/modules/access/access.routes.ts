@@ -13,6 +13,7 @@ import {
   CheckOutSchema,
   AccessSearchQuerySchema,
   TerminalActivityQuerySchema,
+  VisitsActivityQuerySchema,
 } from "./access.schema.js";
 import { accessController } from "./access.controller.js";
 import { UserRole } from "@daih/types";
@@ -105,6 +106,18 @@ accessRouter.get(
   requireRoles(STAFF_ACCESS_ROLES),
   validateQuery(TerminalActivityQuerySchema),
   accessController.getTerminalActivity.bind(accessController),
+);
+
+/**
+ * GET /api/v1/access/visits
+ * Filtered and paginated visits activity for check-in / check-out log audits
+ */
+accessRouter.get(
+  "/visits",
+  authenticate,
+  requireRoles(STAFF_ACCESS_ROLES),
+  validateQuery(VisitsActivityQuerySchema),
+  accessController.getVisitsActivity.bind(accessController),
 );
 
 /**

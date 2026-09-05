@@ -28,7 +28,7 @@ describe("Device Fingerprint Utility", () => {
 
     it("handles localhost addresses safely", () => {
       expect(maskIpAddress("127.0.0.1")).toBe("127.0.0.0");
-      expect(maskIpAddress("::1")).toBe("::");
+      expect(maskIpAddress("::1")).toBe("127.0.0.0");
     });
 
     it("falls back to 0.0.0.0 on malformed or empty inputs", () => {

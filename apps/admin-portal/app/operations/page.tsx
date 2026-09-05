@@ -272,7 +272,12 @@ export default function OperationsPage() {
       if (durationChanged && !priceChanged) {
         let durationDesc = "duration";
         if (newMonths && newMonths > 0) {
-          durationDesc = `${newMonths} month${newMonths > 1 ? "s" : ""}`;
+          if (newMonths % 12 === 0) {
+            const yrs = newMonths / 12;
+            durationDesc = `${yrs} year${yrs > 1 ? "s" : ""}`;
+          } else {
+            durationDesc = `${newMonths} month${newMonths > 1 ? "s" : ""}`;
+          }
         } else if (newDays && newDays > 0) {
           durationDesc = `${newDays} day${newDays > 1 ? "s" : ""}`;
         } else if (newHours && newHours > 0) {

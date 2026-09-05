@@ -119,7 +119,9 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
 
         {/* Customer PWA Quick Link */}
         <a
-          href="http://localhost:3001"
+          href={
+            process.env.NEXT_PUBLIC_CUSTOMER_PWA_URL || "http://localhost:3001"
+          }
           target="_blank"
           rel="noreferrer"
           className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-xs font-semibold transition-colors shadow-xs"

@@ -55,3 +55,25 @@ export const TerminalActivityQuerySchema = z.object({
   limit: z.coerce.number().min(1).max(100).optional().default(50),
   offset: z.coerce.number().min(0).optional().default(0),
 });
+
+export const VisitsActivityQuerySchema = z.object({
+  terminalId: z
+    .string()
+    .optional()
+    .transform((v) => (v ? sanitizeString(v) : undefined)),
+  startDate: z
+    .string()
+    .optional()
+    .transform((v) => (v ? sanitizeString(v) : undefined)),
+  endDate: z
+    .string()
+    .optional()
+    .transform((v) => (v ? sanitizeString(v) : undefined)),
+  status: z.enum(["ALL", "ON_SITE", "CHECKED_OUT"]).optional().default("ALL"),
+  search: z
+    .string()
+    .optional()
+    .transform((v) => (v ? sanitizeString(v) : undefined)),
+  limit: z.coerce.number().min(1).max(200).optional().default(100),
+  offset: z.coerce.number().min(0).optional().default(0),
+});

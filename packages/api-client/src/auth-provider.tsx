@@ -75,11 +75,17 @@ export function AuthProvider({
   });
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const userRef = React.useRef<UserProfile | null>(user);
   const inFlightRefreshRef = React.useRef<Promise<UserProfile | null> | null>(
     null,
   );
 
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+
   const updateUserState = useCallback((newUser: UserProfile | null) => {
+    userRef.current = newUser;
     setUser(newUser);
     if (typeof window !== "undefined") {
       try {
@@ -122,17 +128,28 @@ export function AuthProvider({
         }
         return res.user;
       } catch (err: any) {
-        // If refresh failed due to network error, check if in-memory token is still unexpired
-        try {
-          const inMemoryToken = await apiClient.getAccessToken();
-          if (inMemoryToken && !isTokenExpiringSoon(inMemoryToken, 15)) {
-            // Temporary network glitch: preserve active session
-            if (err?.status !== 401 && err?.statusCode !== 401) {
-              if (user) return user;
-            }
-          }
-        } catch {}
+        const status = err?.status ?? err?.statusCode;
+        const code = err?.code;
+        const isExplicitAuthRejection =
+          status === 401 ||
+          status === 403 ||
+          code === "REFRESH_TOKEN_REUSE_DETECTED" ||
+          code === "SESSION_REVOKED" ||
+          code === "INVALID_REFRESH_TOKEN" ||
+          code === "SESSION_EXPIRED";
 
+        // If the failure is a transient network/server blip (e.g. status 0, 502, 503, 504)
+        // and our in-memory token is still unexpired, preserve active session
+        if (!isExplicitAuthRejection) {
+          try {
+            const inMemoryToken = await apiClient.getAccessToken();
+            if (inMemoryToken && !isTokenExpiringSoon(inMemoryToken, 15)) {
+              if (userRef.current) return userRef.current;
+            }
+          } catch {}
+        }
+
+        // Explicit auth rejection or expired token: clear session
         updateUserState(null);
         setAccessToken(null);
         apiClient.setAccessToken(null);
@@ -144,13 +161,18 @@ export function AuthProvider({
 
     inFlightRefreshRef.current = promise;
     return promise;
-  }, [apiClient, updateUserState, user]);
+  }, [apiClient, updateUserState]);
 
   // Initial session restoration on load via silent refresh against HttpOnly cookie
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
+        const existingToken = await apiClient.getAccessToken();
+        if (existingToken && !isTokenExpiringSoon(existingToken, 60)) {
+          return;
+        }
         await refreshSession();
       } finally {
         if (mounted) {
@@ -161,7 +183,7 @@ export function AuthProvider({
     return () => {
       mounted = false;
     };
-  }, [refreshSession]);
+  }, []); // Run strictly once on mount. Deliberately omitting refreshSession to prevent re-triggering on user state changes.
 
   // Proactive background refresh timer & focus / payment callback listener
   useEffect(() => {
@@ -169,7 +191,7 @@ export function AuthProvider({
 
     const checkAndRefreshToken = async () => {
       const currentToken = await apiClient.getAccessToken();
-      if (!currentToken || isTokenExpiringSoon(currentToken, 180)) {
+      if (currentToken && isTokenExpiringSoon(currentToken, 180)) {
         await refreshSession();
       }
     };
@@ -177,19 +199,17 @@ export function AuthProvider({
     // Periodically verify every 60 seconds
     const interval = setInterval(checkAndRefreshToken, 60000);
 
-    // Refresh immediately when returning from external redirects (e.g. Paystack) or switching tabs
+    // Refresh when returning from external redirects (e.g. Paystack) or switching tabs
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
         checkAndRefreshToken();
       }
     };
     window.addEventListener("visibilitychange", handleVisibilityChange);
-    window.addEventListener("focus", handleVisibilityChange);
 
     return () => {
       clearInterval(interval);
       window.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("focus", handleVisibilityChange);
     };
   }, [user, apiClient, refreshSession]);
 

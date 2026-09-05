@@ -54,7 +54,7 @@ export const UserMetricsGrid: React.FC<UserMetricsGridProps> = ({
         </div>
         <div>
           <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-            Active Now
+            Active
           </p>
           <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
             {activeNow}

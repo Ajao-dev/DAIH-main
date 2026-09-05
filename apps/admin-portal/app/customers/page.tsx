@@ -31,7 +31,7 @@ export default function CustomersPage() {
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [tierFilter, setTierFilter] = useState("ALL");
   const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 10;
+  const pageSize = 20;
 
   // Modals
   const [selectedMember, setSelectedMember] = useState<CustomerRecord | null>(

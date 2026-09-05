@@ -7,9 +7,9 @@ import { AdminLoginForm } from "./AdminLoginForm";
 
 export const AdminLoginCard: React.FC = () => {
   return (
-    <div className="w-full max-w-md bg-white rounded-2xl border border-[#EBE7F5] shadow-[0px_12px_32px_rgba(57,34,113,0.08)] overflow-hidden">
+    <div className="w-full max-w-none md:max-w-md bg-white rounded-none md:rounded-2xl border-0 md:border md:border-[#EBE7F5] shadow-none md:shadow-[0px_12px_32px_rgba(57,34,113,0.08)] overflow-hidden flex flex-col justify-between md:justify-start min-h-screen md:min-h-0">
       {/* Header Section */}
-      <div className="p-8 pb-6 text-center border-b border-slate-100">
+      <div className="p-6 sm:p-8 pb-6 text-center border-b border-slate-100">
         <Link href="/" className="inline-block mb-5">
           <img
             src="/images/logo.png"
@@ -27,12 +27,12 @@ export const AdminLoginCard: React.FC = () => {
       </div>
 
       {/* Form Section */}
-      <div className="p-8">
+      <div className="p-6 sm:p-8 flex-1 md:flex-none">
         <AdminLoginForm />
       </div>
 
       {/* Footer Area inside card */}
-      <div className="bg-[#f1f4f9] px-8 py-3.5 border-t border-[#EBE7F5] text-center">
+      <div className="bg-[#f1f4f9] px-6 sm:px-8 py-4 border-t border-[#EBE7F5] text-center">
         <p className="text-[11px] text-slate-500 font-medium">
           Internal use only. Unauthorized access is prohibited.
         </p>
