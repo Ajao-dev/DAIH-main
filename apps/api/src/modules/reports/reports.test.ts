@@ -5,6 +5,7 @@ import { BookingState, PaymentStatus } from "@daih/types";
 const mockBookings: any[] = [];
 const mockTransactions: any[] = [];
 const mockResources: any[] = [];
+const mockUsers: any[] = [];
 
 vi.mock("../../db/client.js", () => {
   return {
@@ -18,6 +19,9 @@ vi.mock("../../db/client.js", () => {
       facilityResource: {
         findMany: vi.fn(async () => mockResources),
       },
+      user: {
+        findMany: vi.fn(async () => mockUsers),
+      },
     },
   };
 });
@@ -27,6 +31,7 @@ describe("Reports & Analytics Export Service", () => {
     mockBookings.length = 0;
     mockTransactions.length = 0;
     mockResources.length = 0;
+    mockUsers.length = 0;
     vi.clearAllMocks();
 
     mockResources.push(
@@ -81,6 +86,22 @@ describe("Reports & Analytics Export Service", () => {
       booking: mockBookings[0],
       createdAt: new Date("2026-09-01T08:30:00Z"),
     });
+
+    mockUsers.push({
+      id: "usr_1",
+      clientId: "DAIH-2026-0001",
+      firstName: "Tunde",
+      lastName: "Adeleke",
+      email: "tunde@example.com",
+      phoneNumber: "+2348012345678",
+      birthday: "1994-08-15",
+      role: "CUSTOMER",
+      isVerified: true,
+      referralCode: "TUNDE-101",
+      createdAt: new Date("2026-08-01T10:00:00Z"),
+      bookings: [mockBookings[0]],
+      transactions: [mockTransactions[0]],
+    });
   });
 
   it("generates a valid CSV revenue and audit report with UTF-8 BOM", async () => {
@@ -111,6 +132,21 @@ describe("Reports & Analytics Export Service", () => {
     expect(text).toContain("Booking ID");
     expect(text).toContain("DAIH-BKG-001");
     expect(text).toContain("Dedicated Desk Alpha");
+  });
+
+  it("generates a valid CSV customers report including Date of Birth", async () => {
+    const report = await reportsService.generateExport({
+      type: "customers",
+      format: "csv",
+    });
+
+    expect(report.contentType).toContain("text/csv");
+    expect(report.filename).toContain("DAIH_CUSTOMERS_REPORT");
+    const text = report.buffer.toString("utf-8");
+    expect(text).toContain("Date of Birth");
+    expect(text).toContain("1994-08-15");
+    expect(text).toContain("DAIH-2026-0001");
+    expect(text).toContain("Tunde Adeleke");
   });
 
   it("generates a valid PDF export with branded DAIH letterhead and metrics", async () => {
@@ -150,5 +186,21 @@ describe("Reports & Analytics Export Service", () => {
     expect(occReport.buffer.toString("utf-8")).toContain(
       "FACILITY UTILIZATION & DENSITY",
     );
+  });
+
+  it("generates a valid PDF customers report with Date of Birth and summary cards", async () => {
+    const custReport = await reportsService.generateExport({
+      type: "customers",
+      format: "pdf",
+    });
+    expect(custReport.contentType).toBe("application/pdf");
+    expect(custReport.filename).toContain("DAIH_CUSTOMERS_REPORT");
+    const pdfStr = custReport.buffer.toString("utf-8");
+    expect(pdfStr).toContain("%PDF-1.4");
+    expect(pdfStr).toContain("MEMBER DIRECTORY & CUSTOMER AUDIT LOG");
+    expect(pdfStr).toContain("DATE OF BIRTH");
+    expect(pdfStr).toContain("1994-08-15");
+    expect(pdfStr).toContain("TOTAL REGISTERED");
+    expect(pdfStr).toContain("%%EOF");
   });
 });

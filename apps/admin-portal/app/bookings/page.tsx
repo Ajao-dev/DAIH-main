@@ -106,7 +106,11 @@ export default function AdminBookingsPage() {
         limit,
       });
       const cleanBookings = ((res.bookings || []) as BookingSummary[]).filter(
-        (b: BookingSummary) => b.state !== BookingState.EXPIRED,
+        (b: BookingSummary) =>
+          b.state !== BookingState.EXPIRED &&
+          b.state !== BookingState.DRAFT &&
+          b.state !== BookingState.HELD &&
+          b.state !== BookingState.PENDING_PAYMENT,
       );
       setBookings(cleanBookings);
       setTotalCount(res.total);
@@ -473,24 +477,9 @@ export default function AdminBookingsPage() {
                             NO SHOW
                           </span>
                         )}
-                        {isHeld && (
-                          <span className="px-2 py-0.5 bg-amber-50 text-amber-700 text-[10px] font-bold rounded-md border border-amber-200">
-                            HOLD ACTIVE
-                          </span>
-                        )}
                         {b.state === BookingState.CANCELLED && (
                           <span className="px-2 py-0.5 bg-rose-50 text-rose-700 text-[10px] font-bold rounded-md border border-rose-200">
                             CANCELLED
-                          </span>
-                        )}
-                        {b.state === BookingState.REFUND_PENDING && (
-                          <span className="px-2 py-0.5 bg-purple-50 text-purple-700 text-[10px] font-bold rounded-md border border-purple-200">
-                            REFUND PENDING
-                          </span>
-                        )}
-                        {b.state === BookingState.REFUNDED && (
-                          <span className="px-2 py-0.5 bg-slate-100 text-slate-700 text-[10px] font-bold rounded-md border border-slate-200">
-                            REFUNDED
                           </span>
                         )}
                         {b.state === BookingState.COMPLETED && (

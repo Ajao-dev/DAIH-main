@@ -68,8 +68,10 @@ export default function OperationsPage() {
 
   const [exportingReport, setExportingReport] = useState(false);
 
-  const fetchResources = useCallback(async () => {
-    setLoading(true);
+  const fetchResources = useCallback(async (silent = false) => {
+    if (!silent) {
+      setLoading(true);
+    }
     try {
       const data = await api.catalogue.getAdminResources();
       setResources(data);
@@ -86,7 +88,9 @@ export default function OperationsPage() {
         },
       );
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   }, []);
 
@@ -163,16 +167,34 @@ export default function OperationsPage() {
 
   // Handle Toggle Active / Offline
   const handleToggleActive = async (res: FacilityResource) => {
+    const nextActiveState = !res.isActive;
+
+    // Optimistically update local UI immediately (zero flash, zero reload)
+    setResources((prev) =>
+      prev.map((r) =>
+        r.id === res.id ? { ...r, isActive: nextActiveState } : r,
+      ),
+    );
+
     try {
-      await api.catalogue.updateResource(res.id, { isActive: !res.isActive });
+      await api.catalogue.updateResource(res.id, { isActive: nextActiveState });
       toast.info(
-        `${res.name} is now ${!res.isActive ? "live and active" : "offline/deactivated"}.`,
+        `${res.name} is now ${nextActiveState ? "live and active" : "offline/deactivated"}.`,
         {
-          title: res.isActive ? "Resource Deactivated" : "Resource Reactivated",
+          title: nextActiveState
+            ? "Resource Reactivated"
+            : "Resource Deactivated",
         },
       );
-      await fetchResources();
+      // Background sync without unmounting or triggering full-page loading state
+      await fetchResources(true);
     } catch (err: any) {
+      // Revert optimistic update on failure
+      setResources((prev) =>
+        prev.map((r) =>
+          r.id === res.id ? { ...r, isActive: res.isActive } : r,
+        ),
+      );
       toast.error(err?.message || "Failed to update status", {
         title: "Status Update Failed",
       });

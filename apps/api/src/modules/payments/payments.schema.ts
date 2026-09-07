@@ -30,30 +30,6 @@ export const BookingIdParamsSchema = z.object({
     .transform(sanitizeString),
 });
 
-export const RefundBodySchema = z.object({
-  amount: z
-    .number()
-    .positive("Refund amount must be greater than 0")
-    .optional(),
-  reason: z
-    .string()
-    .trim()
-    .min(3, "Refund reason is required and must be at least 3 characters")
-    .max(500, "Refund reason cannot exceed 500 characters")
-    .transform(sanitizeString),
-});
-
-export const RequestRefundBodySchema = z.object({
-  reason: z
-    .string()
-    .trim()
-    .max(500, "Refund reason cannot exceed 500 characters")
-    .optional()
-    .transform((val) =>
-      val ? sanitizeString(val) : "Customer requested refund",
-    ),
-});
-
 export const TransactionFilterQuerySchema = z.object({
   status: z.nativeEnum(PaymentStatus).optional(),
   method: z.nativeEnum(PaymentMethod).optional(),

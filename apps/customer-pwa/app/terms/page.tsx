@@ -5,6 +5,7 @@ import Link from "next/link";
 import { api } from "@daih/api-client";
 import { PolicyDocument } from "@daih/types";
 import { ArrowLeft, FileText, ShieldCheck, Loader2 } from "lucide-react";
+import { RichPolicyRenderer } from "../../components/legal/RichPolicyRenderer";
 
 export default function CustomerTermsPage() {
   const [policy, setPolicy] = useState<PolicyDocument | null>(null);
@@ -89,10 +90,11 @@ export default function CustomerTermsPage() {
               </div>
             </div>
 
-            {/* Markdown / Document Prose */}
-            <div className="prose prose-slate max-w-none prose-headings:font-bold prose-headings:text-slate-900 prose-h1:text-2xl prose-h2:text-xl prose-h3:text-base prose-p:text-sm prose-p:leading-relaxed prose-li:text-sm whitespace-pre-line">
-              {policy?.content}
-            </div>
+            {/* Rich Document Prose */}
+            <RichPolicyRenderer
+              content={policy?.content || ""}
+              className="mt-4"
+            />
 
             {/* Footer Signoff */}
             <div className="mt-12 pt-6 border-t border-slate-100 text-xs text-slate-500 flex flex-wrap items-center justify-between gap-4">

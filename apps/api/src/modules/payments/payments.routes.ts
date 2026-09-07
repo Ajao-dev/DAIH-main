@@ -13,9 +13,6 @@ import {
   InitializePaymentParamsSchema,
   InitializePaymentBodySchema,
   TransactionIdParamsSchema,
-  BookingIdParamsSchema,
-  RefundBodySchema,
-  RequestRefundBodySchema,
   TransactionFilterQuerySchema,
   ReconciliationQuerySchema,
   DailySummaryQuerySchema,
@@ -45,15 +42,6 @@ paymentsRouter.post(
 
 // Customer: Personal Payment History
 paymentsRouter.get("/history", authenticate, paymentsController.getHistory);
-
-// Customer: Request refund for a cancelled booking
-paymentsRouter.post(
-  "/bookings/:bookingId/refund-request",
-  authenticate,
-  validateParams(BookingIdParamsSchema),
-  validateBody(RequestRefundBodySchema),
-  paymentsController.requestRefund,
-);
 
 // Finance Officer / Admin: List all transactions with filters
 paymentsRouter.get(
@@ -92,16 +80,6 @@ paymentsRouter.get(
   ]),
   validateQuery(DailySummaryQuerySchema),
   paymentsController.getDailySummary,
-);
-
-// Finance Officer / Super Admin: Process refund
-paymentsRouter.post(
-  "/:transactionId/refund",
-  authenticate,
-  requireRoles([UserRole.FINANCE_OFFICER, UserRole.SUPER_ADMIN]),
-  validateParams(TransactionIdParamsSchema),
-  validateBody(RefundBodySchema),
-  paymentsController.processRefund,
 );
 
 // Customer / Staff: Get transaction details

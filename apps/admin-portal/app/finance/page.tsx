@@ -166,18 +166,8 @@ export default function FinancialReportsPage() {
       0,
     );
 
-    const refunded = transactions.filter(
-      (t) =>
-        t.status === PaymentStatus.REFUNDED ||
-        t.status === PaymentStatus.PARTIALLY_REFUNDED ||
-        (t.status as any) === "REFUNDED",
-    );
-    const totalRefunded = refunded.reduce(
-      (sum, t) => sum + (Number(t.amount) || 0),
-      0,
-    );
-
-    const netRevenue = Math.max(0, totalCollected - totalRefunded);
+    const avgTransaction =
+      successful.length > 0 ? totalCollected / successful.length : 0;
 
     const pending = transactions.filter(
       (t) => t.status === PaymentStatus.PENDING,
@@ -186,11 +176,6 @@ export default function FinancialReportsPage() {
       (sum, t) => sum + (Number(t.amount) || 0),
       0,
     );
-
-    const retentionPct =
-      totalCollected > 0
-        ? Math.round((netRevenue / totalCollected) * 100)
-        : 100;
 
     return {
       totalCollected: `₦${totalCollected.toLocaleString("en-NG", {
@@ -201,21 +186,20 @@ export default function FinancialReportsPage() {
       isCollectedUp: true,
       collectedSubtext: `Gross settlements in ${selectedRange}`,
 
-      totalRefunded: `₦${totalRefunded.toLocaleString("en-NG", {
+      avgBookingValue: `₦${avgTransaction.toLocaleString("en-NG", {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       })}`,
-      refundedBadge: `${refunded.length} refunds`,
-      isRefundedUp: refunded.length > 0,
-      refundedSubtext: `Processed in ${selectedRange}`,
+      avgBookingBadge: `${successful.length} bookings`,
+      avgBookingSubtext: `Per completed transaction`,
 
-      netRevenue: `₦${netRevenue.toLocaleString("en-NG", {
+      netRevenue: `₦${totalCollected.toLocaleString("en-NG", {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       })}`,
-      netRevenueBadge: `${retentionPct}% retained`,
+      netRevenueBadge: "100% retained",
       isNetRevenueUp: true,
-      netRevenueSubtext: `Gross minus refunds in ${selectedRange}`,
+      netRevenueSubtext: `100% retained in ${selectedRange}`,
 
       outstandingAmount: `₦${outstandingAmount.toLocaleString("en-NG", {
         minimumFractionDigits: 2,
@@ -314,6 +298,31 @@ export default function FinancialReportsPage() {
     );
   };
 
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
+
+  const handleExportPdf = async () => {
+    setIsExportingPdf(true);
+    try {
+      await api.reports.downloadExport({
+        type: "revenue",
+        format: "pdf",
+        startDate: rangeBounds.startDateStr,
+        endDate: rangeBounds.endDateStr,
+      });
+      toast.success(
+        `Financial PDF report for ${selectedRange} downloaded successfully.`,
+        { title: "PDF Report Generated" },
+      );
+    } catch (err: any) {
+      console.error("Failed to export finance PDF:", err);
+      toast.error(err?.message || "Failed to download financial report PDF.", {
+        title: "Export Failed",
+      });
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
+
   const handleViewPendingInvoices = () => {
     toast.info("Filtering ledger for Pending items.", {
       title: "Filter Applied",
@@ -327,6 +336,8 @@ export default function FinancialReportsPage() {
         selectedRange={selectedRange}
         onSelectRange={setSelectedRange}
         onExportLedger={handleExport}
+        onExportPdf={handleExportPdf}
+        isExportingPdf={isExportingPdf}
       />
 
       {/* Gateway & Ledger Reconciliation Health & Discrepancies Alert */}

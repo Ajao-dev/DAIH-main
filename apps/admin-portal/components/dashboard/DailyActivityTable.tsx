@@ -18,7 +18,7 @@ export interface DailyActivityRecord {
   meetingRoomUsed: string;
   subscriptionPlan: string;
   amountPaid: string;
-  paymentStatus: "PAID" | "PENDING" | "REFUNDED" | "WAIVED";
+  paymentStatus: "PAID" | "PENDING" | "WAIVED";
 }
 
 interface DailyActivityTableProps {
@@ -143,7 +143,6 @@ export const DailyActivityTable: React.FC<DailyActivityTableProps> = ({
                 <option value="ALL">All Payment Statuses</option>
                 <option value="PAID">PAID</option>
                 <option value="PENDING">PENDING</option>
-                <option value="REFUNDED">REFUNDED</option>
               </select>
 
               {/* Refresh Button */}

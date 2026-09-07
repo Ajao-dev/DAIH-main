@@ -18,6 +18,8 @@ export interface CustomerRecord {
   referralCode?: string;
   referralCount?: number;
   activeReferralCount?: number;
+  birthday?: string | null;
+  dateOfBirth?: string | null;
 }
 
 export interface CustomerMetrics {
@@ -49,6 +51,8 @@ export interface CreateCustomerDTO {
   email: string;
   phoneNumber?: string;
   tier?: string;
+  dateOfBirth?: string;
+  birthday?: string;
   sendInvite?: boolean;
 }
 

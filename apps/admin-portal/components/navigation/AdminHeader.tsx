@@ -29,32 +29,94 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
   const pathname = usePathname();
   const { user } = useAuth();
 
-  const getPageInfo = (path: string): { title: string; category: string } => {
-    if (path === "/")
-      return { title: "Operations Dashboard", category: "Overview" };
-    if (path.startsWith("/bookings"))
-      return { title: "Booking Engine & Reservations", category: "Operations" };
-    if (path.startsWith("/operations"))
-      return { title: "Hub Operations & Resources", category: "Operations" };
-    if (path.startsWith("/customers"))
-      return { title: "Member Directory & Customers", category: "Operations" };
-    if (path.startsWith("/finance"))
-      return { title: "Finance & Payment Reconciliation", category: "Finance" };
-    if (path.startsWith("/reports"))
+  interface PageBreadcrumb {
+    parent?: { title: string; href: string };
+    current: string;
+  }
+
+  const getBreadcrumb = (path: string): PageBreadcrumb => {
+    if (path === "/" || path === "") {
+      return { current: "Dashboard" };
+    }
+    if (path === "/bookings") {
+      return { current: "Bookings" };
+    }
+    if (path.startsWith("/bookings/")) {
       return {
-        title: "Utilisation & Analytics Reports",
-        category: "Governance",
+        parent: { title: "Bookings", href: "/bookings" },
+        current: "Booking Details",
       };
-    if (path.startsWith("/staff"))
-      return { title: "Staff & RBAC Role Management", category: "Governance" };
-    if (path.startsWith("/settings"))
-      return { title: "Workspace & System Settings", category: "Governance" };
-    if (path.startsWith("/login"))
-      return { title: "Admin Authentication", category: "Auth" };
-    return { title: "Admin Console", category: "Portal" };
+    }
+    if (path === "/operations" || path === "/operations/resources") {
+      return { current: "Resources & Spaces" };
+    }
+    if (path.startsWith("/operations/")) {
+      return {
+        parent: { title: "Resources", href: "/operations" },
+        current: "Space Details",
+      };
+    }
+    if (path === "/customers") {
+      return { current: "Customers" };
+    }
+    if (path.startsWith("/customers/")) {
+      return {
+        parent: { title: "Customers", href: "/customers" },
+        current: "Member Profile",
+      };
+    }
+    if (path === "/finance") {
+      return { current: "Finance & Payments" };
+    }
+    if (path.startsWith("/finance/")) {
+      return {
+        parent: { title: "Finance", href: "/finance" },
+        current: "Transaction Details",
+      };
+    }
+    if (path === "/reports") {
+      return { current: "Reports & Analytics" };
+    }
+    if (path === "/visits") {
+      return { current: "Front Desk & Visits" };
+    }
+    if (path === "/staff" || path.startsWith("/users")) {
+      return { current: "Staff Management" };
+    }
+    if (path === "/settings") {
+      return { current: "Settings" };
+    }
+    if (path === "/settings/policies") {
+      return {
+        parent: { title: "Settings", href: "/settings" },
+        current: "Terms & Privacy Policies",
+      };
+    }
+    if (path === "/settings/support") {
+      return {
+        parent: { title: "Settings", href: "/settings" },
+        current: "Support & FAQs",
+      };
+    }
+    if (path === "/settings/email-templates") {
+      return {
+        parent: { title: "Settings", href: "/settings" },
+        current: "Email Templates",
+      };
+    }
+    if (path.startsWith("/settings/")) {
+      return {
+        parent: { title: "Settings", href: "/settings" },
+        current: "Configuration",
+      };
+    }
+    if (path.startsWith("/login")) {
+      return { current: "Admin Authentication" };
+    }
+    return { current: "Admin Console" };
   };
 
-  const pageInfo = getPageInfo(pathname);
+  const breadcrumb = getBreadcrumb(pathname);
 
   return (
     <header className="bg-white/95 backdrop-blur-md fixed top-0 w-full z-50 flex justify-between items-center px-4 sm:px-6 lg:px-8 py-3 border-b border-[#EBE7F5] shadow-xs">
@@ -98,13 +160,24 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
 
         {/* Current Active Page Breadcrumb / Title */}
         <div className="hidden md:flex items-center gap-2 border-l border-slate-200 pl-4 py-0.5">
-          <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-            {pageInfo.category}
-          </span>
-          <span className="text-slate-300">/</span>
-          <span className="text-xs font-bold text-slate-800">
-            {pageInfo.title}
-          </span>
+          {breadcrumb.parent ? (
+            <>
+              <Link
+                href={breadcrumb.parent.href}
+                className="text-xs font-semibold text-slate-500 hover:text-[#23055c] transition-colors"
+              >
+                {breadcrumb.parent.title}
+              </Link>
+              <span className="text-slate-300">/</span>
+              <span className="text-xs font-bold text-slate-800">
+                {breadcrumb.current}
+              </span>
+            </>
+          ) : (
+            <span className="text-xs font-bold text-slate-800">
+              {breadcrumb.current}
+            </span>
+          )}
         </div>
       </div>
 

@@ -177,7 +177,7 @@ export default function EmailTemplatesManagementPage() {
         ),
       );
 
-      showToast("Template updated and Redis cache cleared successfully!");
+      showToast("Template updated successfully!");
     } catch (err: any) {
       showToast(err?.message || "Failed to save template", "error");
     } finally {

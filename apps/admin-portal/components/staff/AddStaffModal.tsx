@@ -35,7 +35,7 @@ const ROLE_DESCRIPTIONS: Record<
     title: "Finance Officer",
     department: "Accounts & Billing",
     preview:
-      "Access to Paystack webhooks, payment reconciliation ledgers, refund authorizations, and settlement reports.",
+      "Access to Paystack webhooks, payment reconciliation ledgers, transaction audits, and settlement reports.",
   },
   [UserRole.RECEPTION_OFFICER]: {
     title: "Reception Officer",

@@ -318,6 +318,8 @@ export class CustomerService {
         activeReferralCount: ((u as any).referredUsers || []).filter(
           (r: any) => r._count?.bookings > 0,
         ).length,
+        birthday: (u as any).birthday || null,
+        dateOfBirth: (u as any).birthday || null,
       };
     });
 
@@ -360,6 +362,7 @@ export class CustomerService {
         firstName: dto.firstName.trim(),
         lastName: dto.lastName.trim(),
         phoneNumber: dto.phoneNumber?.trim() || null,
+        birthday: dto.dateOfBirth || dto.birthday || null,
         role: UserRole.CUSTOMER,
         clientId,
         isVerified: true,
@@ -399,6 +402,8 @@ export class CustomerService {
       referralCode: user.referralCode || undefined,
       referralCount: 0,
       activeReferralCount: 0,
+      birthday: (user as any).birthday || dto.dateOfBirth || null,
+      dateOfBirth: (user as any).birthday || dto.dateOfBirth || null,
     };
   }
 

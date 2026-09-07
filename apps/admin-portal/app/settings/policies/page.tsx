@@ -20,10 +20,18 @@ import {
   Clock,
   User,
 } from "lucide-react";
+import { RichPolicyRenderer } from "../../../components/legal/RichPolicyRenderer";
+import { VisualWysiwygEditor } from "../../../components/legal/VisualWysiwygEditor";
 
 export default function PolicyEditorPage() {
   const { user } = useAuth();
   const toast = useToast();
+
+  const isAuthorized =
+    user?.role === UserRole.SUPER_ADMIN ||
+    user?.role === UserRole.OPERATIONS_ADMIN ||
+    (user?.role as any) === "SUPER_ADMIN" ||
+    (user?.role as any) === "OPERATIONS_ADMIN";
 
   const [activeType, setActiveType] = useState<PolicyType>("TERMS_OF_SERVICE");
   const [loading, setLoading] = useState(true);
@@ -39,26 +47,20 @@ export default function PolicyEditorPage() {
   const [content, setContent] = useState("");
   const [lastSavedContent, setLastSavedContent] = useState("");
 
-  const isAuthorized =
-    user?.role === UserRole.SUPER_ADMIN ||
-    user?.role === UserRole.OPERATIONS_ADMIN ||
-    (user?.role as any) === "SUPER_ADMIN" ||
-    (user?.role as any) === "OPERATIONS_ADMIN";
+  const hasUnsavedChanges = content !== lastSavedContent;
 
   const loadPolicy = async (type: PolicyType) => {
     setLoading(true);
     try {
-      const data = await api.policies.getByType(type);
-      setPolicy(data);
-      setTitle(data.title || "");
-      setVersion(data.version || "1.0");
-      setContent(data.content || "");
-      setLastSavedContent(data.content || "");
+      const doc = await api.policies.get(type);
+      setPolicy(doc);
+      setTitle(doc.title);
+      setVersion(doc.version);
+      setContent(doc.content);
+      setLastSavedContent(doc.content);
     } catch (err: any) {
       console.error("Failed to load policy:", err);
-      toast.error(err?.message || "Could not retrieve policy document.", {
-        title: "Error Loading Policy",
-      });
+      toast.error("Could not fetch policy document.", { title: "Error" });
     } finally {
       setLoading(false);
     }
@@ -102,8 +104,6 @@ export default function PolicyEditorPage() {
     }
   };
 
-  const hasUnsavedChanges = content !== lastSavedContent;
-
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
       {/* Header */}
@@ -122,11 +122,11 @@ export default function PolicyEditorPage() {
             </div>
             <div>
               <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                Terms & Privacy Policy Editor
+                Terms &amp; Privacy Policy Rich Text Editor
               </h1>
               <p className="text-xs text-slate-500 font-medium">
-                Official hub legal documentation, user agreements & NDPR / NDPA
-                2023 compliance.
+                Official hub legal documentation, user agreements &amp; NDPR /
+                NDPA 2023 compliance.
               </p>
             </div>
           </div>
@@ -203,7 +203,7 @@ export default function PolicyEditorPage() {
             }`}
           >
             <Shield className="w-4 h-4" />
-            <span>Privacy Policy & NDPR</span>
+            <span>Privacy Policy &amp; NDPR</span>
           </button>
         </div>
 
@@ -243,7 +243,7 @@ export default function PolicyEditorPage() {
             }`}
           >
             <Eye className="w-3.5 h-3.5" />
-            <span>Preview</span>
+            <span>Rich Preview</span>
           </button>
         </div>
       </div>
@@ -296,28 +296,17 @@ export default function PolicyEditorPage() {
           </div>
 
           {/* Editor & Preview Pane */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* Markdown Text Editor */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
+            {/* Non-Technical Visual WYSIWYG Editor */}
             {(activeView === "edit" || activeView === "split") && (
               <div
-                className={`bg-white rounded-2xl border border-slate-200 shadow-xs flex flex-col overflow-hidden ${activeView === "edit" ? "lg:col-span-2" : ""}`}
+                className={`flex flex-col h-full overflow-hidden ${activeView === "edit" ? "lg:col-span-2" : ""}`}
               >
-                <div className="p-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between text-xs text-slate-600 font-bold">
-                  <div className="flex items-center gap-2">
-                    <Edit3 className="w-3.5 h-3.5 text-[#23055c]" />
-                    <span>Markdown Source</span>
-                  </div>
-                  <span className="text-[11px] font-mono text-slate-400">
-                    {content.length} characters
-                  </span>
-                </div>
-                <textarea
+                <VisualWysiwygEditor
                   value={content}
-                  onChange={(e) => setContent(e.target.value)}
+                  onChange={setContent}
                   disabled={!isAuthorized}
-                  rows={26}
-                  placeholder="Enter policy terms in Markdown..."
-                  className="w-full p-4 text-xs font-mono text-slate-800 leading-relaxed bg-white border-0 focus:outline-none resize-none focus:ring-0"
+                  minHeight="540px"
                 />
               </div>
             )}
@@ -325,19 +314,27 @@ export default function PolicyEditorPage() {
             {/* Live Document Preview */}
             {(activeView === "preview" || activeView === "split") && (
               <div
-                className={`bg-white rounded-2xl border border-slate-200 shadow-xs flex flex-col overflow-hidden ${activeView === "preview" ? "lg:col-span-2" : ""}`}
+                className={`bg-white rounded-2xl border border-slate-200 shadow-xs flex flex-col h-full overflow-hidden ${activeView === "preview" ? "lg:col-span-2" : ""}`}
               >
-                <div className="p-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between text-xs text-slate-600 font-bold">
+                <div className="p-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between text-xs text-slate-600 font-bold shrink-0">
                   <div className="flex items-center gap-2">
                     <Eye className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>Member Live Preview</span>
+                    <span>Member Live Rich Preview</span>
                   </div>
                   <span className="text-[11px] text-slate-400 font-medium">
-                    Rendered as members see on Web & PWA
+                    Formatted exactly as seen by members on Web &amp; PWA
                   </span>
                 </div>
-                <div className="p-6 overflow-y-auto max-h-[640px] prose prose-slate max-w-none prose-headings:font-bold prose-headings:text-slate-900 prose-h1:text-xl prose-h2:text-lg prose-h3:text-sm prose-p:text-xs prose-p:leading-relaxed prose-li:text-xs whitespace-pre-line">
-                  {content}
+                <div className="p-6 sm:p-8 overflow-y-auto flex-1 bg-white">
+                  <div className="border-b border-slate-100 pb-4 mb-4">
+                    <h2 className="text-xl font-black text-slate-900">
+                      {title || "Document Title"}
+                    </h2>
+                    <span className="text-xs text-slate-400 font-mono">
+                      v{version || "1.0"}
+                    </span>
+                  </div>
+                  <RichPolicyRenderer content={content} />
                 </div>
               </div>
             )}

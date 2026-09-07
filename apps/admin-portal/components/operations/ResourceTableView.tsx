@@ -200,11 +200,15 @@ export function ResourceTableView({
                       </button>
                       <button
                         onClick={() => onToggleActive(res)}
-                        title={res.isActive ? "Take Offline" : "Reactivate"}
+                        title={
+                          res.isActive
+                            ? "Active (Click to take offline)"
+                            : "Inactive (Click to reactivate)"
+                        }
                         className={`p-1.5 rounded-md transition-colors cursor-pointer ${
                           res.isActive
-                            ? "text-slate-500 hover:bg-slate-100"
-                            : "text-emerald-600 hover:bg-emerald-50"
+                            ? "text-emerald-600 bg-emerald-50/70 hover:bg-emerald-100"
+                            : "text-slate-400 hover:bg-slate-100 hover:text-slate-600"
                         }`}
                       >
                         <Power className="h-3.5 w-3.5" />

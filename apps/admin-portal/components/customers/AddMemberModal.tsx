@@ -22,6 +22,7 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [dateOfBirth, setDateOfBirth] = useState("");
   const [tier, setTier] = useState("Hot Desk Monthly");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -52,6 +53,7 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
         lastName: lastName.trim(),
         email: email.trim().toLowerCase(),
         phoneNumber: phoneNumber.trim() || undefined,
+        dateOfBirth: dateOfBirth || undefined,
         tier,
       });
 
@@ -70,6 +72,7 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
       setLastName("");
       setEmail("");
       setPhoneNumber("");
+      setDateOfBirth("");
       onClose();
     } catch (err: any) {
       toast.error(err?.message || "Failed to create customer record", {
@@ -164,6 +167,18 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
               value={phoneNumber}
               onChange={(e) => setPhoneNumber(e.target.value)}
               placeholder="+234 810 000 0000"
+              className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-[#23055c] focus:ring-2 focus:ring-[#23055c]/20"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="block font-bold text-slate-700">
+              Date of Birth (Optional)
+            </label>
+            <input
+              type="date"
+              value={dateOfBirth}
+              onChange={(e) => setDateOfBirth(e.target.value)}
               className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-[#23055c] focus:ring-2 focus:ring-[#23055c]/20"
             />
           </div>

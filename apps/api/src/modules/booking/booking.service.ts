@@ -280,8 +280,20 @@ export class BookingService {
     const year = parseInt(yearStr, 10);
     const month = parseInt(monthStr, 10) - 1; // 0-indexed month
 
-    const startOfMonth = new Date(Date.UTC(year, month, 1, 0, 0, 0));
-    const endOfMonth = new Date(Date.UTC(year, month + 1, 0, 23, 59, 59));
+    const daysInTargetMonth = new Date(year, month + 1, 0).getDate();
+    const startOfMonth = new Date(`${targetMonth}-01T00:00:00+01:00`);
+    const endOfMonth = new Date(
+      `${targetMonth}-${String(daysInTargetMonth).padStart(2, "0")}T23:59:59.999+01:00`,
+    );
+
+    // Helper to format date in WAT (UTC+1) as YYYY-MM-DD
+    const toWatDateString = (date: Date): string => {
+      const watDate = new Date(date.getTime() + 60 * 60 * 1000);
+      const y = watDate.getUTCFullYear();
+      const m = String(watDate.getUTCMonth() + 1).padStart(2, "0");
+      const d = String(watDate.getUTCDate()).padStart(2, "0");
+      return `${y}-${m}-${d}`;
+    };
 
     // Fetch active bookings in month range
     const bookings = await prisma.booking.findMany({
@@ -303,16 +315,23 @@ export class BookingService {
       const bStart = new Date(b.startDate);
       const bEnd = new Date(b.endDate);
 
-      const cur = new Date(Math.max(bStart.getTime(), startOfMonth.getTime()));
-      const limit = new Date(Math.min(bEnd.getTime(), endOfMonth.getTime()));
+      const startClamped = Math.max(bStart.getTime(), startOfMonth.getTime());
+      const limitClamped = Math.min(bEnd.getTime(), endOfMonth.getTime());
+      if (startClamped > limitClamped) return;
+
+      const startDayStr = toWatDateString(new Date(startClamped));
+      const endDayStr = toWatDateString(new Date(limitClamped));
+
+      let cur = new Date(`${startDayStr}T12:00:00+01:00`);
+      const limit = new Date(`${endDayStr}T12:00:00+01:00`);
 
       while (cur <= limit) {
-        const dStr = cur.toISOString().split("T")[0];
+        const dStr = toWatDateString(cur);
         busyDates[dStr] = {
           status: CalendarDayStatus.BLACKOUT,
           reason: b.reason || "Scheduled Maintenance",
         };
-        cur.setUTCDate(cur.getUTCDate() + 1);
+        cur.setTime(cur.getTime() + 24 * 60 * 60 * 1000);
       }
     });
 
@@ -322,12 +341,11 @@ export class BookingService {
       .map((s) => s.dayOfWeek);
 
     if (closedDaysOfWeek.length > 0) {
-      const daysInTargetMonth = new Date(year, month + 1, 0).getDate();
       for (let d = 1; d <= daysInTargetMonth; d++) {
         const dayTwoDigits = String(d).padStart(2, "0");
         const monthTwoDigits = String(month + 1).padStart(2, "0");
         const dStr = `${year}-${monthTwoDigits}-${dayTwoDigits}`;
-        const noonDate = new Date(`${dStr}T12:00:00.000Z`);
+        const noonDate = new Date(`${dStr}T12:00:00+01:00`);
         const dayOfWeek = noonDate.getUTCDay();
 
         if (closedDaysOfWeek.includes(dayOfWeek)) {
@@ -350,12 +368,21 @@ export class BookingService {
       const bEnd =
         bk.endTime instanceof Date ? bk.endTime : new Date(bk.endTime);
 
-      const cur = new Date(Math.max(bStart.getTime(), startOfMonth.getTime()));
-      while (cur < bEnd && cur <= endOfMonth) {
-        const dStr = cur.toISOString().split("T")[0];
+      const startClamped = Math.max(bStart.getTime(), startOfMonth.getTime());
+      const endClamped = Math.min(bEnd.getTime(), endOfMonth.getTime());
+      if (startClamped >= endClamped) return;
+
+      const startDayStr = toWatDateString(new Date(startClamped));
+      const endDayStr = toWatDateString(new Date(endClamped - 1));
+
+      let cur = new Date(`${startDayStr}T12:00:00+01:00`);
+      const limit = new Date(`${endDayStr}T12:00:00+01:00`);
+
+      while (cur <= limit) {
+        const dStr = toWatDateString(cur);
         if (!dateBookingsMap[dStr]) dateBookingsMap[dStr] = [];
         dateBookingsMap[dStr].push({ start: bStart, end: bEnd });
-        cur.setUTCDate(cur.getUTCDate() + 1);
+        cur.setTime(cur.getTime() + 24 * 60 * 60 * 1000);
       }
     });
 
@@ -370,35 +397,44 @@ export class BookingService {
         return;
       }
 
-      // Calculate max simultaneous overlap on this day
-      let maxSimultaneous = list.length;
+      // Calculate occupancy for each local hour (0..23) in WAT (UTC+1)
+      const hourlyOccupancy = new Array(24).fill(0);
+      for (let h = 0; h < 24; h++) {
+        const slotStart = new Date(
+          `${dStr}T${String(h).padStart(2, "0")}:00:00+01:00`,
+        );
+        const slotEnd = new Date(
+          `${dStr}T${String(h).padStart(2, "0")}:59:59.999+01:00`,
+        );
+        list.forEach((b) => {
+          if (b.start < slotEnd && b.end > slotStart) {
+            hourlyOccupancy[h]++;
+          }
+        });
+      }
+
+      const maxSimultaneous = Math.max(0, ...hourlyOccupancy);
       const remainingSpots = Math.max(0, resource.capacity - maxSimultaneous);
 
-      // Collect hour slots (0..23) that are booked on this day
-      const bookedHours = new Set<number>();
-      list.forEach((b) => {
-        for (let h = 0; h < 24; h++) {
-          const slotStart = new Date(
-            `${dStr}T${String(h).padStart(2, "0")}:00:00.000Z`,
-          );
-          const slotEnd = new Date(
-            `${dStr}T${String(h).padStart(2, "0")}:59:59.999Z`,
-          );
-          if (b.start < slotEnd && b.end > slotStart) {
-            bookedHours.add(h);
-          }
+      // Collect hour slots (0..23) that have reached full capacity
+      const bookedHours: number[] = [];
+      for (let h = 0; h < 24; h++) {
+        if (hourlyOccupancy[h] >= resource.capacity) {
+          bookedHours.push(h);
         }
-      });
+      }
 
       const status =
         remainingSpots <= 0
           ? CalendarDayStatus.FULL
-          : CalendarDayStatus.LIMITED;
+          : maxSimultaneous > 0
+            ? CalendarDayStatus.LIMITED
+            : CalendarDayStatus.AVAILABLE;
 
       busyDates[dStr] = {
         status,
         remainingSpots,
-        bookedHourSlots: Array.from(bookedHours).sort((a, b) => a - b),
+        bookedHourSlots: bookedHours.sort((a, b) => a - b),
       };
     });
 

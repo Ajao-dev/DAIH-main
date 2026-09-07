@@ -178,8 +178,8 @@ function DurationSelector({
   }, [baseDate]);
 
   return (
-    <div className="space-y-4 border border-[#EBE7F5] rounded-xl p-4 bg-[#faf9ff]">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 border border-[#EBE7F5] rounded-xl p-3.5 sm:p-4 bg-[#faf9ff] min-w-0 max-w-full">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h4 className="text-xs font-bold text-[#23055c] uppercase tracking-wide">
           {durType === "hours"
             ? "Duration & Time"
@@ -190,7 +190,7 @@ function DurationSelector({
         <button
           type="button"
           onClick={() => setShowFullMonth(!showFullMonth)}
-          className="text-[11px] font-bold text-[#23055c] hover:underline flex items-center gap-1 bg-white px-2.5 py-1 border border-[#EBE7F5] rounded-lg shadow-2xs"
+          className="text-[11px] font-bold text-[#23055c] hover:underline flex items-center gap-1 bg-white px-2.5 py-1 border border-[#EBE7F5] rounded-lg shadow-2xs cursor-pointer"
         >
           <CalendarIcon className="h-3 w-3" />
           <span>{showFullMonth ? "Hide Full Month" : "Full Month View"}</span>
@@ -198,16 +198,16 @@ function DurationSelector({
       </div>
 
       {isSelectedDateBlackout && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5 flex items-center gap-2 text-amber-800 text-xs font-semibold">
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5 flex items-center gap-2 text-amber-800 text-xs font-semibold min-w-0">
           <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
-          <span>
+          <span className="break-words">
             {selectedDayInfo?.reason || "Scheduled maintenance on this date"}
           </span>
         </div>
       )}
 
       {isSelectedDateClosed && (
-        <div className="bg-slate-100 border border-slate-200 rounded-lg p-2.5 flex items-center gap-2 text-slate-700 text-xs font-semibold">
+        <div className="bg-slate-100 border border-slate-200 rounded-lg p-2.5 flex items-center gap-2 text-slate-700 text-xs font-semibold min-w-0">
           <AlertCircle className="h-4 w-4 text-slate-500 shrink-0" />
           <span>Workspace is closed on this day of the week</span>
         </div>
@@ -215,8 +215,8 @@ function DurationSelector({
 
       {/* Expandable Full Month Calendar Grid */}
       {showFullMonth && (
-        <div className="bg-white border border-slate-200 rounded-xl p-3 space-y-2 animate-in fade-in slide-in-from-top-2 duration-200">
-          <div className="flex items-center justify-between text-xs font-bold text-[#23055c]">
+        <div className="bg-white border border-slate-200 rounded-xl p-2.5 sm:p-3 space-y-2 animate-in fade-in slide-in-from-top-2 duration-200 min-w-0 max-w-full overflow-hidden">
+          <div className="flex flex-wrap items-center justify-between text-xs font-bold text-[#23055c] gap-1">
             <span>
               {baseDate.toLocaleString("en-US", {
                 month: "long",
@@ -228,7 +228,7 @@ function DurationSelector({
               Click any open day to select
             </span>
           </div>
-          <div className="grid grid-cols-7 gap-1 text-center">
+          <div className="grid grid-cols-7 gap-1 text-center w-full">
             {["S", "M", "T", "W", "T", "F", "S"].map((day, idx) => (
               <div
                 key={idx}
@@ -275,31 +275,31 @@ function DurationSelector({
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3">
-        <div>
+      <div className="grid grid-cols-1 min-[380px]:grid-cols-2 gap-3 min-w-0">
+        <div className="min-w-0">
           <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">
             {durType === "hours" ? "Date" : "Start Date"}
           </label>
-          <div className="flex items-center border border-slate-200 rounded-lg px-2.5 py-2 bg-white focus-within:border-[#23055c] focus-within:ring-1 focus-within:ring-[#23055c]/30 transition-all">
+          <div className="flex items-center border border-slate-200 rounded-lg px-2.5 py-2 bg-white focus-within:border-[#23055c] focus-within:ring-1 focus-within:ring-[#23055c]/30 transition-all min-w-0">
             <CalendarIcon className="h-3.5 w-3.5 text-slate-400 mr-1.5 shrink-0" />
             <input
               type="date"
               min={today}
-              className="bg-transparent border-none outline-none w-full text-xs font-medium text-slate-800"
+              className="bg-transparent border-none outline-none w-full min-w-0 text-xs font-medium text-slate-800"
               value={startDate}
               onChange={(e) => onStartDateChange(e.target.value)}
             />
           </div>
         </div>
         {durType === "hours" ? (
-          <div>
+          <div className="min-w-0">
             <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">
               Start Time
             </label>
-            <div className="flex items-center border border-slate-200 rounded-lg px-2.5 py-2 bg-white focus-within:border-[#23055c] focus-within:ring-1 focus-within:ring-[#23055c]/30 transition-all">
+            <div className="flex items-center border border-slate-200 rounded-lg px-2.5 py-2 bg-white focus-within:border-[#23055c] focus-within:ring-1 focus-within:ring-[#23055c]/30 transition-all min-w-0">
               <Clock className="h-3.5 w-3.5 text-slate-400 mr-1.5 shrink-0" />
               <select
-                className="bg-transparent border-none outline-none w-full text-xs font-medium text-slate-800"
+                className="bg-transparent border-none outline-none w-full min-w-0 text-xs font-medium text-slate-800"
                 value={startHour}
                 onChange={(e) => onStartHourChange(Number(e.target.value))}
               >
@@ -315,13 +315,13 @@ function DurationSelector({
             </div>
           </div>
         ) : (
-          <div>
+          <div className="min-w-0">
             <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">
               End Date
             </label>
-            <div className="flex items-center border border-slate-200 rounded-lg px-2.5 py-2 bg-white cursor-not-allowed">
+            <div className="flex items-center border border-slate-200 rounded-lg px-2.5 py-2 bg-white cursor-not-allowed min-w-0">
               <CalendarIcon className="h-3.5 w-3.5 text-slate-300 mr-1.5 shrink-0" />
-              <span className="text-xs font-medium text-slate-500">
+              <span className="text-xs font-medium text-slate-500 truncate">
                 {formatDate(endDate)}
               </span>
             </div>
@@ -330,11 +330,11 @@ function DurationSelector({
       </div>
 
       {durType === "hours" && (
-        <div className="space-y-1.5 pt-1">
+        <div className="space-y-1.5 pt-1 min-w-0">
           <label className="text-[10px] font-bold text-slate-500 uppercase block">
             Available Start Time
           </label>
-          <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5">
+          <div className="grid grid-cols-3 min-[400px]:grid-cols-4 sm:grid-cols-6 gap-1.5 min-w-0">
             {Array.from({ length: 14 }, (_, i) => i + 7).map((h) => {
               const isBooked = bookedHourSlots.includes(h);
               const isSelected = startHour === h;
@@ -344,7 +344,7 @@ function DurationSelector({
                   type="button"
                   disabled={isBooked}
                   onClick={() => onStartHourChange(h)}
-                  className={`px-2 py-1.5 rounded-lg text-[11px] font-bold transition-all text-center flex flex-col items-center justify-center border ${
+                  className={`px-1 py-1.5 rounded-lg text-[10px] min-[400px]:text-[11px] font-bold transition-all text-center flex flex-col items-center justify-center border min-w-0 ${
                     isBooked
                       ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed line-through"
                       : isSelected
@@ -352,7 +352,7 @@ function DurationSelector({
                         : "bg-white text-slate-700 border-slate-200 hover:border-[#23055c]"
                   }`}
                 >
-                  <span>{formatTime(h)}</span>
+                  <span className="truncate w-full">{formatTime(h)}</span>
                   {isBooked && (
                     <span className="text-[8px] font-normal no-underline text-rose-500">
                       Booked
@@ -366,8 +366,8 @@ function DurationSelector({
       )}
 
       {durType !== "hours" && (
-        <div className="space-y-1.5 pt-1">
-          <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+        <div className="space-y-1.5 pt-1 min-w-0 max-w-full">
+          <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar min-w-0 max-w-full">
             {Array.from({ length: 7 }, (_, i) => {
               const d = new Date(baseDate);
               d.setDate(d.getDate() + i);
@@ -677,21 +677,36 @@ export default function PlanSelectionAndCheckoutPage() {
     return 18;
   }, [durType, startHour, totalUnits]);
 
-  // Compute calculated start and end ISO strings for availability check
+  // Compute calculated start and end ISO strings for availability check (WAT UTC+1)
   const [startIso, endIso] = useMemo(() => {
     if (durType === "hours") {
       const s = new Date(
-        `${startDate}T${String(startHour).padStart(2, "0")}:00:00`,
+        `${startDate}T${String(startHour).padStart(2, "0")}:00:00+01:00`,
       ).toISOString();
       const e = new Date(
-        `${startDate}T${String(endHour).padStart(2, "0")}:00:00`,
+        `${startDate}T${String(endHour).padStart(2, "0")}:00:00+01:00`,
       ).toISOString();
       return [s, e];
     }
-    const s = new Date(`${startDate}T08:00:00`).toISOString();
-    const e = new Date(`${endDate}T18:00:00`).toISOString();
+    const s = new Date(`${startDate}T08:00:00+01:00`).toISOString();
+    const e = new Date(`${endDate}T18:00:00+01:00`).toISOString();
     return [s, e];
   }, [durType, startDate, startHour, endDate, endHour]);
+
+  // If selected startHour is fully booked on this day, auto-select the first available hour
+  useEffect(() => {
+    if (durType !== "hours" || !calendarData) return;
+    const dayInfo = calendarData.busyDates?.[startDate];
+    const bookedSlots: number[] = dayInfo?.bookedHourSlots || [];
+    if (bookedSlots.includes(startHour)) {
+      const firstOpen = Array.from({ length: 14 }, (_, i) => i + 7).find(
+        (h) => !bookedSlots.includes(h),
+      );
+      if (firstOpen !== undefined) {
+        setStartHour(firstOpen);
+      }
+    }
+  }, [durType, calendarData, startDate, startHour]);
 
   // Real-time Availability Check: Triggers immediately whenever resource, startIso, or endIso changes
   useEffect(() => {
@@ -1072,9 +1087,9 @@ export default function PlanSelectionAndCheckoutPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 min-w-0 max-w-full">
       {/* Hero Banner */}
-      <div className="relative h-[240px] sm:h-[300px] md:h-[340px] w-full rounded-2xl overflow-hidden shadow-xs border border-slate-200">
+      <div className="relative h-[240px] sm:h-[300px] md:h-[340px] w-full rounded-2xl overflow-hidden shadow-xs border border-slate-200 min-w-0">
         <img
           alt={resource?.name || "Workspace"}
           className="w-full h-full object-cover"
@@ -1083,17 +1098,17 @@ export default function PlanSelectionAndCheckoutPage() {
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-transparent" />
         <button
           onClick={() => router.back()}
-          className="absolute top-4 left-4 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white rounded-full p-2.5 transition-all z-10"
+          className="absolute top-4 left-4 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white rounded-full p-2.5 transition-all z-10 cursor-pointer"
         >
           <ArrowLeft className="h-4 w-4" />
         </button>
-        <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
-          <div className="flex items-end justify-between">
-            <div>
-              <h1 className="text-2xl font-extrabold tracking-tight drop-shadow">
+        <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 text-white min-w-0">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 min-w-0">
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight drop-shadow truncate">
                 {resource?.name}
               </h1>
-              <div className="flex items-center gap-1.5 mt-1 text-white/80 text-xs font-medium">
+              <div className="flex flex-wrap items-center gap-1.5 mt-1 text-white/80 text-xs font-medium">
                 <MapPin className="h-3.5 w-3.5 shrink-0" />
                 <span>{resource?.location || "DAIH Campus"}</span>
                 {resource?.capacity !== undefined &&
@@ -1109,12 +1124,12 @@ export default function PlanSelectionAndCheckoutPage() {
                   )}
               </div>
             </div>
-            <div className="flex gap-2 shrink-0">
-              <div className="bg-white/15 backdrop-blur-sm px-3 py-1.5 rounded-full flex items-center gap-1.5 text-xs font-semibold">
+            <div className="flex flex-wrap gap-2 shrink-0">
+              <div className="bg-white/15 backdrop-blur-sm px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full flex items-center gap-1.5 text-xs font-semibold">
                 <ShieldCheck className="h-3.5 w-3.5" />
                 <span>Verified</span>
               </div>
-              <div className="bg-white/15 backdrop-blur-sm px-3 py-1.5 rounded-full flex items-center gap-1.5 text-xs font-semibold">
+              <div className="bg-white/15 backdrop-blur-sm px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full flex items-center gap-1.5 text-xs font-semibold">
                 <Sparkles className="h-3.5 w-3.5" />
                 <span>Premium</span>
               </div>
@@ -1125,22 +1140,22 @@ export default function PlanSelectionAndCheckoutPage() {
 
       {/* Active Hold Countdown Banner */}
       {activeHoldId && !isHoldExpired && (
-        <div className="bg-[#23055c] text-white rounded-xl p-4 flex items-center justify-between shadow-md animate-in fade-in duration-300">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center">
+        <div className="bg-[#23055c] text-white rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md animate-in fade-in duration-300 min-w-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
               <Timer className="h-5 w-5 text-amber-300 animate-pulse" />
             </div>
-            <div>
+            <div className="min-w-0">
               <h4 className="text-xs font-bold uppercase tracking-wider text-amber-300">
                 Spot Reserved for You
               </h4>
-              <p className="text-xs text-white/90">
+              <p className="text-xs text-white/90 truncate sm:whitespace-normal">
                 Holding your reservation ({bookingRef}). Complete checkout to
                 confirm.
               </p>
             </div>
           </div>
-          <div className="text-right">
+          <div className="text-left sm:text-right shrink-0">
             <span className="font-mono text-xl font-extrabold text-amber-300">
               {String(holdMinutes).padStart(2, "0")}:
               {String(holdSecs).padStart(2, "0")}
@@ -1153,9 +1168,9 @@ export default function PlanSelectionAndCheckoutPage() {
       )}
 
       {isHoldExpired && (
-        <div className="bg-amber-500 text-white rounded-xl p-4 flex items-center justify-between shadow-md">
-          <div className="flex items-center gap-3">
-            <AlertTriangle className="h-5 w-5" />
+        <div className="bg-amber-500 text-white rounded-xl p-4 flex items-center justify-between shadow-md min-w-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <AlertTriangle className="h-5 w-5 shrink-0" />
             <p className="text-xs font-semibold">
               Your 10-minute reservation hold has expired. Click below to retry.
             </p>
@@ -1165,7 +1180,7 @@ export default function PlanSelectionAndCheckoutPage() {
               setActiveHoldId(null);
               setHoldExpiresAt(null);
             }}
-            className="px-3 py-1.5 bg-white text-amber-700 font-bold text-xs rounded-lg cursor-pointer hover:bg-amber-50"
+            className="px-3 py-1.5 bg-white text-amber-700 font-bold text-xs rounded-lg cursor-pointer hover:bg-amber-50 shrink-0"
           >
             Retry Hold
           </button>
@@ -1173,9 +1188,9 @@ export default function PlanSelectionAndCheckoutPage() {
       )}
 
       {/* Main Content */}
-      <div className="flex flex-col lg:flex-row gap-8">
+      <div className="flex flex-col lg:flex-row gap-8 w-full min-w-0">
         {/* Left: Plans + Duration + Live Availability */}
-        <div className="flex-1 space-y-8">
+        <div className="flex-1 min-w-0 max-w-full space-y-8">
           <div>
             <div className="mb-4">
               <h2 className="text-xl font-bold text-slate-900">
@@ -1185,7 +1200,7 @@ export default function PlanSelectionAndCheckoutPage() {
                 Choose the best package for your needs and schedule.
               </p>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 min-w-0">
               {plans.map((plan) => {
                 const isSelected = plan.id === selectedPlanId;
                 return (
@@ -1250,8 +1265,8 @@ export default function PlanSelectionAndCheckoutPage() {
 
           {/* Duration & Range Selector */}
           {selectedPlan && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
+            <div className="space-y-4 min-w-0 max-w-full">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 min-w-0">
                 <div>
                   <h2 className="text-xl font-bold text-slate-900">
                     {durType === "hours"
@@ -1270,7 +1285,7 @@ export default function PlanSelectionAndCheckoutPage() {
                 </div>
 
                 {/* Instant Availability Badge */}
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 shrink-0 self-start sm:self-auto">
                   {checkingAvailability ? (
                     <div className="flex items-center gap-1.5 text-slate-400 text-xs font-semibold px-3 py-1 bg-slate-100 rounded-full">
                       <Loader2 className="h-3 w-3 animate-spin text-[#23055c]" />
@@ -1312,8 +1327,8 @@ export default function PlanSelectionAndCheckoutPage() {
         </div>
 
         {/* Right: Booking Summary & Checkout */}
-        <div className="w-full lg:w-1/3">
-          <div className="sticky top-20 border border-[#EBE7F5] rounded-xl bg-white p-6 shadow-sm space-y-6">
+        <div className="w-full lg:w-1/3 min-w-0">
+          <div className="sticky top-20 border border-[#EBE7F5] rounded-xl bg-white p-4 sm:p-6 shadow-sm space-y-6 min-w-0 max-w-full">
             <h3 className="text-lg font-bold text-slate-900 border-b border-[#EBE7F5] pb-3">
               Booking Summary
             </h3>
