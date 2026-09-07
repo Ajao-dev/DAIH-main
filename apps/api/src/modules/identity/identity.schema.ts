@@ -130,6 +130,8 @@ export const createCustomerAdminSchema = z.object({
     .optional()
     .transform((val) => (val ? sanitizeString(val) : val)),
   tier: z.string().trim().optional(),
+  dateOfBirth: z.string().trim().optional(),
+  birthday: z.string().trim().optional(),
 });
 
 export const updateProfileSchema = z.object({

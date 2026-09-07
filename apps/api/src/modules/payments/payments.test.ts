@@ -521,32 +521,27 @@ describe("Milestone 1.4: Payment Engine & Reconciliation Module", () => {
   });
 
   describe("4. No-Refund Policy Enforcement & Late Payment Capacity Conflicts", () => {
-    it("should reject customer refund requests under the strict No-Refund Policy", async () => {
-      const res = await request(app)
+    it("should return 404 as refund request routes are removed from the system", async () => {
+      await request(app)
         .post(`/api/v1/payments/bookings/${testBookingId}/refund-request`)
         .set("Authorization", `Bearer ${customerToken}`)
         .send({ reason: "Scheduling conflict" })
-        .expect(400);
-
-      expect(res.body.code).toBe("NO_REFUND_POLICY");
-      expect(res.body.message).toContain("strict No-Refund Policy");
+        .expect(404);
     });
 
-    it("should reject refund processing under the strict No-Refund Policy", async () => {
+    it("should return 404 as refund processing routes are removed from the system", async () => {
       const tx = await prisma.transaction.findUnique({
         where: { reference: testTransactionReference },
       });
 
-      const res = await request(app)
+      await request(app)
         .post(`/api/v1/payments/${tx?.id}/refund`)
         .set("Authorization", `Bearer ${financeToken}`)
         .send({
           amount: 15000,
           reason: "Approved per cancellation policy",
         })
-        .expect(400);
-
-      expect(res.body.code).toBe("NO_REFUND_POLICY");
+        .expect(404);
     });
 
     it("should handle late webhook arrival on expired slot when slot is re-booked: marks transaction SUCCESSFUL, booking NO_SHOW, and flags CAPACITY_CONFLICT for admin", async () => {

@@ -160,7 +160,7 @@ export const WorkspaceDetailView: React.FC<WorkspaceDetailViewProps> = ({
                     {resource.pricing.map((plan: ResourcePricingPlan) => (
                       <li
                         key={plan.id}
-                        className="d-flex justify-content-between align-items-center py-2 border-bottom"
+                        className="d-flex justify-content-between align-items-center py-2 border-bottom flex-wrap gap-2"
                       >
                         <span className="font-weight-bold">
                           {plan.planName}

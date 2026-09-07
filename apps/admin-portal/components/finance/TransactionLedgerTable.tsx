@@ -12,7 +12,6 @@ import {
   ChevronRight,
   X,
   FileText,
-  RotateCcw,
   Loader2,
   Receipt,
   ShieldCheck,
@@ -32,7 +31,7 @@ export interface FinanceTransaction {
   resourcePlan: string;
   amount: string;
   rawAmount: number;
-  status: "Paid" | "Pending" | "Failed" | "Refunded";
+  status: "Paid" | "Pending" | "Failed";
 }
 
 interface TransactionLedgerTableProps {
@@ -87,11 +86,6 @@ export const TransactionLedgerTable: React.FC<TransactionLedgerTableProps> = ({
         if (tx.status === PaymentStatus.SUCCESSFUL || tx.status === "SUCCESS")
           status = "Paid";
         else if (tx.status === PaymentStatus.FAILED) status = "Failed";
-        else if (
-          tx.status === PaymentStatus.REFUNDED ||
-          tx.status === PaymentStatus.PARTIALLY_REFUNDED
-        )
-          status = "Refunded";
 
         const userName =
           tx.customerName ||
@@ -163,13 +157,6 @@ export const TransactionLedgerTable: React.FC<TransactionLedgerTableProps> = ({
             Pending
           </span>
         );
-      case "Refunded":
-        return (
-          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-200/80">
-            <RotateCcw className="w-3 h-3" />
-            Refunded
-          </span>
-        );
       case "Failed":
       default:
         return (
@@ -220,7 +207,7 @@ export const TransactionLedgerTable: React.FC<TransactionLedgerTableProps> = ({
 
             {filterOpen && (
               <div className="absolute top-full left-0 mt-1 w-36 bg-white rounded-xl shadow-lg border border-[#EBE7F5] py-1 z-20">
-                {["ALL", "PAID", "PENDING", "FAILED", "REFUNDED"].map((st) => (
+                {["ALL", "PAID", "PENDING", "FAILED"].map((st) => (
                   <button
                     key={st}
                     onClick={() => {
@@ -402,7 +389,7 @@ export const TransactionLedgerTable: React.FC<TransactionLedgerTableProps> = ({
         </div>
       </div>
 
-      {/* Transaction Details & Refund Modal */}
+      {/* Transaction Details Modal */}
       {selectedTx && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-150">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 relative">
@@ -464,7 +451,7 @@ export const TransactionLedgerTable: React.FC<TransactionLedgerTableProps> = ({
             <div className="mb-4 p-3 bg-purple-50/60 rounded-xl border border-purple-100 flex items-center gap-2.5 text-xs text-purple-900 font-medium">
               <ShieldCheck className="w-4 h-4 text-[#23055c] shrink-0" />
               <span>
-                DAIH operates a strict <strong>No Cash Refund Policy</strong>.
+                DAIH operates a strict <strong>No-Refund Policy</strong>.
                 Unredeemed No-Show sessions can be rescheduled by Operations
                 Admins.
               </span>

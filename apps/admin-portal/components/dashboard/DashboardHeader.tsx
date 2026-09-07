@@ -39,7 +39,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
     <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
       <div>
         <h1 className="font-headline-md text-headline-md text-on-surface">
-          Operations Overview
+          Operations Dashboard
         </h1>
         <p className="font-body-md text-body-md text-on-surface-variant mt-1">
           Real-time pulse of DAIH Workspace facilities.

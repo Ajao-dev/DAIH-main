@@ -18,12 +18,11 @@ export const RevenueTrendChart: React.FC<RevenueTrendChartProps> = ({
   const [viewMode, setViewMode] = useState<"Trend" | "Cumulative">("Trend");
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
 
-  // Helper to compute net revenue (Successful Gross - Refunded) in a date filter predicate
+  // Helper to compute revenue in a date filter predicate
   const computeNetRevenue = (
     filterFn: (tx: PaymentTransaction) => boolean,
   ): number => {
     let gross = 0;
-    let refunded = 0;
 
     transactions.forEach((t) => {
       if (!filterFn(t)) return;
@@ -32,16 +31,11 @@ export const RevenueTrendChart: React.FC<RevenueTrendChartProps> = ({
       const isSuccess =
         t.status === PaymentStatus.SUCCESSFUL ||
         (t.status as any) === "SUCCESS";
-      const isRefund =
-        t.status === PaymentStatus.REFUNDED ||
-        t.status === PaymentStatus.PARTIALLY_REFUNDED ||
-        (t.status as any) === "REFUNDED";
 
       if (isSuccess) gross += amt;
-      else if (isRefund) refunded += amt;
     });
 
-    return Math.max(0, gross - refunded);
+    return gross;
   };
 
   // Helper to format date as dd/MM (e.g. 24/08)
@@ -224,7 +218,7 @@ export const RevenueTrendChart: React.FC<RevenueTrendChartProps> = ({
             Total Net Revenue Trend
           </h3>
           <p className="text-xs text-slate-400">
-            {dateRange} · Net revenue trajectory (gross minus refunds)
+            {dateRange} · Revenue trajectory
           </p>
         </div>
         <div className="flex gap-1.5 bg-[#F8F9FA] p-1 rounded-lg border border-[#EBE7F5]">

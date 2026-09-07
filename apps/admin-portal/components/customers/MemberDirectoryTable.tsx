@@ -17,6 +17,8 @@ export interface MemberRecord {
   referralCode?: string;
   referralCount?: number;
   activeReferralCount?: number;
+  dateOfBirth?: string | null;
+  birthday?: string | null;
 }
 
 export interface MemberDirectoryTableProps {
@@ -67,7 +69,7 @@ export const MemberDirectoryTable: React.FC<MemberDirectoryTableProps> = ({
     <div className="bg-white rounded-2xl border border-[#EBE7F5] shadow-[0_4px_12px_rgba(33,37,41,0.04)] overflow-hidden flex flex-col">
       {/* Table Container */}
       <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse min-w-[760px]">
+        <table className="w-full text-left border-collapse min-w-[880px]">
           <thead>
             <tr className="bg-[#F8F9FA] border-b border-[#EBE7F5]">
               <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">
@@ -75,6 +77,9 @@ export const MemberDirectoryTable: React.FC<MemberDirectoryTableProps> = ({
               </th>
               <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">
                 Client ID
+              </th>
+              <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                Date of Birth
               </th>
               <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">
                 Tier / Plan
@@ -96,7 +101,7 @@ export const MemberDirectoryTable: React.FC<MemberDirectoryTableProps> = ({
           <tbody className="divide-y divide-[#EBE7F5] text-xs text-slate-800">
             {members.length === 0 ? (
               <tr>
-                <td colSpan={7} className="p-10 text-center text-slate-400">
+                <td colSpan={8} className="p-10 text-center text-slate-400">
                   <User className="w-8 h-8 mx-auto mb-2 opacity-40" />
                   <p className="font-semibold text-sm">No members found</p>
                   <p className="text-xs text-slate-400 mt-0.5">
@@ -140,6 +145,15 @@ export const MemberDirectoryTable: React.FC<MemberDirectoryTableProps> = ({
                   {/* Client ID */}
                   <td className="p-4 font-mono font-bold text-[#23055c] text-[11px]">
                     {member.id}
+                  </td>
+
+                  {/* Date of Birth */}
+                  <td className="p-4 text-slate-700 font-medium text-[11px] whitespace-nowrap">
+                    {member.dateOfBirth || member.birthday || (
+                      <span className="text-slate-400 italic font-normal">
+                        Not provided
+                      </span>
+                    )}
                   </td>
 
                   {/* Tier / Plan */}

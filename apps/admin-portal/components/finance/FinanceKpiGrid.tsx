@@ -8,10 +8,9 @@ export interface FinanceKpiData {
   isCollectedUp: boolean;
   collectedSubtext?: string;
 
-  totalRefunded: string;
-  refundedBadge: string;
-  isRefundedUp: boolean;
-  refundedSubtext?: string;
+  avgBookingValue?: string;
+  avgBookingBadge?: string;
+  avgBookingSubtext?: string;
 
   netRevenue: string;
   netRevenueBadge: string;
@@ -25,7 +24,10 @@ export interface FinanceKpiData {
   // Backwards compatibility aliases
   totalRevenue?: string;
   mrr?: string;
-  avgBookingValue?: string;
+  totalRefunded?: string;
+  refundedBadge?: string;
+  isRefundedUp?: boolean;
+  refundedSubtext?: string;
 }
 
 interface FinanceKpiGridProps {
@@ -67,15 +69,14 @@ export const FinanceKpiGrid: React.FC<FinanceKpiGridProps> = ({
     isCollectedUp: data?.isCollectedUp ?? true,
     collectedSubtext: data?.collectedSubtext || "gross settlements",
 
-    totalRefunded: data?.totalRefunded || "₦0.00",
-    refundedBadge: data?.refundedBadge || "0 refunds",
-    isRefundedUp: data?.isRefundedUp ?? false,
-    refundedSubtext: data?.refundedSubtext || "refunds processed",
+    avgBookingValue: data?.avgBookingValue || "₦0.00",
+    avgBookingBadge: data?.avgBookingBadge || "0 bookings",
+    avgBookingSubtext: data?.avgBookingSubtext || "per completed transaction",
 
     netRevenue: data?.netRevenue || data?.totalRevenue || "₦0.00",
     netRevenueBadge: data?.netRevenueBadge || "100% retained",
     isNetRevenueUp: data?.isNetRevenueUp ?? true,
-    netRevenueSubtext: data?.netRevenueSubtext || "net after refunds",
+    netRevenueSubtext: data?.netRevenueSubtext || "100% retained settlements",
 
     outstandingAmount: data?.outstandingAmount || "₦0.00",
     pendingCount: data?.pendingCount || 0,
@@ -116,23 +117,23 @@ export const FinanceKpiGrid: React.FC<FinanceKpiGridProps> = ({
         </div>
       </div>
 
-      {/* 2. No-Refund Policy & Retention */}
+      {/* 2. Average Transaction Value */}
       <div className="bg-white/80 backdrop-blur-md border border-[#EBE7F5] p-6 rounded-xl shadow-xs hover:shadow-md transition-shadow">
         <div className="mb-4">
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-            Refund Liability
+            Avg Transaction
           </p>
           <h3 className="text-2xl font-bold text-slate-900 mt-1.5 tracking-tight truncate">
-            ₦0.00
+            {kpi.avgBookingValue}
           </h3>
         </div>
 
         <div className="flex items-center gap-2 mt-4 text-xs">
           <span className="inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded text-purple-700 bg-purple-50">
-            No-Refund Policy
+            {kpi.avgBookingBadge}
           </span>
           <span className="text-slate-500 font-medium truncate">
-            100% revenue retention
+            {kpi.avgBookingSubtext}
           </span>
         </div>
       </div>

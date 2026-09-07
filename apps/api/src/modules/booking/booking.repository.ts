@@ -233,7 +233,16 @@ export class BookingRepository {
           }
         : filters.state
           ? { state: filters.state as BookingState }
-          : { state: { notIn: [BookingState.EXPIRED, BookingState.DRAFT] } }),
+          : {
+              state: {
+                notIn: [
+                  BookingState.EXPIRED,
+                  BookingState.DRAFT,
+                  BookingState.HELD,
+                  BookingState.PENDING_PAYMENT,
+                ],
+              },
+            }),
       ...(filters.resourceId ? { resourceId: filters.resourceId } : {}),
       ...(filters.userId ? { userId: filters.userId } : {}),
       ...(!isActiveFilter && (filters.startDate || filters.endDate)

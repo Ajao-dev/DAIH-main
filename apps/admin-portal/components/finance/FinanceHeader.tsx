@@ -6,6 +6,8 @@ import {
   ChevronDown,
   Download,
   Check,
+  FileText,
+  Loader2,
 } from "lucide-react";
 import { useToast } from "@daih/ui";
 
@@ -16,12 +18,16 @@ interface FinanceHeaderProps {
   selectedRange: DateRangeOption;
   onSelectRange: (range: DateRangeOption) => void;
   onExportLedger?: () => void;
+  onExportPdf?: () => void;
+  isExportingPdf?: boolean;
 }
 
 export const FinanceHeader: React.FC<FinanceHeaderProps> = ({
   selectedRange,
   onSelectRange,
   onExportLedger,
+  onExportPdf,
+  isExportingPdf,
 }) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -113,13 +119,29 @@ export const FinanceHeader: React.FC<FinanceHeaderProps> = ({
           )}
         </div>
 
-        {/* Export Button */}
+        {/* Export PDF Button */}
+        <button
+          onClick={onExportPdf}
+          disabled={isExportingPdf}
+          className="flex items-center justify-center gap-1.5 px-3.5 py-2 bg-[#23055c] text-white rounded-lg text-xs font-bold hover:bg-[#34117c] transition-colors shadow-xs whitespace-nowrap cursor-pointer disabled:opacity-60"
+          title="Export Financial Summary & Transactions as PDF"
+        >
+          {isExportingPdf ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <FileText className="w-3.5 h-3.5 text-purple-200" />
+          )}
+          <span>{isExportingPdf ? "Generating PDF..." : "Export PDF"}</span>
+        </button>
+
+        {/* Export CSV Button */}
         <button
           onClick={handleExport}
-          className="flex items-center justify-center gap-2 px-4 py-2 bg-white border border-[#23055c] text-[#23055c] rounded-lg text-xs font-bold hover:bg-[#23055c] hover:text-white transition-colors shadow-xs whitespace-nowrap cursor-pointer"
+          className="flex items-center justify-center gap-1.5 px-3.5 py-2 bg-white border border-[#EBE7F5] text-slate-700 hover:text-[#23055c] hover:bg-purple-50/50 rounded-lg text-xs font-bold transition-colors shadow-xs whitespace-nowrap cursor-pointer"
+          title="Export Raw Transactions Ledger as CSV"
         >
-          <Download className="w-4 h-4" />
-          <span>Export</span>
+          <Download className="w-3.5 h-3.5 text-slate-500" />
+          <span>Export CSV</span>
         </button>
       </div>
     </div>

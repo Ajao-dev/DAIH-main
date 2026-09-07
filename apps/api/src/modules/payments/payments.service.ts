@@ -23,7 +23,6 @@ import {
   PaymentMethod,
   PaymentTransaction,
   PaystackWebhookPayload,
-  RefundRequestDTO,
   ReconciliationSummary,
   ReconciliationDiscrepancy,
   DailyPaymentSummary,
@@ -742,41 +741,6 @@ export class PaymentsService {
   }
 
   /**
-   * Customer/Admin initiates refund request
-   * Deactivated under the strict No-Refund Policy
-   */
-  async requestRefund(
-    bookingId: string,
-    userId: string,
-    reason: string = "Customer requested refund",
-  ) {
-    const err: any = new Error(
-      "DAIH operates a strict No-Refund Policy. Cash refunds cannot be requested. Discretionary rescheduling may be granted by Operations Admins for unredeemed No-Show bookings.",
-    );
-    err.statusCode = 400;
-    err.code = "NO_REFUND_POLICY";
-    throw err;
-  }
-
-  /**
-   * Finance Officer processes full or partial refund
-   * Deactivated under the strict No-Refund Policy
-   */
-  async processRefund(
-    transactionId: string,
-    input: RefundRequestDTO,
-    financeOfficerUserId: string,
-    ipAddress?: string,
-  ) {
-    const err: any = new Error(
-      "DAIH operates a strict No-Refund Policy. Cash refunds are deactivated across all payment channels. Discretionary rescheduling may be granted by Operations Admins for unredeemed No-Show bookings.",
-    );
-    err.statusCode = 400;
-    err.code = "NO_REFUND_POLICY";
-    throw err;
-  }
-
-  /**
    * Get customer's personal payment history
    */
   async getPaymentHistory(
@@ -864,24 +828,7 @@ export class PaymentsService {
       const amount = Number(t.amount);
       if (t.status === PaymentStatus.SUCCESSFUL) {
         totalCollected += amount;
-
-        // Check if booking suffered a late-payment capacity conflict (set to NO_SHOW without redemption)
-        if (
-          t.booking &&
-          t.booking.state === BookingState.NO_SHOW &&
-          !t.booking.checkedInAt
-        ) {
-          discrepancies.push({
-            transactionId: t.id,
-            reference: t.reference,
-            type: "CAPACITY_CONFLICT",
-            localStatus: PaymentStatus.SUCCESSFUL,
-            localAmount: amount,
-            details: `Paid booking '${t.booking.reference}' (${t.booking.resource?.name || "Space"}) is in NO_SHOW state. Requires Operations Admin review or rescheduling.`,
-          });
-        } else {
-          matchedCount++;
-        }
+        matchedCount++;
       } else if (
         t.status === PaymentStatus.REFUNDED ||
         t.status === PaymentStatus.PARTIALLY_REFUNDED

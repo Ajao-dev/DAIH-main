@@ -11,6 +11,7 @@ import {
   CreditCard,
   User,
   Users,
+  Cake,
 } from "lucide-react";
 import { MemberRecord } from "./MemberDirectoryTable";
 
@@ -104,6 +105,15 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
               </div>
               <div className="font-semibold text-slate-900">
                 {member.phone || "+234 (Not provided)"}
+              </div>
+            </div>
+
+            <div className="p-3 rounded-xl border border-slate-100 bg-white">
+              <div className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1.5 mb-1">
+                <Cake className="w-3.5 h-3.5 text-[#23055c]" /> Date of Birth
+              </div>
+              <div className="font-semibold text-slate-900">
+                {member.dateOfBirth || member.birthday || "Not provided"}
               </div>
             </div>
 

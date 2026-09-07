@@ -510,10 +510,6 @@ export default function CustomerSettingsPage() {
                   Personal Information
                 </h2>
               </div>
-              <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center gap-1">
-                <CheckCircle2 className="w-3 h-3" />
-                Verified Account
-              </span>
             </div>
 
             {profileSuccess && (
@@ -596,17 +592,12 @@ export default function CustomerSettingsPage() {
                 </div>
               </div>
 
-              {/* Birthday (Day & Month, year excluded) */}
+              {/* Birthday (Day & Month) */}
               <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                    <Cake className="w-3.5 h-3.5 text-[#23055c]" />
-                    Birthday (Day &amp; Month)
-                  </label>
-                  <span className="text-[10px] text-slate-400 font-normal">
-                    Year excluded
-                  </span>
-                </div>
+                <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5 mb-1.5">
+                  <Cake className="w-3.5 h-3.5 text-[#23055c]" />
+                  Birthday (Day &amp; Month)
+                </label>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <select

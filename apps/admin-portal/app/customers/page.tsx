@@ -1,10 +1,21 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { UserPlus, RefreshCw, Loader2, Users } from "lucide-react";
+import {
+  UserPlus,
+  RefreshCw,
+  Loader2,
+  Users,
+  Download,
+  FileText,
+} from "lucide-react";
 import { useToast } from "@daih/ui";
 import { api } from "@daih/api-client";
 import { CustomerRecord, CustomerMetrics } from "@daih/types";
+import {
+  exportCustomersCsv,
+  exportCustomersPdf,
+} from "../../lib/customerExport";
 import {
   MemberMetricsGrid,
   MemberDirectoryToolbar,
@@ -32,6 +43,10 @@ export default function CustomersPage() {
   const [tierFilter, setTierFilter] = useState("ALL");
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 20;
+
+  // Export states
+  const [isExportingCsv, setIsExportingCsv] = useState(false);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
 
   // Modals
   const [selectedMember, setSelectedMember] = useState<CustomerRecord | null>(
@@ -107,6 +122,91 @@ export default function CustomersPage() {
     fetchCustomers();
   };
 
+  const handleExportCsv = async () => {
+    setIsExportingCsv(true);
+    try {
+      const res = await api.customers.getCustomers({
+        search: searchQuery || undefined,
+        status: statusFilter !== "ALL" ? statusFilter : undefined,
+        tier: tierFilter !== "ALL" ? tierFilter : undefined,
+        limit: 1000,
+      });
+      const records =
+        res.customers && res.customers.length > 0 ? res.customers : customers;
+      if (records.length === 0) {
+        toast.warning("No customer records available to export.", {
+          title: "Export Empty",
+        });
+        return;
+      }
+      exportCustomersCsv(records);
+      toast.success(
+        `Exported ${records.length} customer records to CSV successfully.`,
+        {
+          title: "CSV Exported",
+        },
+      );
+    } catch (err: any) {
+      console.error("Failed to export customers to CSV:", err);
+      if (customers.length > 0) {
+        exportCustomersCsv(customers);
+        toast.success(`Exported ${customers.length} customer records to CSV.`, {
+          title: "CSV Exported",
+        });
+      } else {
+        toast.error(err?.message || "Failed to export customer records.", {
+          title: "Export Failed",
+        });
+      }
+    } finally {
+      setIsExportingCsv(false);
+    }
+  };
+
+  const handleExportPdf = async () => {
+    setIsExportingPdf(true);
+    try {
+      const res = await api.customers.getCustomers({
+        search: searchQuery || undefined,
+        status: statusFilter !== "ALL" ? statusFilter : undefined,
+        tier: tierFilter !== "ALL" ? tierFilter : undefined,
+        limit: 1000,
+      });
+      const records =
+        res.customers && res.customers.length > 0 ? res.customers : customers;
+      if (records.length === 0) {
+        toast.warning("No customer records available to export.", {
+          title: "Export Empty",
+        });
+        return;
+      }
+      exportCustomersPdf(records);
+      toast.success(
+        `Generated official PDF directory report for ${records.length} members.`,
+        {
+          title: "PDF Report Generated",
+        },
+      );
+    } catch (err: any) {
+      console.error("Failed to export customers to PDF:", err);
+      if (customers.length > 0) {
+        exportCustomersPdf(customers);
+        toast.success(
+          `Generated official PDF directory report for ${customers.length} members.`,
+          {
+            title: "PDF Report Generated",
+          },
+        );
+      } else {
+        toast.error(err?.message || "Failed to generate customer PDF report.", {
+          title: "Export Failed",
+        });
+      }
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
+
   return (
     <div className="space-y-6 sm:space-y-8 max-w-7xl mx-auto pb-12">
       {/* Page Header */}
@@ -121,9 +221,40 @@ export default function CustomersPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5 flex-wrap">
+          {/* Export PDF Button */}
+          <button
+            onClick={handleExportPdf}
+            disabled={isExportingPdf || loading}
+            className="flex items-center justify-center gap-1.5 px-3.5 py-2.5 bg-[#23055c] hover:bg-[#34117c] text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer disabled:opacity-60"
+            title="Export Customer Directory as PDF (Includes Date of Birth)"
+          >
+            {isExportingPdf ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <FileText className="w-3.5 h-3.5 text-purple-200" />
+            )}
+            <span>{isExportingPdf ? "Generating PDF..." : "Export PDF"}</span>
+          </button>
+
+          {/* Export CSV Button */}
+          <button
+            onClick={handleExportCsv}
+            disabled={isExportingCsv || loading}
+            className="flex items-center justify-center gap-1.5 px-3.5 py-2.5 bg-white border border-slate-200 text-slate-700 hover:text-[#23055c] hover:bg-purple-50/50 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer disabled:opacity-60"
+            title="Export Customer Directory as CSV (Includes Date of Birth)"
+          >
+            {isExportingCsv ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Download className="w-3.5 h-3.5 text-slate-500" />
+            )}
+            <span>{isExportingCsv ? "Exporting..." : "Export CSV"}</span>
+          </button>
+
           <button
             onClick={fetchCustomers}
+            disabled={loading}
             className="p-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl transition-all shadow-2xs cursor-pointer"
             title="Refresh Data"
           >
@@ -133,7 +264,7 @@ export default function CustomersPage() {
           </button>
           <button
             onClick={() => setIsAddModalOpen(true)}
-            className="bg-[#23055c] hover:bg-[#392271] text-white font-bold text-xs px-5 py-3 rounded-xl flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all cursor-pointer shrink-0"
+            className="bg-[#23055c] hover:bg-[#392271] text-white font-bold text-xs px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all cursor-pointer shrink-0"
           >
             <UserPlus className="w-4 h-4" />
             Add New Member

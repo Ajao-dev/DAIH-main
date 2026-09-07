@@ -32,7 +32,6 @@ import {
   CustomerMetrics,
   PaymentTransaction,
   InvoiceDTO,
-  RefundRequestDTO,
   ReconciliationSummary,
   DailyPaymentSummary,
   VerifyAccessPassResponse,
@@ -64,6 +63,8 @@ import {
   DiscountRedemptionDTO,
   DiscountFilterDTO,
   DiscountListResponse,
+  SupportSettingsRecord,
+  UpdateSupportSettingsDTO,
 } from "@daih/types";
 import { apiCacheManager } from "./cache";
 
@@ -947,25 +948,6 @@ export class DaihApiClient {
     getInvoice: (transactionId: string) =>
       this.request<InvoiceDTO>(`/payments/${transactionId}/invoice`),
 
-    requestRefund: (bookingId: string, reason?: string) =>
-      this.request<{ success: boolean; message: string; bookingId: string }>(
-        `/payments/bookings/${bookingId}/refund-request`,
-        {
-          method: "POST",
-          body: JSON.stringify({ reason }),
-        },
-      ),
-
-    processRefund: (transactionId: string, dto: RefundRequestDTO) =>
-      this.request<{
-        success: boolean;
-        message: string;
-        data: PaymentTransaction;
-      }>(`/payments/${transactionId}/refund`, {
-        method: "POST",
-        body: JSON.stringify(dto),
-      }),
-
     getAdminTransactions: async (filters?: {
       status?: string;
       method?: string;
@@ -1269,22 +1251,11 @@ export class DaihApiClient {
     },
   };
 
-  // Legal Policies API (Terms of Service & Privacy Policy)
-  public policies = {
-    getAll: () => this.request<PolicyDocument[]>("/policies"),
-    getByType: (type: PolicyType) =>
-      this.request<PolicyDocument>(`/policies/${type}`),
-    update: (type: PolicyType, data: UpdatePolicyDTO) =>
-      this.request<PolicyDocument>(`/policies/${type}`, {
-        method: "PUT",
-        body: JSON.stringify(data),
-      }),
-  };
-
   // Reports & Analytics Export API
   public reports = {
     downloadExport: async (query: {
-      type: "revenue" | "bookings" | "occupancy" | "financial_audit";
+      type:
+        "revenue" | "bookings" | "occupancy" | "financial_audit" | "customers";
       format: "csv" | "xlsx" | "pdf";
       startDate?: string;
       endDate?: string;
@@ -1427,6 +1398,37 @@ export class DaihApiClient {
         method: "POST",
         body: JSON.stringify(payload),
       }),
+  };
+
+  // Legal & Compliance Policies API
+  public policies = {
+    list: () => this.request<PolicyDocument[]>("/policies"),
+    getAll: () => this.request<PolicyDocument[]>("/policies"),
+    get: (type: PolicyType | string) =>
+      this.request<PolicyDocument>(`/policies/${type}`),
+    getByType: (type: PolicyType | string) =>
+      this.request<PolicyDocument>(`/policies/${type}`),
+    update: async (type: PolicyType | string, data: UpdatePolicyDTO) => {
+      const res = await this.request<PolicyDocument>(`/policies/${type}`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+      });
+      apiCacheManager.invalidate("policies");
+      return res;
+    },
+  };
+
+  // Customer Support & FAQs API
+  public support = {
+    get: () => this.request<SupportSettingsRecord>("/support"),
+    update: async (data: UpdateSupportSettingsDTO) => {
+      const res = await this.request<SupportSettingsRecord>("/support", {
+        method: "PUT",
+        body: JSON.stringify(data),
+      });
+      apiCacheManager.invalidate("support");
+      return res;
+    },
   };
 
   /**

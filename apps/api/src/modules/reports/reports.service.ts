@@ -2,7 +2,7 @@ import { prisma } from "../../db/client.js";
 import { BookingState, PaymentStatus } from "@daih/types";
 
 export interface ReportExportQuery {
-  type: "revenue" | "bookings" | "occupancy" | "financial_audit";
+  type: "revenue" | "bookings" | "occupancy" | "financial_audit" | "customers";
   format: "csv" | "xlsx" | "pdf";
   startDate?: string;
   endDate?: string;
@@ -26,7 +26,7 @@ export class ReportsService {
     const end = endDate ? new Date(endDate) : new Date();
 
     // Fetch relevant dataset from PostgreSQL
-    const [bookings, transactions, resources] = await Promise.all([
+    const [bookings, transactions, resources, users] = await Promise.all([
       prisma.booking.findMany({
         where: {
           createdAt: { gte: start, lte: end },
@@ -51,6 +51,17 @@ export class ReportsService {
       prisma.facilityResource.findMany({
         where: { isActive: true },
       }),
+      prisma.user.findMany({
+        where: {
+          role: "CUSTOMER",
+          ...(startDate ? { createdAt: { gte: start, lte: end } } : {}),
+        },
+        include: {
+          bookings: true,
+          transactions: true,
+        },
+        orderBy: { createdAt: "desc" },
+      }),
     ]);
 
     const dateRangeStr = `${start.toISOString().split("T")[0]}_to_${end.toISOString().split("T")[0]}`;
@@ -61,6 +72,7 @@ export class ReportsService {
         bookings,
         transactions,
         resources,
+        users,
         start,
         end,
       });
@@ -77,6 +89,7 @@ export class ReportsService {
         bookings,
         transactions,
         resources,
+        users,
         start,
         end,
       });
@@ -105,11 +118,45 @@ export class ReportsService {
       bookings: any[];
       transactions: any[];
       resources: any[];
+      users?: any[];
       start: Date;
       end: Date;
     },
   ): string {
-    const { bookings, transactions } = data;
+    const { bookings, transactions, users = [] } = data;
+
+    if (type === "customers") {
+      const headers = [
+        "Client ID",
+        "Full Name",
+        "Email Address",
+        "Phone Number",
+        "Date of Birth",
+        "Role",
+        "Verification Status",
+        "Referral Code",
+        "Total Bookings",
+        "Joined Date",
+      ];
+
+      const rows = users.map((u) => [
+        u.clientId,
+        `${u.firstName || ""} ${u.lastName || ""}`.trim(),
+        u.email,
+        u.phoneNumber || "Not provided",
+        u.birthday || "Not provided",
+        u.role,
+        u.isVerified ? "Verified" : "Unverified",
+        u.referralCode || "N/A",
+        u.bookings?.length || 0,
+        new Date(u.createdAt).toISOString().split("T")[0],
+      ]);
+
+      return [
+        headers.map(this.escapeCsv).join(","),
+        ...rows.map((r) => r.map(this.escapeCsv).join(",")),
+      ].join("\n");
+    }
 
     if (type === "bookings") {
       const headers = [
@@ -249,11 +296,12 @@ export class ReportsService {
       bookings: any[];
       transactions: any[];
       resources: any[];
+      users?: any[];
       start: Date;
       end: Date;
     },
   ): Buffer {
-    const { bookings, transactions, resources, start, end } = data;
+    const { bookings, transactions, resources, users = [], start, end } = data;
     const title = `DAIH WORKSPACE PLATFORM -- ${type.replace(/_/g, " ").toUpperCase()} REPORT`;
     const period = `${start.toDateString()} to ${end.toDateString()}`;
     const generatedAt = new Date().toUTCString();
@@ -447,6 +495,69 @@ export class ReportsService {
         `(${clientSet.size} Customers) Tj`,
         "ET",
       );
+    } else if (type === "customers") {
+      const verifiedCount = users.filter((u: any) => u.isVerified).length;
+      const activeBookers = users.filter(
+        (u: any) => u.bookings && u.bookings.length > 0,
+      ).length;
+
+      // Card 1
+      streamLines.push(
+        "q",
+        "0.96 0.95 0.98 rg",
+        "0.85 0.82 0.92 RG",
+        "0.8 w",
+        "36 675 166 52 re B",
+        "Q",
+        "BT",
+        "/F1 7.5 Tf",
+        "0.40 0.35 0.50 rg",
+        "1 0 0 1 48 710 Tm",
+        "(TOTAL REGISTERED) Tj",
+        "/F1 12 Tf",
+        "0.14 0.02 0.36 rg",
+        "1 0 0 1 48 691 Tm",
+        `(${users.length} Customers) Tj`,
+        "ET",
+      );
+      // Card 2
+      streamLines.push(
+        "q",
+        "0.95 0.97 0.99 rg",
+        "0.82 0.88 0.95 RG",
+        "0.8 w",
+        "214 675 166 52 re B",
+        "Q",
+        "BT",
+        "/F1 7.5 Tf",
+        "0.30 0.40 0.50 rg",
+        "1 0 0 1 226 710 Tm",
+        "(VERIFIED MEMBERS) Tj",
+        "/F1 12 Tf",
+        "0.10 0.30 0.60 rg",
+        "1 0 0 1 226 691 Tm",
+        `(${verifiedCount} Members) Tj`,
+        "ET",
+      );
+      // Card 3
+      streamLines.push(
+        "q",
+        "0.95 0.98 0.96 rg",
+        "0.82 0.92 0.86 RG",
+        "0.8 w",
+        "393 675 166 52 re B",
+        "Q",
+        "BT",
+        "/F1 7.5 Tf",
+        "0.25 0.45 0.35 rg",
+        "1 0 0 1 405 710 Tm",
+        "(ACTIVE BOOKERS) Tj",
+        "/F1 12 Tf",
+        "0.08 0.50 0.25 rg",
+        "1 0 0 1 405 691 Tm",
+        `(${activeBookers} Members) Tj`,
+        "ET",
+      );
     } else {
       // Default: Revenue & Financial Audit
       const customerSet = new Set(
@@ -521,7 +632,9 @@ export class ReportsService {
         ? "RESERVATION AUDIT LOG"
         : type === "occupancy"
           ? "FACILITY UTILIZATION & DENSITY"
-          : "TRANSACTION & SETTLEMENT AUDIT LOG";
+          : type === "customers"
+            ? "MEMBER DIRECTORY & CUSTOMER AUDIT LOG"
+            : "TRANSACTION & SETTLEMENT AUDIT LOG";
 
     streamLines.push(
       "BT",
@@ -541,7 +654,104 @@ export class ReportsService {
     let currentY = 598;
     const rowHeight = 18;
 
-    if (type === "bookings") {
+    if (type === "customers") {
+      // Table Header
+      streamLines.push(
+        "q",
+        "0.92 0.90 0.96 rg",
+        "36 616 523 20 re f",
+        "0.78 0.75 0.85 RG",
+        "1 w",
+        "36 616 m 559 616 l S",
+        "Q",
+        "BT",
+        "/F1 8 Tf",
+        "0.18 0.15 0.25 rg",
+        "1 0 0 1 44 622 Tm",
+        "(CLIENT ID) Tj",
+        "1 0 0 1 125 622 Tm",
+        "(CUSTOMER NAME) Tj",
+        "1 0 0 1 230 622 Tm",
+        "(DATE OF BIRTH) Tj",
+        "1 0 0 1 315 622 Tm",
+        "(EMAIL ADDRESS) Tj",
+        "1 0 0 1 445 622 Tm",
+        "(STATUS) Tj",
+        "1 0 0 1 505 622 Tm",
+        "(BOOKINGS) Tj",
+        "ET",
+      );
+
+      const sample = users.slice(0, 27);
+      sample.forEach((u: any, idx: number) => {
+        if (idx % 2 === 1) {
+          streamLines.push(
+            "q",
+            "0.98 0.98 0.99 rg",
+            `36 ${currentY - 4} 523 ${rowHeight} re f`,
+            "Q",
+          );
+        }
+        streamLines.push(
+          "q",
+          "0.91 0.91 0.93 RG",
+          "0.5 w",
+          `36 ${currentY - 4} m 559 ${currentY - 4} l S`,
+          "Q",
+        );
+
+        const clientId = clean(u.clientId, 14);
+        const name = clean(
+          `${u.firstName || ""} ${u.lastName || ""}`.trim() || "Customer",
+          18,
+        );
+        const dob = clean(u.birthday || "Not provided", 14);
+        const email = clean(u.email, 22);
+        const status = u.isVerified ? "Verified" : "Pending";
+        const totalB = clean(String(u.bookings?.length || 0), 8);
+
+        streamLines.push(
+          "BT",
+          "/F1 8 Tf",
+          "0.14 0.02 0.36 rg",
+          `1 0 0 1 44 ${currentY} Tm`,
+          `(${escapePdf(clientId)}) Tj`,
+          "/F2 8 Tf",
+          "0.20 0.20 0.25 rg",
+          `1 0 0 1 125 ${currentY} Tm`,
+          `(${escapePdf(name)}) Tj`,
+          "/F1 8 Tf",
+          "0.20 0.20 0.25 rg",
+          `1 0 0 1 230 ${currentY} Tm`,
+          `(${escapePdf(dob)}) Tj`,
+          "/F2 7.5 Tf",
+          "0.30 0.30 0.35 rg",
+          `1 0 0 1 315 ${currentY} Tm`,
+          `(${escapePdf(email)}) Tj`,
+          "/F1 7.5 Tf",
+          u.isVerified ? "0.08 0.50 0.25 rg" : "0.65 0.35 0.05 rg",
+          `1 0 0 1 445 ${currentY} Tm`,
+          `(${escapePdf(status)}) Tj`,
+          "/F2 8 Tf",
+          "0.20 0.20 0.25 rg",
+          `1 0 0 1 505 ${currentY} Tm`,
+          `(${escapePdf(totalB)}) Tj`,
+          "ET",
+        );
+        currentY -= rowHeight;
+      });
+
+      if (users.length > 27) {
+        streamLines.push(
+          "BT",
+          "/F1 8 Tf",
+          "0.45 0.45 0.55 rg",
+          `1 0 0 1 44 ${currentY - 2} Tm`,
+          `(${escapePdf(`[+ ${users.length - 27} additional members. Full dataset available via CSV export]`)}) Tj`,
+          "ET",
+        );
+      }
+    } else if (type === "bookings") {
       // Table Header
       streamLines.push(
         "q",
