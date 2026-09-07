@@ -135,6 +135,13 @@ describe("Milestone 1.3: Booking Engine & Concurrency Module", () => {
           },
         });
         testResourceId = resource.id;
+
+        // Ensure predictable base pricing by disabling any active automatic discounts in DB
+        await prisma.discount.updateMany({
+          where: { isAutomatic: true, isActive: true },
+          data: { isActive: false },
+        });
+
         break;
       } catch (err) {
         if (attempt === 4) throw err;

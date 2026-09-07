@@ -27,41 +27,49 @@ export class ReportsService {
 
     // Fetch relevant dataset from PostgreSQL
     const [bookings, transactions, resources, users] = await Promise.all([
-      prisma.booking.findMany({
-        where: {
-          createdAt: { gte: start, lte: end },
-        },
-        include: {
-          resource: true,
-          user: true,
-          transactions: true,
-        },
-        orderBy: { createdAt: "desc" },
-      }),
-      prisma.transaction.findMany({
-        where: {
-          createdAt: { gte: start, lte: end },
-        },
-        include: {
-          user: true,
-          booking: { include: { resource: true } },
-        },
-        orderBy: { createdAt: "desc" },
-      }),
-      prisma.facilityResource.findMany({
-        where: { isActive: true },
-      }),
-      prisma.user.findMany({
-        where: {
-          role: "CUSTOMER",
-          ...(startDate ? { createdAt: { gte: start, lte: end } } : {}),
-        },
-        include: {
-          bookings: true,
-          transactions: true,
-        },
-        orderBy: { createdAt: "desc" },
-      }),
+      type !== "customers" || format === "pdf"
+        ? prisma.booking.findMany({
+            where: {
+              createdAt: { gte: start, lte: end },
+            },
+            include: {
+              resource: true,
+              user: true,
+              transactions: true,
+            },
+            orderBy: { createdAt: "desc" },
+          })
+        : Promise.resolve([]),
+      type !== "customers" || format === "pdf"
+        ? prisma.transaction.findMany({
+            where: {
+              createdAt: { gte: start, lte: end },
+            },
+            include: {
+              user: true,
+              booking: { include: { resource: true } },
+            },
+            orderBy: { createdAt: "desc" },
+          })
+        : Promise.resolve([]),
+      type === "occupancy"
+        ? prisma.facilityResource.findMany({
+            where: { isActive: true },
+          })
+        : Promise.resolve([]),
+      type === "customers" && prisma.user?.findMany
+        ? prisma.user.findMany({
+            where: {
+              role: "CUSTOMER",
+              ...(startDate ? { createdAt: { gte: start, lte: end } } : {}),
+            },
+            include: {
+              bookings: true,
+              transactions: true,
+            },
+            orderBy: { createdAt: "desc" },
+          })
+        : Promise.resolve([]),
     ]);
 
     const dateRangeStr = `${start.toISOString().split("T")[0]}_to_${end.toISOString().split("T")[0]}`;
