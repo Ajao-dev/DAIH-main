@@ -7,7 +7,7 @@ export interface UserPhotoModalProps {
   isOpen: boolean;
   onClose: () => void;
   photoUrl?: string | null;
-  userName: string;
+  userName?: string;
   userEmail?: string | null;
   userRole?: string | null;
 }
@@ -16,7 +16,7 @@ export const UserPhotoModal: React.FC<UserPhotoModalProps> = ({
   isOpen,
   onClose,
   photoUrl,
-  userName,
+  userName = "User Photo",
   userEmail,
   userRole,
 }) => {

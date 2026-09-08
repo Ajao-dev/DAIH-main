@@ -124,13 +124,15 @@ export const UserDirectoryTable: React.FC<UserDirectoryTableProps> = ({
 
   return (
     <div className="bg-white rounded-2xl border border-[#EBE7F5] shadow-xs overflow-hidden">
-      {previewUserPhoto && (
-        <UserPhotoModal
-          isOpen={!!previewUserPhoto}
-          onClose={() => setPreviewUserPhoto(null)}
-          {...previewUserPhoto}
-        />
-      )}
+      {/* Staff Photo Preview Modal */}
+      <UserPhotoModal
+        isOpen={Boolean(previewUserPhoto)}
+        onClose={() => setPreviewUserPhoto(null)}
+        photoUrl={previewUserPhoto?.photoUrl}
+        userName={previewUserPhoto?.name || "Staff Photo"}
+        userEmail={previewUserPhoto?.email}
+        userRole={previewUserPhoto?.role}
+      />
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse">
           <thead>

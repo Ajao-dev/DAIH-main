@@ -941,7 +941,11 @@ export default function PlanSelectionAndCheckoutPage() {
         setHoldExpiresAt(hold.holdExpiresAt);
         setBookingRef(hold.reference);
 
-        if (hold.discountAmount > 0 && appliedDiscount) {
+        if (
+          hold.discountAmount !== undefined &&
+          hold.discountAmount > 0 &&
+          appliedDiscount
+        ) {
           setAppliedDiscount({
             ...appliedDiscount,
             discountAmount: hold.discountAmount,
