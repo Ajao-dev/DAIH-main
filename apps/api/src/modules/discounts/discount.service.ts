@@ -173,53 +173,7 @@ export class DiscountService {
       currency = resource.pricing[0].currency;
     }
 
-    // If no promo code specified, check for active automatic discount
-    let discount = null;
-    if (input.code) {
-      const normalized = normalizeCode(input.code);
-      discount = await prisma.discount.findUnique({
-        where: { code: normalized },
-        include: {
-          targetResources: true,
-          targetCustomers: true,
-        },
-      });
-      if (!discount) {
-        return {
-          eligible: false,
-          basePrice,
-          discountAmount: 0,
-          netTaxableSubtotal: basePrice,
-          taxAmount: 0,
-          grandTotal: basePrice,
-          currency,
-          reason: `Promo code '${normalized}' is invalid.`,
-        };
-      }
-    } else {
-      // Find automatic discount eligible for this user/resource
-      const automaticDiscounts = await prisma.discount.findMany({
-        where: { isAutomatic: true, isActive: true },
-        include: { targetResources: true, targetCustomers: true },
-      });
-      if (automaticDiscounts.length > 0) {
-        discount = automaticDiscounts[0];
-      }
-    }
-
-    if (!discount) {
-      return {
-        eligible: false,
-        basePrice,
-        discountAmount: 0,
-        netTaxableSubtotal: basePrice,
-        taxAmount: 0,
-        grandTotal: basePrice,
-        currency,
-      };
-    }
-
-    // Fetch user context: prior bookings and prior redemptions
+    // Fetch user context: prior bookings
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { id: true, email: true },
@@ -238,66 +192,177 @@ export class DiscountService {
       },
     });
 
-    const userPriorRedemptionsCount = await prisma.discountRedemption.count({
-      where: {
-        discountId: discount.id,
-        userId,
-        status: { in: [RedemptionStatus.HELD, RedemptionStatus.APPLIED] },
-      },
-    });
+    // 2. Specific Promo Code flow
+    if (input.code && input.code.trim()) {
+      const normalized = normalizeCode(input.code);
+      const discount = await prisma.discount.findUnique({
+        where: { code: normalized },
+        include: {
+          targetResources: true,
+          targetCustomers: true,
+        },
+      });
 
-    // 2. Validate eligibility
-    const validation = validateDiscountEligibility({
-      discount: discount as any,
-      context: {
-        userId,
-        userEmail: user?.email,
-        userPriorBookingsCount,
-        userPriorRedemptionsCount,
-        resourceId: resource.id,
-        resourceCategory: resource.category as any,
+      if (!discount) {
+        return {
+          eligible: false,
+          basePrice,
+          discountAmount: 0,
+          netTaxableSubtotal: basePrice,
+          taxAmount: 0,
+          grandTotal: basePrice,
+          currency,
+          reason: `Promo code '${normalized}' is invalid.`,
+          isAutomatic: false,
+        };
+      }
+
+      const userPriorRedemptionsCount = await prisma.discountRedemption.count({
+        where: {
+          discountId: discount.id,
+          userId,
+          status: { in: [RedemptionStatus.HELD, RedemptionStatus.APPLIED] },
+        },
+      });
+
+      const validation = validateDiscountEligibility({
+        discount: discount as any,
+        context: {
+          userId,
+          userEmail: user?.email,
+          userPriorBookingsCount,
+          userPriorRedemptionsCount,
+          resourceId: resource.id,
+          resourceCategory: resource.category as any,
+          basePrice,
+        },
+      });
+
+      if (!validation.valid) {
+        return {
+          eligible: false,
+          discountId: discount.id,
+          code: discount.code || undefined,
+          name: discount.name,
+          basePrice,
+          discountAmount: 0,
+          netTaxableSubtotal: basePrice,
+          taxAmount: 0,
+          grandTotal: basePrice,
+          currency,
+          reason: validation.reason,
+          isAutomatic: false,
+        };
+      }
+
+      const breakdown = calculatePreTaxDiscount({
         basePrice,
-      },
-    });
+        type: discount.type as DiscountType,
+        value: Number(discount.value),
+        maxDiscountAmount: discount.maxDiscountAmount
+          ? Number(discount.maxDiscountAmount)
+          : null,
+        taxRate: 0,
+      });
 
-    if (!validation.valid) {
       return {
-        eligible: false,
+        eligible: true,
+        discountId: discount.id,
         code: discount.code || undefined,
         name: discount.name,
+        discountType: discount.type as DiscountType,
+        discountValue: Number(discount.value),
+        basePrice: breakdown.basePrice,
+        discountAmount: breakdown.discountAmount,
+        netTaxableSubtotal: breakdown.netTaxableSubtotal,
+        taxAmount: breakdown.taxAmount,
+        grandTotal: breakdown.grandTotal,
+        currency,
+        isAutomatic: Boolean(discount.isAutomatic),
+      };
+    }
+
+    // 3. Automatic Discount flow: evaluate all active automatic promotions and pick best eligible candidate
+    const automaticDiscounts = await prisma.discount.findMany({
+      where: { isAutomatic: true, isActive: true },
+      include: { targetResources: true, targetCustomers: true },
+      orderBy: { createdAt: "desc" },
+    });
+
+    let bestMatch: {
+      discount: any;
+      breakdown: any;
+    } | null = null;
+
+    for (const cand of automaticDiscounts) {
+      const userPriorRedemptionsCount = await prisma.discountRedemption.count({
+        where: {
+          discountId: cand.id,
+          userId,
+          status: { in: [RedemptionStatus.HELD, RedemptionStatus.APPLIED] },
+        },
+      });
+
+      const validation = validateDiscountEligibility({
+        discount: cand as any,
+        context: {
+          userId,
+          userEmail: user?.email,
+          userPriorBookingsCount,
+          userPriorRedemptionsCount,
+          resourceId: resource.id,
+          resourceCategory: resource.category as any,
+          basePrice,
+        },
+      });
+
+      if (validation.valid) {
+        const breakdown = calculatePreTaxDiscount({
+          basePrice,
+          type: cand.type as DiscountType,
+          value: Number(cand.value),
+          maxDiscountAmount: cand.maxDiscountAmount
+            ? Number(cand.maxDiscountAmount)
+            : null,
+          taxRate: 0,
+        });
+
+        if (
+          !bestMatch ||
+          breakdown.discountAmount > bestMatch.breakdown.discountAmount
+        ) {
+          bestMatch = { discount: cand, breakdown };
+        }
+      }
+    }
+
+    if (!bestMatch || bestMatch.breakdown.discountAmount <= 0) {
+      return {
+        eligible: false,
         basePrice,
         discountAmount: 0,
         netTaxableSubtotal: basePrice,
         taxAmount: 0,
         grandTotal: basePrice,
         currency,
-        reason: validation.reason,
+        isAutomatic: false,
       };
     }
 
-    // 3. Calculate pre-tax discount breakdown
-    const breakdown = calculatePreTaxDiscount({
-      basePrice,
-      type: discount.type as DiscountType,
-      value: Number(discount.value),
-      maxDiscountAmount: discount.maxDiscountAmount
-        ? Number(discount.maxDiscountAmount)
-        : null,
-      taxRate: 0, // 0% standard or configurable VAT
-    });
-
     return {
       eligible: true,
-      code: discount.code || undefined,
-      name: discount.name,
-      discountType: discount.type as DiscountType,
-      discountValue: Number(discount.value),
-      basePrice: breakdown.basePrice,
-      discountAmount: breakdown.discountAmount,
-      netTaxableSubtotal: breakdown.netTaxableSubtotal,
-      taxAmount: breakdown.taxAmount,
-      grandTotal: breakdown.grandTotal,
+      discountId: bestMatch.discount.id,
+      code: bestMatch.discount.code || undefined,
+      name: bestMatch.discount.name,
+      discountType: bestMatch.discount.type as DiscountType,
+      discountValue: Number(bestMatch.discount.value),
+      basePrice: bestMatch.breakdown.basePrice,
+      discountAmount: bestMatch.breakdown.discountAmount,
+      netTaxableSubtotal: bestMatch.breakdown.netTaxableSubtotal,
+      taxAmount: bestMatch.breakdown.taxAmount,
+      grandTotal: bestMatch.breakdown.grandTotal,
       currency,
+      isAutomatic: true,
     };
   }
 
@@ -327,46 +392,6 @@ export class DiscountService {
       promoCode,
     } = params;
 
-    let discount = null;
-
-    if (promoCode) {
-      const normalized = normalizeCode(promoCode);
-
-      // Lock the discount row for update to serialize quota checks
-      const rows: any[] = await tx.$queryRaw`
-        SELECT id FROM "discounts" WHERE code = ${normalized} FOR UPDATE
-      `;
-      if (rows.length === 0) {
-        const error: any = new Error(`Promo code '${normalized}' is invalid.`);
-        error.statusCode = 404;
-        error.code = "PROMO_CODE_NOT_FOUND";
-        throw error;
-      }
-
-      discount = await tx.discount.findUnique({
-        where: { id: rows[0].id },
-        include: {
-          targetResources: true,
-          targetCustomers: true,
-        },
-      });
-    } else {
-      // Check for automatic promotion
-      discount = await tx.discount.findFirst({
-        where: { isAutomatic: true, isActive: true },
-        include: { targetResources: true, targetCustomers: true },
-      });
-    }
-
-    if (!discount) {
-      return {
-        discountId: null,
-        discountCode: null,
-        discountAmount: 0,
-        finalAmount: basePrice,
-      };
-    }
-
     const userPriorBookingsCount = await tx.booking.count({
       where: {
         userId,
@@ -380,44 +405,162 @@ export class DiscountService {
       },
     });
 
-    const userPriorRedemptionsCount = await tx.discountRedemption.count({
-      where: {
-        discountId: discount.id,
-        userId,
-        status: { in: [RedemptionStatus.HELD, RedemptionStatus.APPLIED] },
-      },
-    });
+    // 1. Promo code provided explicitly
+    if (promoCode && promoCode.trim()) {
+      const normalized = normalizeCode(promoCode);
 
-    const validation = validateDiscountEligibility({
-      discount: discount as any,
-      context: {
-        userId,
-        userEmail,
-        userPriorBookingsCount,
-        userPriorRedemptionsCount,
-        resourceId,
-        resourceCategory,
+      // Lock the discount row for update to serialize quota checks
+      const rows: any[] = await tx.$queryRaw`
+        SELECT id FROM "discounts" WHERE code = ${normalized} FOR UPDATE
+      `;
+      if (rows.length === 0) {
+        const error: any = new Error(`Promo code '${normalized}' is invalid.`);
+        error.statusCode = 404;
+        error.code = "PROMO_CODE_NOT_FOUND";
+        throw error;
+      }
+
+      const discount = await tx.discount.findUnique({
+        where: { id: rows[0].id },
+        include: {
+          targetResources: true,
+          targetCustomers: true,
+        },
+      });
+
+      if (!discount) {
+        const error: any = new Error(`Promo code '${normalized}' is invalid.`);
+        error.statusCode = 404;
+        error.code = "PROMO_CODE_NOT_FOUND";
+        throw error;
+      }
+
+      const userPriorRedemptionsCount = await tx.discountRedemption.count({
+        where: {
+          discountId: discount.id,
+          userId,
+          status: { in: [RedemptionStatus.HELD, RedemptionStatus.APPLIED] },
+        },
+      });
+
+      const validation = validateDiscountEligibility({
+        discount: discount as any,
+        context: {
+          userId,
+          userEmail,
+          userPriorBookingsCount,
+          userPriorRedemptionsCount,
+          resourceId,
+          resourceCategory,
+          basePrice,
+        },
+      });
+
+      if (!validation.valid) {
+        const error: any = new Error(
+          validation.reason || "Promotion is not applicable.",
+        );
+        error.statusCode = 400;
+        error.code = "DISCOUNT_NOT_ELIGIBLE";
+        throw error;
+      }
+
+      const breakdown = calculatePreTaxDiscount({
         basePrice,
-      },
-    });
+        type: discount.type as DiscountType,
+        value: Number(discount.value),
+        maxDiscountAmount: discount.maxDiscountAmount
+          ? Number(discount.maxDiscountAmount)
+          : null,
+      });
 
-    if (!validation.valid) {
-      const error: any = new Error(
-        validation.reason || "Promotion is not applicable.",
-      );
-      error.statusCode = 400;
-      error.code = "DISCOUNT_NOT_ELIGIBLE";
-      throw error;
+      // Create redemption record in HELD state
+      await tx.discountRedemption.create({
+        data: {
+          discountId: discount.id,
+          userId,
+          bookingId,
+          source: discount.isAutomatic
+            ? DiscountSource.AUTOMATIC
+            : DiscountSource.CUSTOMER_COUPON,
+          originalAmount: basePrice,
+          discountAmount: breakdown.discountAmount,
+          finalAmount: breakdown.grandTotal,
+          status: RedemptionStatus.HELD,
+        },
+      });
+
+      return {
+        discountId: discount.id,
+        discountCode: discount.code,
+        discountAmount: breakdown.discountAmount,
+        finalAmount: breakdown.grandTotal,
+      };
     }
 
-    const breakdown = calculatePreTaxDiscount({
-      basePrice,
-      type: discount.type as DiscountType,
-      value: Number(discount.value),
-      maxDiscountAmount: discount.maxDiscountAmount
-        ? Number(discount.maxDiscountAmount)
-        : null,
+    // 2. Automatic Discount: Evaluate all active automatic discounts and select best match
+    const automaticDiscounts = await tx.discount.findMany({
+      where: { isAutomatic: true, isActive: true },
+      include: { targetResources: true, targetCustomers: true },
+      orderBy: { createdAt: "desc" },
     });
+
+    let bestDiscountMatch: {
+      discount: any;
+      breakdown: any;
+    } | null = null;
+
+    for (const cand of automaticDiscounts) {
+      const userPriorRedemptionsCount = await tx.discountRedemption.count({
+        where: {
+          discountId: cand.id,
+          userId,
+          status: { in: [RedemptionStatus.HELD, RedemptionStatus.APPLIED] },
+        },
+      });
+
+      const validation = validateDiscountEligibility({
+        discount: cand as any,
+        context: {
+          userId,
+          userEmail,
+          userPriorBookingsCount,
+          userPriorRedemptionsCount,
+          resourceId,
+          resourceCategory,
+          basePrice,
+        },
+      });
+
+      if (validation.valid) {
+        const breakdown = calculatePreTaxDiscount({
+          basePrice,
+          type: cand.type as DiscountType,
+          value: Number(cand.value),
+          maxDiscountAmount: cand.maxDiscountAmount
+            ? Number(cand.maxDiscountAmount)
+            : null,
+        });
+
+        if (
+          !bestDiscountMatch ||
+          breakdown.discountAmount > bestDiscountMatch.breakdown.discountAmount
+        ) {
+          bestDiscountMatch = { discount: cand, breakdown };
+        }
+      }
+    }
+
+    if (!bestDiscountMatch || bestDiscountMatch.breakdown.discountAmount <= 0) {
+      return {
+        discountId: null,
+        discountCode: null,
+        discountAmount: 0,
+        finalAmount: basePrice,
+      };
+    }
+
+    const { discount, breakdown } = bestDiscountMatch;
 
     // Create redemption record in HELD state
     await tx.discountRedemption.create({
@@ -425,9 +568,7 @@ export class DiscountService {
         discountId: discount.id,
         userId,
         bookingId,
-        source: discount.isAutomatic
-          ? DiscountSource.AUTOMATIC
-          : DiscountSource.CUSTOMER_COUPON,
+        source: DiscountSource.AUTOMATIC,
         originalAmount: basePrice,
         discountAmount: breakdown.discountAmount,
         finalAmount: breakdown.grandTotal,

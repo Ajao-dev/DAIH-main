@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { UserRole } from "@daih/types";
 import {
   Edit2,
@@ -11,7 +11,9 @@ import {
   ChevronLeft,
   ChevronRight,
   User as UserIcon,
+  Maximize2,
 } from "lucide-react";
+import { UserPhotoModal } from "../common/UserPhotoModal";
 
 export interface AdminUserRecord {
   id: string;
@@ -45,6 +47,13 @@ export const UserDirectoryTable: React.FC<UserDirectoryTableProps> = ({
   onToggleStatus,
   onResendInvite,
 }) => {
+  const [previewUserPhoto, setPreviewUserPhoto] = useState<{
+    name: string;
+    email?: string;
+    photoUrl: string;
+    role?: string;
+  } | null>(null);
+
   const totalPages = Math.ceil(totalCount / pageSize) || 1;
   const startCount = totalCount === 0 ? 0 : (currentPage - 1) * pageSize + 1;
   const endCount = Math.min(currentPage * pageSize, totalCount);
@@ -87,43 +96,58 @@ export const UserDirectoryTable: React.FC<UserDirectoryTableProps> = ({
     }
   };
 
+  const getStatusBadge = (status: AdminUserRecord["status"]) => {
+    switch (status) {
+      case "ACTIVE":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            Active
+          </span>
+        );
+      case "PENDING":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+            Pending Invite
+          </span>
+        );
+      case "DEACTIVATED":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+            Deactivated
+          </span>
+        );
+    }
+  };
+
   return (
-    <div className="flex flex-col">
-      {/* Table Data */}
+    <div className="bg-white rounded-2xl border border-[#EBE7F5] shadow-xs overflow-hidden">
+      {previewUserPhoto && (
+        <UserPhotoModal
+          isOpen={!!previewUserPhoto}
+          onClose={() => setPreviewUserPhoto(null)}
+          {...previewUserPhoto}
+        />
+      )}
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse">
           <thead>
-            <tr className="bg-[#F8F9FA] border-b border-[#EBE7F5] text-slate-500">
-              <th className="py-3.5 px-6 text-xs font-bold uppercase tracking-wider">
-                User
-              </th>
-              <th className="py-3.5 px-6 text-xs font-bold uppercase tracking-wider">
-                Role
-              </th>
-              <th className="py-3.5 px-6 text-xs font-bold uppercase tracking-wider">
-                Status
-              </th>
-              <th className="py-3.5 px-6 text-xs font-bold uppercase tracking-wider hidden md:table-cell">
-                Last Active
-              </th>
-              <th className="py-3.5 px-6 text-xs font-bold uppercase tracking-wider text-right">
-                Actions
-              </th>
+            <tr className="border-b border-[#EBE7F5] bg-[#FAF9FF] text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              <th className="py-3.5 px-6">User / Staff</th>
+              <th className="py-3.5 px-6">Role</th>
+              <th className="py-3.5 px-6">Status</th>
+              <th className="py-3.5 px-6">Last Active</th>
+              <th className="py-3.5 px-6 text-right">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#EBE7F5] text-xs sm:text-sm">
+          <tbody className="divide-y divide-[#EBE7F5] text-xs">
             {users.length === 0 ? (
               <tr>
                 <td colSpan={5} className="py-12 text-center text-slate-400">
-                  <div className="flex flex-col items-center justify-center gap-2">
-                    <UserIcon className="w-8 h-8 text-slate-300" />
-                    <p className="text-sm font-semibold text-slate-600">
-                      No users found
-                    </p>
-                    <p className="text-xs text-slate-400">
-                      Try adjusting your search or role filters
-                    </p>
-                  </div>
+                  <UserIcon className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+                  No staff accounts found matching filter.
                 </td>
               </tr>
             ) : (
@@ -132,15 +156,32 @@ export const UserDirectoryTable: React.FC<UserDirectoryTableProps> = ({
                   key={user.id}
                   className="hover:bg-[#F8F9FA] transition-colors group"
                 >
-                  {/* User Profile Info */}
                   <td className="py-4 px-6">
                     <div className="flex items-center gap-3">
                       {user.avatarUrl ? (
-                        <img
-                          src={user.avatarUrl}
-                          alt={user.name}
-                          className="w-10 h-10 rounded-full object-cover border border-[#EBE7F5] shrink-0"
-                        />
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPreviewUserPhoto({
+                              name: user.name,
+                              email: user.email,
+                              photoUrl: user.avatarUrl!,
+                              role: getRoleDisplayName(user.role),
+                            });
+                          }}
+                          className="w-10 h-10 rounded-full overflow-hidden border border-[#EBE7F5] shrink-0 hover:ring-2 hover:ring-[#23055c] transition-all cursor-pointer group/avatar relative"
+                          title={`Click to view ${user.name}'s photo`}
+                        >
+                          <img
+                            src={user.avatarUrl}
+                            alt={user.name}
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/avatar:opacity-100 flex items-center justify-center transition-opacity">
+                            <Maximize2 className="w-3.5 h-3.5 text-white" />
+                          </div>
+                        </button>
                       ) : (
                         <div className="w-10 h-10 rounded-full bg-[#e8ddff] text-[#210558] font-bold text-xs flex items-center justify-center border border-[#cebdff] shrink-0">
                           {user.name

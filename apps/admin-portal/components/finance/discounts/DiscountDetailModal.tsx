@@ -10,6 +10,7 @@ import {
   Check,
   RotateCw,
   ShieldCheck,
+  Clock,
 } from "lucide-react";
 import { useToast } from "@daih/ui";
 import { api } from "@daih/api-client";
@@ -99,6 +100,10 @@ export const DiscountDetailModal: React.FC<DiscountDetailModalProps> = ({
         )
       : null;
 
+  const isExpired = Boolean(
+    discount.validUntil && new Date(discount.validUntil).getTime() < Date.now(),
+  );
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 overflow-y-auto">
       <div className="relative w-full max-w-3xl rounded-2xl bg-white border border-[#EBE7F5] shadow-xl text-slate-800 flex flex-col max-h-[90vh]">
@@ -115,12 +120,18 @@ export const DiscountDetailModal: React.FC<DiscountDetailModalProps> = ({
                 </h2>
                 <span
                   className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                    discount.isActive
-                      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                      : "bg-slate-100 text-slate-500 border-slate-200"
+                    isExpired
+                      ? "bg-rose-50 text-rose-700 border-rose-200"
+                      : discount.isActive
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                        : "bg-slate-100 text-slate-500 border-slate-200"
                   }`}
                 >
-                  {discount.isActive ? "Active" : "Inactive"}
+                  {isExpired
+                    ? "Expired"
+                    : discount.isActive
+                      ? "Active"
+                      : "Inactive"}
                 </span>
                 {discount.isAutomatic && (
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
@@ -143,8 +154,25 @@ export const DiscountDetailModal: React.FC<DiscountDetailModalProps> = ({
 
         {/* Details Grid */}
         <div className="p-6 overflow-y-auto space-y-6">
+          {/* Expired Alert Banner */}
+          {isExpired && (
+            <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2.5">
+              <Clock className="w-4 h-4 shrink-0 text-rose-600" />
+              <div>
+                <span className="font-bold">Promotion Expired:</span> This
+                promotion ended on{" "}
+                {new Date(discount.validUntil!).toLocaleDateString()} at{" "}
+                {new Date(discount.validUntil!).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+                . It can no longer be applied to customer bookings.
+              </div>
+            </div>
+          )}
+
           {/* Key Metric Badges */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
             <div className="p-3.5 bg-[#FAF9FF] border border-[#EBE7F5] rounded-xl">
               <div className="text-[11px] font-semibold text-slate-400">
                 Promo Code
@@ -222,6 +250,29 @@ export const DiscountDetailModal: React.FC<DiscountDetailModalProps> = ({
                   Min ₦{discount.minOrderAmount.toLocaleString()}
                 </div>
               )}
+            </div>
+
+            <div className="p-3.5 bg-[#FAF9FF] border border-[#EBE7F5] rounded-xl">
+              <div className="text-[11px] font-semibold text-slate-400">
+                Validity Window
+              </div>
+              <div
+                className={`text-xs font-bold mt-1 ${
+                  isExpired ? "text-rose-600" : "text-slate-900"
+                }`}
+              >
+                {discount.validUntil ? (
+                  <>
+                    Ends {new Date(discount.validUntil).toLocaleDateString()}
+                    {isExpired && " (Expired)"}
+                  </>
+                ) : (
+                  "No Expiration"
+                )}
+              </div>
+              <div className="text-[10px] text-slate-400 mt-0.5">
+                From {new Date(discount.validFrom).toLocaleDateString()}
+              </div>
             </div>
           </div>
 
@@ -430,18 +481,30 @@ export const DiscountDetailModal: React.FC<DiscountDetailModalProps> = ({
 
         {/* Footer Actions */}
         <div className="flex items-center justify-between border-t border-[#EBE7F5] px-6 py-4 bg-[#FAF9FF] rounded-b-2xl">
-          <button
-            type="button"
-            disabled={isToggling}
-            onClick={handleToggleStatus}
-            className={`px-4 py-2 text-xs font-bold rounded-xl border transition cursor-pointer ${
-              discount.isActive
-                ? "bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100"
-                : "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
-            }`}
-          >
-            {discount.isActive ? "Deactivate Promotion" : "Activate Promotion"}
-          </button>
+          {isExpired ? (
+            <div className="text-xs text-rose-600 font-semibold flex items-center gap-1.5">
+              <Clock className="w-3.5 h-3.5 shrink-0" />
+              <span>
+                Promotion ended on{" "}
+                {new Date(discount.validUntil!).toLocaleDateString()}
+              </span>
+            </div>
+          ) : (
+            <button
+              type="button"
+              disabled={isToggling}
+              onClick={handleToggleStatus}
+              className={`px-4 py-2 text-xs font-bold rounded-xl border transition cursor-pointer ${
+                discount.isActive
+                  ? "bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100"
+                  : "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
+              }`}
+            >
+              {discount.isActive
+                ? "Deactivate Promotion"
+                : "Activate Promotion"}
+            </button>
+          )}
           <button
             type="button"
             onClick={onClose}

@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import {
   X,
   ShieldCheck,
@@ -12,8 +12,10 @@ import {
   User,
   Users,
   Cake,
+  Maximize2,
 } from "lucide-react";
 import { MemberRecord } from "./MemberDirectoryTable";
+import { UserPhotoModal } from "../common/UserPhotoModal";
 
 export interface MemberDetailModalProps {
   isOpen: boolean;
@@ -26,6 +28,8 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
   member,
   onClose,
 }) => {
+  const [isPhotoOpen, setIsPhotoOpen] = useState(false);
+
   if (!isOpen || !member) return null;
 
   return (
@@ -59,11 +63,21 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
           {/* Main Info */}
           <div className="flex items-center gap-4 p-4 rounded-xl bg-slate-50 border border-slate-100">
             {member.avatarUrl ? (
-              <img
-                src={member.avatarUrl}
-                alt={member.name}
-                className="w-14 h-14 rounded-full object-cover border-2 border-white shadow-xs shrink-0"
-              />
+              <button
+                type="button"
+                onClick={() => setIsPhotoOpen(true)}
+                className="w-14 h-14 rounded-full overflow-hidden border-2 border-white shadow-xs shrink-0 hover:ring-2 hover:ring-[#23055c] transition-all cursor-pointer group/avatar relative"
+                title={`Click to view ${member.name}'s photo`}
+              >
+                <img
+                  src={member.avatarUrl}
+                  alt={member.name}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/avatar:opacity-100 flex items-center justify-center transition-opacity">
+                  <Maximize2 className="w-4 h-4 text-white" />
+                </div>
+              </button>
             ) : (
               <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-[#23055c] to-[#65519f] text-white font-bold text-lg flex items-center justify-center shrink-0 shadow-xs">
                 {member.name.slice(0, 2).toUpperCase()}
@@ -168,6 +182,16 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Full Size Member Photo Modal */}
+      <UserPhotoModal
+        isOpen={isPhotoOpen}
+        onClose={() => setIsPhotoOpen(false)}
+        photoUrl={member.avatarUrl}
+        userName={member.name}
+        userEmail={member.email}
+        userRole={member.tier}
+      />
     </div>
   );
 };

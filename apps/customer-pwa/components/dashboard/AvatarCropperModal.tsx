@@ -129,6 +129,9 @@ export const AvatarCropperModal: React.FC<AvatarCropperModalProps> = ({
 
     const img = imageRef.current;
     const outputSize = 512;
+    const previewSize = 256;
+    const scaleRatio = outputSize / previewSize;
+
     const canvas = document.createElement("canvas");
     canvas.width = outputSize;
     canvas.height = outputSize;
@@ -136,37 +139,39 @@ export const AvatarCropperModal: React.FC<AvatarCropperModalProps> = ({
 
     if (!ctx) return;
 
-    // Dimensions of crop viewport
-    const cropBoxSize = 256;
+    // Enable high quality image smoothing
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
 
     ctx.save();
     // Fill background with white in case of transparent borders
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, outputSize, outputSize);
 
-    // Translate to center of canvas
-    ctx.translate(outputSize / 2, outputSize / 2);
+    // 1. Move origin to center of canvas + scaled user drag offset
+    ctx.translate(
+      outputSize / 2 + position.x * scaleRatio,
+      outputSize / 2 + position.y * scaleRatio,
+    );
+
+    // 2. Rotate around this center
     ctx.rotate((rotation * Math.PI) / 180);
 
-    const scaleFactor = outputSize / cropBoxSize;
-    const drawWidth =
-      (img.naturalWidth || img.width) *
-      (zoom * (cropBoxSize / (img.width || 256))) *
-      scaleFactor;
-    const drawHeight =
-      (img.naturalHeight || img.height) *
-      (zoom * (cropBoxSize / (img.height || 256))) *
-      scaleFactor;
+    // 3. Scale by zoom level
+    ctx.scale(zoom, zoom);
 
-    // Center offset + user drag offset
-    const drawX = position.x * scaleFactor - drawWidth / 2;
-    const drawY = position.y * scaleFactor - drawHeight / 2;
+    // 4. Draw image centered at origin
+    const baseW = outputSize;
+    const naturalAspect =
+      (img.naturalHeight || img.height || 1) /
+      (img.naturalWidth || img.width || 1);
+    const baseH = outputSize * naturalAspect;
+    ctx.drawImage(img, -baseW / 2, -baseH / 2, baseW, baseH);
 
-    ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
     ctx.restore();
 
-    // Export as high quality webp or jpeg data url
-    const base64Data = canvas.toDataURL("image/webp", 0.92);
+    // Export as high quality webp data url
+    const base64Data = canvas.toDataURL("image/webp", 0.95);
     onCropComplete(base64Data);
   };
 
@@ -203,13 +208,13 @@ export const AvatarCropperModal: React.FC<AvatarCropperModalProps> = ({
         {/* Scrollable Modal Body */}
         <div className="overflow-y-auto flex-1 overscroll-contain">
           {/* Viewport / Canvas Container */}
-          <div className="p-4 sm:p-6 bg-slate-950 flex flex-col items-center justify-center select-none overflow-hidden relative min-h-[260px] sm:min-h-[300px]">
+          <div className="p-4 sm:p-6 bg-slate-950 flex flex-col items-center justify-center select-none overflow-hidden relative min-h-[280px]">
             {/* Crop Container (256x256 circular mask) */}
             <div
               ref={containerRef}
               onMouseDown={handleMouseDown}
               onTouchStart={handleTouchStart}
-              className={`w-52 h-52 sm:w-64 sm:h-64 relative rounded-full overflow-hidden ring-4 ring-white/30 shadow-2xl ${
+              className={`w-64 h-64 relative rounded-full overflow-hidden ring-4 ring-white/30 shadow-2xl ${
                 isDragging ? "cursor-grabbing" : "cursor-grab"
               }`}
             >
@@ -218,11 +223,12 @@ export const AvatarCropperModal: React.FC<AvatarCropperModalProps> = ({
                 src={imageSrc}
                 alt="Avatar Preview"
                 draggable={false}
-                className="absolute max-w-none origin-center pointer-events-none transition-transform duration-75 ease-out"
+                className="absolute left-1/2 top-1/2 max-w-none pointer-events-none transition-transform duration-75 ease-out select-none"
                 style={{
                   width: "256px",
                   height: "auto",
-                  transform: `translate(calc(-50% + 128px + ${position.x}px), calc(-50% + 128px + ${position.y}px)) scale(${zoom}) rotate(${rotation}deg)`,
+                  transform: `translate(calc(-50% + ${position.x}px), calc(-50% + ${position.y}px)) rotate(${rotation}deg) scale(${zoom})`,
+                  transformOrigin: "center center",
                 }}
               />
             </div>

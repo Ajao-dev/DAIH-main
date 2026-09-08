@@ -30,7 +30,7 @@ export default function DiscountsPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<
-    "ALL" | "ACTIVE" | "INACTIVE"
+    "ALL" | "ACTIVE" | "INACTIVE" | "EXPIRED"
   >("ALL");
   const [typeFilter, setTypeFilter] = useState<string>("ALL");
 
@@ -41,17 +41,16 @@ export default function DiscountsPage() {
   );
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
+  const isDiscountExpired = (discount: DiscountDTO) => {
+    if (!discount.validUntil) return false;
+    return new Date(discount.validUntil).getTime() < Date.now();
+  };
+
   const fetchDiscounts = useCallback(async () => {
     setIsRefreshing(true);
     try {
       const res = await api.discounts.list({
         search: searchQuery || undefined,
-        isActive:
-          statusFilter === "ACTIVE"
-            ? true
-            : statusFilter === "INACTIVE"
-              ? false
-              : undefined,
         type: typeFilter !== "ALL" ? (typeFilter as DiscountType) : undefined,
         limit: 100,
       });
@@ -66,7 +65,7 @@ export default function DiscountsPage() {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [searchQuery, statusFilter, typeFilter]);
+  }, [searchQuery, typeFilter]);
 
   useEffect(() => {
     fetchDiscounts();
@@ -110,8 +109,26 @@ export default function DiscountsPage() {
     }
   };
 
+  // Filtered list based on status tab
+  const displayedDiscounts = discounts.filter((d) => {
+    const expired = isDiscountExpired(d);
+    if (statusFilter === "ACTIVE") {
+      return d.isActive && !expired;
+    }
+    if (statusFilter === "INACTIVE") {
+      return !d.isActive && !expired;
+    }
+    if (statusFilter === "EXPIRED") {
+      return expired;
+    }
+    return true;
+  });
+
   // Metrics
-  const activeCount = discounts.filter((d) => d.isActive).length;
+  const activeCount = discounts.filter(
+    (d) => d.isActive && !isDiscountExpired(d),
+  ).length;
+  const expiredCount = discounts.filter((d) => isDiscountExpired(d)).length;
   const totalRedemptions = discounts.reduce(
     (acc, d) => acc + (d.currentUsageCount || 0),
     0,
@@ -158,7 +175,7 @@ export default function DiscountsPage() {
               {activeCount}
             </div>
             <div className="text-[11px] text-slate-400">
-              {totalCount} total rules configured
+              {totalCount} total rules ({expiredCount} expired)
             </div>
           </div>
         </div>
@@ -230,7 +247,7 @@ export default function DiscountsPage() {
           </div>
 
           <div className="flex items-center gap-1 border border-[#EBE7F5] rounded-xl p-1 bg-[#FAF9FF]">
-            {(["ALL", "ACTIVE", "INACTIVE"] as const).map((st) => (
+            {(["ALL", "ACTIVE", "INACTIVE", "EXPIRED"] as const).map((st) => (
               <button
                 key={st}
                 onClick={() => setStatusFilter(st)}
@@ -240,7 +257,13 @@ export default function DiscountsPage() {
                     : "text-slate-500 hover:text-slate-900"
                 }`}
               >
-                {st === "ALL" ? "All" : st === "ACTIVE" ? "Active" : "Inactive"}
+                {st === "ALL"
+                  ? "All"
+                  : st === "ACTIVE"
+                    ? "Active"
+                    : st === "INACTIVE"
+                      ? "Inactive"
+                      : "Expired"}
               </button>
             ))}
           </div>
@@ -277,22 +300,29 @@ export default function DiscountsPage() {
           <div className="p-16 text-center text-xs font-semibold text-slate-500">
             Loading promotion rules...
           </div>
-        ) : discounts.length === 0 ? (
+        ) : displayedDiscounts.length === 0 ? (
           <div className="p-16 text-center space-y-3">
             <Tag className="w-10 h-10 text-slate-300 mx-auto" />
             <div className="text-sm font-bold text-slate-700">
               No promotions found
             </div>
             <p className="text-xs text-slate-400 max-w-sm mx-auto">
-              Create your first promo code or automated discount rule to
-              incentivize workspace bookings.
+              {statusFilter === "EXPIRED"
+                ? "No expired promotion rules found."
+                : statusFilter === "ACTIVE"
+                  ? "No active promotion rules currently running."
+                  : statusFilter === "INACTIVE"
+                    ? "No inactive promotion rules found."
+                    : "Create your first promo code or automated discount rule to incentivize workspace bookings."}
             </p>
-            <button
-              onClick={() => setIsCreateOpen(true)}
-              className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#23055c] hover:bg-[#392271] text-white text-xs font-bold transition shadow-xs cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5" /> Create Rule
-            </button>
+            {statusFilter === "ALL" && (
+              <button
+                onClick={() => setIsCreateOpen(true)}
+                className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#23055c] hover:bg-[#392271] text-white text-xs font-bold transition shadow-xs cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" /> Create Rule
+              </button>
+            )}
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -309,7 +339,8 @@ export default function DiscountsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#EBE7F5] text-slate-800">
-                {discounts.map((discount) => {
+                {displayedDiscounts.map((discount) => {
+                  const isExpired = isDiscountExpired(discount);
                   const usagePercent =
                     discount.maxUsageTotal && discount.maxUsageTotal > 0
                       ? Math.min(
@@ -433,29 +464,45 @@ export default function DiscountsPage() {
                         )}
                       </td>
 
-                      <td className="py-3.5 px-4 text-[11px] text-slate-500 font-medium">
+                      <td className="py-3.5 px-4 text-[11px] font-medium">
                         {discount.validUntil ? (
-                          <span>
+                          <span
+                            className={
+                              isExpired
+                                ? "text-rose-600 font-semibold"
+                                : "text-slate-500"
+                            }
+                          >
                             Until{" "}
                             {new Date(discount.validUntil).toLocaleDateString()}
+                            {isExpired && " (Expired)"}
                           </span>
                         ) : (
-                          <span>No expiration</span>
+                          <span className="text-slate-500">No expiration</span>
                         )}
                       </td>
 
                       <td className="py-3.5 px-4 text-center">
-                        <button
-                          type="button"
-                          onClick={() => handleToggleStatus(discount)}
-                          className={`px-3 py-1 rounded-full text-[10px] font-bold transition border cursor-pointer ${
-                            discount.isActive
-                              ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
-                              : "bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200"
-                          }`}
-                        >
-                          {discount.isActive ? "Active" : "Inactive"}
-                        </button>
+                        {isExpired ? (
+                          <span
+                            className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200"
+                            title={`Expired on ${new Date(discount.validUntil!).toLocaleDateString()}`}
+                          >
+                            Expired
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleToggleStatus(discount)}
+                            className={`px-3 py-1 rounded-full text-[10px] font-bold transition border cursor-pointer ${
+                              discount.isActive
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+                                : "bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200"
+                            }`}
+                          >
+                            {discount.isActive ? "Active" : "Inactive"}
+                          </button>
+                        )}
                       </td>
 
                       <td className="py-3.5 px-4 text-right">
