@@ -413,4 +413,111 @@ describe("Discount Engine Unit & Integration Tests", () => {
       expect(DiscountFilterSchema.parse({}).isActive).toBeUndefined();
     });
   });
+
+  describe("6. Automatic Discount Evaluation and Selection", () => {
+    it("should pick the highest-value automatic discount among eligible rules", () => {
+      const rule1 = {
+        id: "auto-1",
+        name: "5% Standard Auto",
+        isAutomatic: true,
+        isActive: true,
+        type: DiscountType.PERCENTAGE,
+        value: 5,
+        validFrom: new Date(Date.now() - 10000),
+        validUntil: null,
+        maxUsageTotal: null,
+        maxUsagePerUser: 5,
+        currentUsageCount: 0,
+        appliesToAll: true,
+        customerEligibility: CustomerEligibility.ALL,
+      };
+
+      const rule2 = {
+        id: "auto-2",
+        name: "15% Flash Auto",
+        isAutomatic: true,
+        isActive: true,
+        type: DiscountType.PERCENTAGE,
+        value: 15,
+        validFrom: new Date(Date.now() - 10000),
+        validUntil: null,
+        maxUsageTotal: null,
+        maxUsagePerUser: 5,
+        currentUsageCount: 0,
+        appliesToAll: true,
+        customerEligibility: CustomerEligibility.ALL,
+      };
+
+      const basePrice = 20000;
+      const candidates = [rule1, rule2];
+      let bestMatch: any = null;
+
+      for (const cand of candidates) {
+        const val = validateDiscountEligibility({
+          discount: cand as any,
+          context: {
+            userId: "user-1",
+            userPriorBookingsCount: 1,
+            userPriorRedemptionsCount: 0,
+            resourceId: "res-1",
+            resourceCategory: ResourceCategory.HOT_DESK,
+            basePrice,
+          },
+        });
+        if (val.valid) {
+          const breakdown = calculatePreTaxDiscount({
+            basePrice,
+            type: cand.type,
+            value: cand.value,
+          });
+          if (
+            !bestMatch ||
+            breakdown.discountAmount > bestMatch.breakdown.discountAmount
+          ) {
+            bestMatch = { discount: cand, breakdown };
+          }
+        }
+      }
+
+      expect(bestMatch).toBeDefined();
+      expect(bestMatch.discount.name).toBe("15% Flash Auto");
+      expect(bestMatch.breakdown.discountAmount).toBe(3000); // 15% of 20,000
+      expect(bestMatch.breakdown.grandTotal).toBe(17000);
+    });
+
+    it("should safely skip ineligible automatic rules and fall back to zero discount", () => {
+      const restrictedRule = {
+        id: "auto-restricted",
+        name: "First-timers Only Auto",
+        isAutomatic: true,
+        isActive: true,
+        type: DiscountType.PERCENTAGE,
+        value: 20,
+        validFrom: new Date(Date.now() - 10000),
+        validUntil: null,
+        maxUsageTotal: null,
+        maxUsagePerUser: 1,
+        currentUsageCount: 0,
+        appliesToAll: true,
+        customerEligibility: CustomerEligibility.FIRST_TIME_ONLY,
+      };
+
+      const basePrice = 10000;
+      // User with 2 prior bookings
+      const val = validateDiscountEligibility({
+        discount: restrictedRule as any,
+        context: {
+          userId: "returning-user",
+          userPriorBookingsCount: 2,
+          userPriorRedemptionsCount: 0,
+          resourceId: "res-1",
+          resourceCategory: ResourceCategory.HOT_DESK,
+          basePrice,
+        },
+      });
+
+      expect(val.valid).toBe(false);
+      expect(val.reason).toMatch(/first-time/i);
+    });
+  });
 });

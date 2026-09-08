@@ -125,9 +125,9 @@ export function validateDiscountEligibility(
     return { valid: false, reason: "This promotion is currently inactive." };
   }
 
-  // 2. Check Validity Date Window
+  // 2. Check Validity Date Window (with 60-second grace for sub-second clock skew on fresh rules)
   const from = new Date(discount.validFrom);
-  if (now < from) {
+  if (now.getTime() + 60000 < from.getTime()) {
     return {
       valid: false,
       reason: `This promotion starts on ${from.toLocaleDateString()}.`,

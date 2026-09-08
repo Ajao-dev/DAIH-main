@@ -1,7 +1,14 @@
 "use client";
 
 import React from "react";
-import { ChevronLeft, ChevronRight, User, Users } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  User,
+  Users,
+  Maximize2,
+} from "lucide-react";
+import { UserPhotoModal } from "../common/UserPhotoModal";
 
 export interface MemberRecord {
   id: string; // Client ID, e.g. DAIH-2026-000042
@@ -40,6 +47,12 @@ export const MemberDirectoryTable: React.FC<MemberDirectoryTableProps> = ({
   onViewMember,
   onViewReferrals,
 }) => {
+  const [previewUserPhoto, setPreviewUserPhoto] = React.useState<{
+    name: string;
+    email?: string;
+    photoUrl: string;
+  } | null>(null);
+
   const totalPages = Math.ceil(totalCount / pageSize) || 1;
   const startRecord = (currentPage - 1) * pageSize + 1;
   const endRecord = Math.min(currentPage * pageSize, totalCount);
@@ -119,13 +132,28 @@ export const MemberDirectoryTable: React.FC<MemberDirectoryTableProps> = ({
                   <td className="p-4">
                     <div className="flex items-center gap-3">
                       {member.avatarUrl ? (
-                        <div className="w-9 h-9 rounded-full bg-slate-100 overflow-hidden border border-slate-200 shrink-0">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPreviewUserPhoto({
+                              name: member.name,
+                              email: member.email,
+                              photoUrl: member.avatarUrl!,
+                            });
+                          }}
+                          className="w-9 h-9 rounded-full bg-slate-100 overflow-hidden border border-slate-200 shrink-0 hover:ring-2 hover:ring-[#23055c] hover:opacity-95 transition-all cursor-pointer group/avatar relative"
+                          title={`Click to view ${member.name}'s photo`}
+                        >
                           <img
                             src={member.avatarUrl}
                             alt={member.name}
                             className="w-full h-full object-cover"
                           />
-                        </div>
+                          <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/avatar:opacity-100 flex items-center justify-center transition-opacity">
+                            <Maximize2 className="w-3.5 h-3.5 text-white" />
+                          </div>
+                        </button>
                       ) : (
                         <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#e9ddff] to-[#cfbdff] text-[#23055c] font-bold text-xs flex items-center justify-center shrink-0 border border-purple-200">
                           {getInitials(member.name)}
@@ -308,6 +336,16 @@ export const MemberDirectoryTable: React.FC<MemberDirectoryTableProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Member Photo Preview Modal */}
+      <UserPhotoModal
+        isOpen={Boolean(previewUserPhoto)}
+        onClose={() => setPreviewUserPhoto(null)}
+        photoUrl={previewUserPhoto?.photoUrl}
+        userName={previewUserPhoto?.name || "Member Photo"}
+        userEmail={previewUserPhoto?.email}
+        userRole="Customer"
+      />
     </div>
   );
 };

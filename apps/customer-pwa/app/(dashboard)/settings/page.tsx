@@ -76,6 +76,9 @@ export default function CustomerSettingsPage() {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
+  // Remove Avatar Confirmation State
+  const [showDeleteAvatarModal, setShowDeleteAvatarModal] = useState(false);
+
   // Sync state when user profile loads
   useEffect(() => {
     if (user) {
@@ -357,25 +360,15 @@ export default function CustomerSettingsPage() {
 
   return (
     <div className="space-y-8 max-w-4xl mx-auto pb-12 w-full">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider bg-purple-50 text-[#23055c] px-2.5 py-0.5 rounded-full">
-              Account Center
-            </span>
-            <span className="text-xs text-slate-500 font-medium">
-              Profile & Security
-            </span>
+      {/* Top Header: Account Settings label (Far Left) & Member ID Badge (Far Right) */}
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-2.5">
+          <div className="p-1.5 sm:p-2 rounded-xl bg-purple-50 text-[#23055c] border border-purple-100 shrink-0">
+            <User className="w-4 h-4 sm:w-5 sm:h-5 text-[#23055c]" />
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2.5">
-            <User className="w-8 h-8 text-[#23055c]" />
-            Profile & Account Settings
+          <h1 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
+            Account Settings
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Manage your personal profile details, profile picture, credentials,
-            and preferences.
-          </p>
         </div>
 
         {/* Member ID Badge */}
@@ -383,7 +376,7 @@ export default function CustomerSettingsPage() {
           <button
             onClick={copyClientId}
             title="Click to copy Member ID"
-            className="flex items-center gap-2 px-3.5 py-2 bg-white rounded-xl border border-[#EBE7F5] shadow-xs hover:border-[#23055c] transition-colors cursor-pointer self-start sm:self-auto"
+            className="flex items-center gap-2 px-3.5 py-2 bg-white rounded-xl border border-[#EBE7F5] shadow-xs hover:border-[#23055c] transition-colors cursor-pointer shrink-0"
           >
             <div className="text-left">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
@@ -403,7 +396,7 @@ export default function CustomerSettingsPage() {
       </div>
 
       {/* Full-Width Profile Picture Card */}
-      <div className="w-full bg-white rounded-2xl p-6 sm:p-7 border border-[#EBE7F5] shadow-xs space-y-4">
+      <div className="w-full bg-white rounded-2xl p-6 sm:p-7 border border-[#EBE7F5] shadow-xs space-y-5">
         <div className="flex items-center gap-2.5 border-b border-slate-100 pb-3">
           <Camera className="w-5 h-5 text-[#23055c]" />
           <h2 className="font-bold text-sm text-slate-900">Profile Picture</h2>
@@ -423,48 +416,46 @@ export default function CustomerSettingsPage() {
           </div>
         )}
 
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
-          <div className="flex flex-col sm:flex-row items-center gap-5 text-center sm:text-left">
-            <div className="relative group shrink-0">
-              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden bg-gradient-to-br from-[#23055c] to-[#392271] text-white flex items-center justify-center font-extrabold text-xl sm:text-2xl shadow-md border-2 border-purple-200/80">
-                {resolvedAvatar && !avatarLoadError ? (
-                  <img
-                    key={resolvedAvatar}
-                    src={resolvedAvatar}
-                    alt={`${user?.firstName} ${user?.lastName}`}
-                    className="w-full h-full object-cover"
-                    onError={() => setAvatarLoadError(true)}
-                  />
-                ) : (
-                  <span>
-                    {user?.firstName?.[0] || "M"}
-                    {user?.lastName?.[0] || ""}
-                  </span>
-                )}
-              </div>
-              {isUploadingAvatar && (
-                <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center">
-                  <Loader2 className="w-7 h-7 text-white animate-spin" />
-                </div>
+        <div className="flex flex-col items-center justify-center text-center py-2 space-y-4">
+          <div className="relative group shrink-0">
+            <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden bg-gradient-to-br from-[#23055c] to-[#392271] text-white flex items-center justify-center font-extrabold text-2xl sm:text-3xl shadow-md border-3 border-purple-200/80">
+              {resolvedAvatar && !avatarLoadError ? (
+                <img
+                  key={resolvedAvatar}
+                  src={resolvedAvatar}
+                  alt={`${user?.firstName} ${user?.lastName}`}
+                  className="w-full h-full object-cover"
+                  onError={() => setAvatarLoadError(true)}
+                />
+              ) : (
+                <span>
+                  {user?.firstName?.[0] || "M"}
+                  {user?.lastName?.[0] || ""}
+                </span>
               )}
             </div>
-
-            <div className="space-y-1">
-              <h3 className="text-sm font-bold text-slate-900">
-                Your Avatar & Photo
-              </h3>
-              <div className="flex items-center justify-center sm:justify-start gap-2 pt-1">
-                <span className="text-[10px] font-semibold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md">
-                  JPG, PNG, WebP
-                </span>
-                <span className="text-[10px] font-semibold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md">
-                  Max 10MB
-                </span>
+            {isUploadingAvatar && (
+              <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center">
+                <Loader2 className="w-8 h-8 text-white animate-spin" />
               </div>
+            )}
+          </div>
+
+          <div className="space-y-1">
+            <h3 className="text-sm font-bold text-slate-900">
+              Your Avatar &amp; Photo
+            </h3>
+            <div className="flex items-center justify-center gap-2 pt-0.5">
+              <span className="text-[10px] font-semibold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md">
+                JPG, PNG, WebP
+              </span>
+              <span className="text-[10px] font-semibold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md">
+                Max 10MB
+              </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 shrink-0 w-full sm:w-auto justify-center">
+          <div className="flex flex-wrap items-center gap-2.5 justify-center pt-1">
             <input
               type="file"
               ref={fileInputRef}
@@ -485,9 +476,9 @@ export default function CustomerSettingsPage() {
             {resolvedAvatar && (
               <button
                 type="button"
-                onClick={handleDeleteAvatar}
+                onClick={() => setShowDeleteAvatarModal(true)}
                 disabled={isUploadingAvatar}
-                className="px-3.5 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-xs rounded-xl border border-rose-200 transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                className="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-xs rounded-xl border border-rose-200 transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
               >
                 <Trash2 className="w-4 h-4" />
                 <span>Remove</span>
@@ -907,6 +898,54 @@ export default function CustomerSettingsPage() {
                   </>
                 ) : (
                   <span>Yes, Log Out</span>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Avatar Confirmation Modal */}
+      {showDeleteAvatarModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-slate-100 space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mx-auto">
+              <Trash2 className="w-6 h-6" />
+            </div>
+            <div className="text-center space-y-1.5">
+              <h3 className="text-base font-bold text-slate-900">
+                Remove Profile Picture?
+              </h3>
+              <p className="text-xs text-slate-500">
+                Are you sure you want to remove your profile picture? Your
+                initials will be displayed instead.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowDeleteAvatarModal(false)}
+                disabled={isUploadingAvatar}
+                className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs hover:bg-slate-50 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  await handleDeleteAvatar();
+                  setShowDeleteAvatarModal(false);
+                }}
+                disabled={isUploadingAvatar}
+                className="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs transition-colors flex items-center justify-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50"
+              >
+                {isUploadingAvatar ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Removing...</span>
+                  </>
+                ) : (
+                  <span>Yes, Remove</span>
                 )}
               </button>
             </div>

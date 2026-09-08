@@ -16,14 +16,18 @@ export const CreateDiscountSchema = z
     code: z
       .string()
       .trim()
-      .min(3, "Promo code must be at least 3 characters")
-      .max(30, "Promo code must not exceed 30 characters")
-      .regex(
-        /^[A-Za-z0-9_-]+$/,
-        "Promo code must contain only alphanumeric characters, dashes, or underscores",
-      )
-      .transform(normalizeCode)
-      .optional(),
+      .optional()
+      .nullable()
+      .transform((val) => (val && val.trim() ? normalizeCode(val) : undefined))
+      .refine(
+        (val) =>
+          !val ||
+          (val.length >= 3 && val.length <= 30 && /^[A-Za-z0-9_-]+$/.test(val)),
+        {
+          message:
+            "Promo code must be between 3 and 30 characters and contain only alphanumeric characters, dashes, or underscores",
+        },
+      ),
     name: z
       .string()
       .trim()
@@ -213,7 +217,12 @@ export const UpdateDiscountSchema = z
   );
 
 export const PreviewDiscountSchema = z.object({
-  code: z.string().trim().transform(normalizeCode).optional(),
+  code: z
+    .string()
+    .trim()
+    .optional()
+    .nullable()
+    .transform((val) => (val && val.trim() ? normalizeCode(val) : undefined)),
   resourceId: z.string().trim().min(1, "Resource ID is required"),
   planId: z.string().trim().optional(),
   startTime: z.string().datetime({ message: "Valid ISO startTime required" }),

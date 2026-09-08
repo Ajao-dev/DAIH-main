@@ -127,6 +127,7 @@ export interface DiscountPreviewResponseDTO {
   eligible: boolean;
   code?: string;
   name?: string;
+  discountId?: string;
   discountType?: DiscountType;
   discountValue?: number;
   basePrice: number;
@@ -136,6 +137,7 @@ export interface DiscountPreviewResponseDTO {
   grandTotal: number;
   currency: string;
   reason?: string;
+  isAutomatic?: boolean;
 }
 
 export interface ApplyCourtesyDiscountDTO {
