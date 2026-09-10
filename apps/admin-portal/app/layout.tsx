@@ -7,6 +7,9 @@ export const metadata: Metadata = {
   title: "DAIH Workspace - Admin Operations Dashboard",
   description:
     "Manage workspaces, live schedules, bookings, revenue ledger, and audit logs.",
+  icons: {
+    icon: "/images/icon.png",
+  },
 };
 
 export default function RootLayout({
@@ -17,6 +20,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="light" suppressHydrationWarning>
       <head>
+        <link rel="icon" href="/images/icon.png" type="image/png" sizes="any" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
           rel="preconnect"

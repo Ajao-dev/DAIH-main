@@ -6,6 +6,9 @@ export const metadata: Metadata = {
   title: "DAIH Workspace — Reception & Access Scanner",
   description:
     "Fast QR scanner, check-in, check-out, and access validation terminal for DAIH Officers.",
+  icons: {
+    icon: "/images/icon.png",
+  },
 };
 
 export default function RootLayout({
@@ -16,6 +19,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="light" suppressHydrationWarning>
       <head>
+        <link rel="icon" href="/images/icon.png" type="image/png" sizes="any" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
           rel="preconnect"
