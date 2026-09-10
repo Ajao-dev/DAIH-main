@@ -959,3 +959,17 @@ footer.footer-light a:hover {
   }
 }
 
+/* -------------------------------------------------------
+   Suppress the FontAwesome dropdown arrow that
+   designesia.js injects via .has-child::after — this
+   duplicates the custom SVG chevron already in the JSX.
+------------------------------------------------------- */
+#mainmenu li.has-child::after,
+#mainmenu li.has-child:after,
+header.smaller.scroll-light #mainmenu li.has-child::after,
+header.smaller.scroll-light #mainmenu li.has-child:after,
+.header-light #mainmenu li.has-child::after,
+.header-light #mainmenu li.has-child:after {
+  display: none !important;
+  content: none !important;
+}

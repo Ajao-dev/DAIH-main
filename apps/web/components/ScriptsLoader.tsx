@@ -23,9 +23,37 @@ export const ScriptsLoader = () => {
       "/js/designesia.js",
     ];
 
+    // Suppress the "t.lazy is not a function" jQuery plugin error that can fire
+    // when designesia.js calls $().lazy() before the plugin is fully attached.
+    const originalOnError = window.onerror;
+    window.onerror = (message, source, lineno, colno, error) => {
+      if (
+        typeof message === "string" &&
+        message.includes("lazy is not a function")
+      ) {
+        return true; // suppress without crashing
+      }
+      return originalOnError
+        ? (originalOnError as any)(message, source, lineno, colno, error)
+        : false;
+    };
+
     let current = 0;
     const loadNext = () => {
-      if (current >= scripts.length) return;
+      if (current >= scripts.length) {
+        // After all scripts are loaded, manually trigger lazy-image init
+        // if the plugin attached successfully, so images render properly.
+        try {
+          const $ = (window as any).jQuery || (window as any).$;
+          if ($ && typeof $.fn?.lazy === "function") {
+            $("img.lazy").lazy();
+          }
+        } catch {
+          // intentionally suppressed — lazy images are non-critical
+        }
+        return;
+      }
+
       const src = scripts[current];
       current++;
 
@@ -42,6 +70,11 @@ export const ScriptsLoader = () => {
     };
 
     loadNext();
+
+    return () => {
+      // Restore original error handler on unmount
+      window.onerror = originalOnError;
+    };
   }, []);
 
   return null;

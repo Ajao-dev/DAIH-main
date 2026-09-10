@@ -39,3 +39,27 @@
 .animate-pulse-glow {
   animation: pulseGlow 2.5s infinite ease-in-out;
 }
+
+/* ── Themed Scrollbar ───────────────────────────────────── */
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #392271 #ebe7f5;
+}
+
+/* Chrome / Safari / Edge */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #ebe7f5;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb {
+  background: #392271;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #23055c;
+}

@@ -100,3 +100,27 @@ a.btn-main:hover,
     display: none !important;
   }
 }
+
+/* ── Themed Scrollbar ───────────────────────────────────── */
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #220563 #e8e4f0;
+}
+
+/* Chrome / Safari / Edge */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #e8e4f0;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb {
+  background: #220563;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #35089e;
+}

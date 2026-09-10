@@ -6,7 +6,6 @@ import { api } from "@daih/api-client";
 import { FacilityResource } from "@daih/types";
 
 export default function HomePage() {
-  const [isMonthly, setIsMonthly] = useState(false);
   const [resources, setResources] = useState<FacilityResource[]>([]);
 
   useEffect(() => {
@@ -20,44 +19,20 @@ export default function HomePage() {
       .catch(() => {});
   }, []);
 
-  const getPlanPrice = (
-    slugKeywords: string[],
-    isMonth: boolean,
-    fallbackDaily: number,
-    fallbackMonthly: number,
-  ) => {
+  const getPlanPrice = (slugKeywords: string[], fallbackDaily: number) => {
     const res = resources.find((r) =>
       slugKeywords.some((k) => (r.slug || r.name).toLowerCase().includes(k)),
     );
-    if (!res)
-      return isMonth
-        ? fallbackMonthly.toLocaleString()
-        : fallbackDaily.toLocaleString();
+    if (!res) return fallbackDaily.toLocaleString();
 
-    if (isMonth) {
-      const monthPlan = res.pricing?.find((p) => p.durationMonths === 1);
-      const price = monthPlan?.price || res.monthlyRate || fallbackMonthly;
-      return Number(price).toLocaleString();
-    } else {
-      const dailyPlan = res.pricing?.find((p) => p.durationDays === 1);
-      const price = dailyPlan?.price || res.dailyRate || fallbackDaily;
-      return Number(price).toLocaleString();
-    }
+    const dailyPlan = res.pricing?.find((p) => p.durationDays === 1);
+    const price = dailyPlan?.price || res.dailyRate || fallbackDaily;
+    return Number(price).toLocaleString();
   };
 
-  const flexDeskPrice = getPlanPrice(["flex", "hot"], isMonthly, 4000, 60000);
-  const dedicatedDeskPrice = getPlanPrice(
-    ["dedicated"],
-    isMonthly,
-    6000,
-    68000,
-  );
-  const officeSuitePrice = getPlanPrice(
-    ["office", "suite", "private"],
-    isMonthly,
-    8000,
-    180000,
-  );
+  const flexDeskPrice = getPlanPrice(["flex", "hot"], 4000);
+  const dedicatedDeskPrice = getPlanPrice(["dedicated"], 6000);
+  const officeSuitePrice = getPlanPrice(["office", "suite", "private"], 8000);
 
   return (
     <>
@@ -235,30 +210,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Pricing Duration Toggle */}
-          <div className="row">
-            <div className="col text-center">
-              <div className="switch-set">
-                <div className={!isMonthly ? "text-primary font-bold" : ""}>
-                  Daily
-                </div>
-                <div>
-                  <input
-                    id="sw-1"
-                    className="switch"
-                    type="checkbox"
-                    checked={isMonthly}
-                    onChange={(e) => setIsMonthly(e.target.checked)}
-                  />
-                </div>
-                <div className={isMonthly ? "text-primary font-bold" : ""}>
-                  Monthly
-                </div>
-                <div className="spacer-20"></div>
-              </div>
-            </div>
-          </div>
-
+          {/* Pricing Cards */}
           <div className="item pricing">
             <div className="row">
               {/* Flex Desk */}
@@ -275,9 +227,7 @@ export default function HomePage() {
                     <p className="price">
                       <span className="currency">₦</span>
                       <span className="m opt-1">{flexDeskPrice}</span>
-                      <span className="month">
-                        {isMonthly ? "/month" : "/day"}
-                      </span>
+                      <span className="month">/day</span>
                     </p>
                   </div>
 
@@ -333,9 +283,7 @@ export default function HomePage() {
                     <p className="price">
                       <span className="currency">₦</span>
                       <span className="m opt-1">{dedicatedDeskPrice}</span>
-                      <span className="month">
-                        {isMonthly ? "/month" : "/day"}
-                      </span>
+                      <span className="month">/day</span>
                     </p>
                   </div>
 
@@ -390,9 +338,7 @@ export default function HomePage() {
                     <p className="price">
                       <span className="currency">₦</span>
                       <span className="m opt-1">{officeSuitePrice}</span>
-                      <span className="month">
-                        {isMonthly ? "/month" : "/day"}
-                      </span>
+                      <span className="month">/day</span>
                     </p>
                   </div>
 
