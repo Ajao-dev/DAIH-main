@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useAuth } from "@daih/api-client";
 import { resolveAvatarUrl } from "../../lib/image-utils";
+import { NotificationDropdown, useNotifications } from "../notifications";
 import { Bell, HelpCircle, Menu } from "lucide-react";
 
 interface TopAppBarProps {
@@ -16,11 +17,29 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
   onMobileMenuToggle,
 }) => {
   const { user } = useAuth();
+  const { isOpen, toggle, close, unreadCount } = useNotifications();
   const [avatarError, setAvatarError] = useState(false);
+  const notificationMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     setAvatarError(false);
   }, [user?.avatarUrl]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (
+        notificationMenuRef.current &&
+        !notificationMenuRef.current.contains(event.target as Node)
+      ) {
+        close();
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [close, isOpen]);
 
   const resolvedAvatar = resolveAvatarUrl(user?.avatarUrl);
 
@@ -54,12 +73,23 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
       <div className="flex items-center gap-3 sm:gap-6">
         {/* Action Controls */}
         <div className="flex items-center gap-2 sm:gap-3">
-          <button
-            title="Notifications"
-            className="w-8 h-8 rounded-full flex items-center justify-center text-slate-500 hover:text-[#23055c] hover:bg-slate-100 transition cursor-pointer"
-          >
-            <Bell className="w-4 h-4" />
-          </button>
+          <div ref={notificationMenuRef} className="relative">
+            <button
+              title="Notifications"
+              onClick={toggle}
+              aria-haspopup="dialog"
+              aria-expanded={isOpen}
+              className="relative w-8 h-8 rounded-full flex items-center justify-center text-slate-500 hover:text-[#23055c] hover:bg-slate-100 transition cursor-pointer"
+            >
+              <Bell className="w-4 h-4" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-[#23055c] text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white shadow-xs leading-none pointer-events-none">
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </span>
+              )}
+            </button>
+            <NotificationDropdown />
+          </div>
 
           <Link
             href="/support"

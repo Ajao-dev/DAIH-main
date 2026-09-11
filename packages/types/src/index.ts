@@ -9,3 +9,4 @@ export * from "./auth.types";
 export * from "./legal.types";
 export * from "./discount.types";
 export * from "./support.types";
+export * from "./notification.types";
