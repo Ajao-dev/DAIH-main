@@ -1,5 +1,6 @@
 import { OutboxEvent } from "@prisma/client";
 import { enqueueNotification } from "../../notifications/notifications.queue.js";
+import { notificationsService } from "../../notifications/notifications.service.js";
 import { outboxService } from "../outbox.service.js";
 import { prisma } from "../../../db/client.js";
 
@@ -7,6 +8,8 @@ export async function handleAccessAndBookingEvents(
   event: OutboxEvent,
 ): Promise<void> {
   const payload = event.payload as any;
+
+  await notificationsService.createFromOutboxEvent(event);
 
   switch (event.eventType) {
     case "access.checked_in": {

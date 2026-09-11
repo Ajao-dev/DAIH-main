@@ -134,6 +134,7 @@ model User {
   resetTokens        PasswordResetToken[]
   mfaOtpTokens       MfaOtpToken[]
   auditLogs          AuditLog[]
+  notifications      Notification[]
   visitSessions      VisitSession[]
   customerDiscountRedemptions DiscountRedemption[]    @relation("CustomerDiscountRedemptions")
   staffDiscountRedemptions    DiscountRedemption[]    @relation("StaffDiscountRedemptions")
@@ -256,6 +257,26 @@ model OutboxEvent {
 
   @@index([status, scheduledAt])
   @@map("outbox_events")
+}
+
+model Notification {
+  id            String    @id @default(uuid())
+  userId        String
+  type          String
+  title         String
+  message       String
+  linkHref      String?
+  metadata      Json?
+  sourceEventId String?   @unique
+  readAt        DateTime?
+  archivedAt    DateTime?
+  createdAt     DateTime  @default(now())
+
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt, createdAt])
+  @@index([userId, archivedAt, createdAt])
+  @@map("notifications")
 }
 
 model FacilityResource {
@@ -593,4 +614,14 @@ model LegalPolicy {
   updatedBy     String?   @map("updated_by") @db.VarChar(64)
 
   @@map("legal_policies")
+}
+
+model SupportSetting {
+  id        String   @id @default("default") @db.VarChar(64)
+  contact   Json     @db.JsonB
+  faqs      Json     @db.JsonB
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+  updatedBy String?  @map("updated_by") @db.VarChar(64)
+
+  @@map("support_settings")
 }

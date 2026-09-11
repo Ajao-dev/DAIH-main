@@ -65,6 +65,9 @@ import {
   DiscountListResponse,
   SupportSettingsRecord,
   UpdateSupportSettingsDTO,
+  NotificationDTO,
+  NotificationListResponse,
+  NotificationUnreadCountResponse,
 } from "@daih/types";
 import { apiCacheManager } from "./cache";
 
@@ -1429,6 +1432,43 @@ export class DaihApiClient {
       apiCacheManager.invalidate("support");
       return res;
     },
+  };
+
+  // In-App Notifications API
+  public notifications = {
+    list: (options?: { limit?: number; cursor?: string }) => {
+      const params = new URLSearchParams();
+      if (options?.limit) params.set("limit", String(options.limit));
+      if (options?.cursor) params.set("cursor", options.cursor);
+      const queryStr = params.toString() ? `?${params.toString()}` : "";
+
+      return this.request<NotificationListResponse>(
+        `/notifications${queryStr}`,
+      );
+    },
+
+    getUnreadCount: () =>
+      this.request<NotificationUnreadCountResponse>(
+        "/notifications/unread-count",
+      ),
+
+    markRead: (id: string) =>
+      this.request<NotificationDTO>(`/notifications/${id}/read`, {
+        method: "PATCH",
+      }),
+
+    markAllRead: () =>
+      this.request<{ success: boolean; unreadCount: number }>(
+        "/notifications/read-all",
+        {
+          method: "PATCH",
+        },
+      ),
+
+    archive: (id: string) =>
+      this.request<NotificationDTO>(`/notifications/${id}/archive`, {
+        method: "PATCH",
+      }),
   };
 
   /**

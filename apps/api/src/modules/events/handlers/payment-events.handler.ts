@@ -1,9 +1,12 @@
 import { OutboxEvent } from "@prisma/client";
 import { emailService } from "../../email/email.service.js";
+import { notificationsService } from "../../notifications/notifications.service.js";
 import { outboxService } from "../outbox.service.js";
 
 export async function handlePaymentEvents(event: OutboxEvent): Promise<void> {
   const payload = event.payload as any;
+
+  await notificationsService.createFromOutboxEvent(event);
 
   switch (event.eventType) {
     case "payment.successful": {
@@ -21,6 +24,11 @@ export async function handlePaymentEvents(event: OutboxEvent): Promise<void> {
       break;
     }
 
+    case "payment.failed":
+    case "payment.capacity_conflict": {
+      break;
+    }
+
     default:
       break;
   }
@@ -28,3 +36,5 @@ export async function handlePaymentEvents(event: OutboxEvent): Promise<void> {
 
 // Register payment event handlers with outbox dispatcher
 outboxService.registerHandler("payment.successful", handlePaymentEvents);
+outboxService.registerHandler("payment.failed", handlePaymentEvents);
+outboxService.registerHandler("payment.capacity_conflict", handlePaymentEvents);

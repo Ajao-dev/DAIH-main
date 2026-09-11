@@ -18,6 +18,8 @@ import { debugRouter } from "./modules/debug/debug.routes.js";
 import { legalRouter } from "./modules/legal/legal.routes.js";
 import { discountRouter } from "./modules/discounts/discount.routes.js";
 import { supportRouter } from "./modules/support/support.routes.js";
+import { notificationsRouter } from "./modules/notifications/notifications.routes.js";
+import { swaggerRouter } from "./modules/docs/swagger.routes.js";
 import path from "node:path";
 import fs from "node:fs";
 import { errorHandler } from "./middleware/error-handler.middleware.js";
@@ -192,8 +194,13 @@ app.use("/api/v1/access", accessRouter);
 app.use("/api/v1/email-templates", emailTemplateRoutes);
 app.use("/api/v1/policies", legalRouter);
 app.use("/api/v1/support", supportRouter);
+app.use("/api/v1/notifications", notificationsRouter);
 app.use("/api/v1/reports", reportsRouter);
 app.use("/api/v1/debug", debugRouter);
+
+// Interactive Swagger OpenAPI Documentation
+app.use("/api-docs", swaggerRouter);
+app.use("/api/v1/docs", swaggerRouter);
 
 // Centralized error handler
 app.use(errorHandler);
