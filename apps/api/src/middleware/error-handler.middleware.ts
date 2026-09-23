@@ -42,7 +42,7 @@ export const errorHandler = (
 
   // Identify database / connection / infrastructure / redis / upstash failure signatures for 500s
   const isDbOrInternalError =
-    statusCode >= 500 ||
+    statusCode >= 500 &&
     /prisma|database|connection|econnrefused|econnreset|etimedout|pooler|neon|postgres|pg_|redis|upstash|ioredis|max requests|limit exceeded|quota|socket/i.test(
       `${err.name || ""} ${rawMessage} ${err.stack || ""}`,
     );
@@ -58,7 +58,7 @@ export const errorHandler = (
   let clientMessage: string;
   let clientDetails: any = undefined;
 
-  if (isDbOrInternalError || statusCode >= 500) {
+  if (isDbOrInternalError) {
     clientMessage =
       "Service temporarily unavailable. Please try again shortly.";
   } else {
